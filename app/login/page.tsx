@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
@@ -16,11 +14,12 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     setLoading(true);
-    setMessage("Login button clicked...");
+    setMessage("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -32,10 +31,9 @@ export default function LoginPage() {
       }
 
       setMessage("Login successful. Redirecting...");
-      console.log("LOGIN SUCCESS", data);
 
-      router.push("/dashboard");
-      router.refresh();
+      // IMPORTANT: use full reload so session is picked up
+      window.location.href = "/dashboard";
     } catch (err) {
       console.error(err);
       setMessage("Unexpected error during login.");
@@ -97,7 +95,10 @@ export default function LoginPage() {
 
         <p className="text-sm text-slate-600 text-center mt-6">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-blue-600 hover:underline">
+          <Link
+            href="/signup"
+            className="font-medium text-blue-600 hover:underline"
+          >
             Sign up
           </Link>
         </p>
