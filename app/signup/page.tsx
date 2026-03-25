@@ -31,16 +31,20 @@ export default function SignupPage() {
       },
     });
 
+    // ✅ DEBUG LOG (VERY IMPORTANT)
+    console.log("SIGNUP_RESULT:", { data, error });
+
+    // ❌ Case 1: Explicit error (duplicate user etc.)
     if (error) {
       const msg = error.message.toLowerCase();
 
       if (msg.includes("already")) {
-        setError("User already registered.");
+        setError("User already registered. Redirecting to login...");
         setLoading(false);
 
         setTimeout(() => {
           window.location.href = "/login";
-        }, 1000);
+        }, 1200);
 
         return;
       }
@@ -50,14 +54,21 @@ export default function SignupPage() {
       return;
     }
 
+    // ⚠️ Case 2: No session returned (Supabase hides duplicate users sometimes)
     if (!data.session) {
       setInfo(
-        "Account created or already exists. Please check your email for confirmation, or login if you already have an account."
+        "Account created or already exists. Please check your email or login."
       );
       setLoading(false);
+
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1500);
+
       return;
     }
 
+    // ✅ Case 3: Successful signup
     setLoading(false);
     window.location.href = "/login";
   };
@@ -123,6 +134,7 @@ export default function SignupPage() {
         {loading ? "Creating..." : "Create account"}
       </button>
 
+      {/* ❌ Error message */}
       {error && (
         <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}{" "}
@@ -132,6 +144,7 @@ export default function SignupPage() {
         </div>
       )}
 
+      {/* ℹ️ Info message */}
       {info && (
         <div className="mt-4 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-700">
           {info}{" "}
@@ -141,6 +154,7 @@ export default function SignupPage() {
         </div>
       )}
 
+      {/* Always show login option */}
       <p className="text-sm mt-4 text-gray-500">
         Already have an account?{" "}
         <Link href="/login" className="text-blue-600 underline">
