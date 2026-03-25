@@ -12,26 +12,35 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [message, setMessage] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg("");
+    setMessage("Login button clicked...");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setErrorMsg(error.message);
+      if (error) {
+        setMessage(`Login failed: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      setMessage("Login successful. Redirecting...");
+      console.log("LOGIN SUCCESS", data);
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      setMessage("Unexpected error during login.");
       setLoading(false);
-      return;
     }
-
-    router.push("/dashboard");
-    router.refresh();
   };
 
   return (
@@ -73,7 +82,9 @@ export default function LoginPage() {
             />
           </div>
 
-          {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
+          {message && (
+            <p className="text-sm text-red-600">{message}</p>
+          )}
 
           <button
             type="submit"
