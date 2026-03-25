@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [fullName, setFullName] = useState("");
@@ -14,13 +12,15 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [district, setDistrict] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
     setError("");
+    setInfo("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -35,11 +35,11 @@ export default function SignupPage() {
       const msg = error.message.toLowerCase();
 
       if (msg.includes("already")) {
-        setError("User already registered. Redirecting to login...");
+        setError("User already registered.");
         setLoading(false);
 
         setTimeout(() => {
-          router.push("/login");
+          window.location.href = "/login";
         }, 1000);
 
         return;
@@ -50,8 +50,18 @@ export default function SignupPage() {
       return;
     }
 
+    // Supabase can sometimes avoid revealing whether a user already exists.
+    // In that case, don't assume it is a brand-new signup.
+    if (!data.session) {
+      setInfo(
+        "Account created or already exists. Please check your email for confirmation, or login if you already have an account."
+      );
+      setLoading(false);
+      return;
+    }
+
     setLoading(false);
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   return (
@@ -116,8 +126,20 @@ export default function SignupPage() {
       </button>
 
       {error && (
+        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}{" "}
+          <Link href="/login" className="underline font-medium">
+            Please login
+          </Link>
+        </div>
+      )}
+
+      {info && (
         <div className="mt-4 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-700">
-          {error}
+          {info}{" "}
+          <Link href="/login" className="underline font-medium text-blue-600">
+            Login
+          </Link>
         </div>
       )}
 
