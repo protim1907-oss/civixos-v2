@@ -50,8 +50,6 @@ export default function SignupPage() {
       return;
     }
 
-    // Supabase can sometimes avoid revealing whether a user already exists.
-    // In that case, don't assume it is a brand-new signup.
     if (!data.session) {
       setInfo(
         "Account created or already exists. Please check your email for confirmation, or login if you already have an account."
