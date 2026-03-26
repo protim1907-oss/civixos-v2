@@ -23,12 +23,60 @@ type Issue = {
   description: string;
   status: string;
   created_at: string;
+  toxicity_score: number | null;
+  spam_score: number | null;
+  misinformation_score: number | null;
+  moderation_action: string | null;
 };
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 );
+
+function getStatusBadgeClasses(status: string) {
+  if (status === "Open") {
+    return "bg-green-100 text-green-700 border-green-200";
+  }
+
+  if (status === "Under Review") {
+    return "bg-amber-100 text-amber-700 border-amber-200";
+  }
+
+  if (status === "Blocked") {
+    return "bg-red-100 text-red-700 border-red-200";
+  }
+
+  if (status === "Resolved") {
+    return "bg-blue-100 text-blue-700 border-blue-200";
+  }
+
+  return "bg-slate-100 text-slate-700 border-slate-200";
+}
+
+function getModerationBadgeClasses(action: string | null) {
+  if (action === "Approve") {
+    return "bg-green-50 text-green-700 border-green-200";
+  }
+
+  if (action === "Review") {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+
+  if (action === "Block") {
+    return "bg-red-50 text-red-700 border-red-200";
+  }
+
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
+function formatModerationAction(action: string | null) {
+  if (!action) return "Not Reviewed";
+  if (action === "Approve") return "AI Approved";
+  if (action === "Review") return "AI Flagged";
+  if (action === "Block") return "AI Blocked";
+  return action;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -84,14 +132,26 @@ export default function DashboardPage() {
 
       const { data: issuesData, error: issuesError } = await supabase
         .from("issues")
-        .select("id, title, description, status, created_at")
+        .select(
+          `
+          id,
+          title,
+          description,
+          status,
+          created_at,
+          toxicity_score,
+          spam_score,
+          misinformation_score,
+          moderation_action
+        `
+        )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (issuesError) {
         console.error("Issues error:", issuesError.message);
       } else {
-        setIssues(issuesData || []);
+        setIssues((issuesData as Issue[]) || []);
       }
 
       setLoading(false);
@@ -189,7 +249,7 @@ export default function DashboardPage() {
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-slate-700">No recent activity yet.</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Once you create posts or civic issues, they will appear here.
+                  Once you create civic issues, they will appear here.
                 </p>
               </div>
             ) : (
@@ -199,8 +259,8 @@ export default function DashboardPage() {
                     key={issue.id}
                     className="rounded-xl border border-slate-200 bg-slate-50 p-4"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex-1">
                         <h3 className="font-semibold text-slate-900">
                           {issue.title}
                         </h3>
@@ -209,12 +269,60 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                        {issue.status}
-                      </span>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getStatusBadgeClasses(
+                            issue.status
+                          )}`}
+                        >
+                          {issue.status}
+                        </span>
+
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getModerationBadgeClasses(
+                            issue.moderation_action
+                          )}`}
+                        >
+                          {formatModerationAction(issue.moderation_action)}
+                        </span>
+                      </div>
                     </div>
 
-                    <p className="mt-3 text-xs text-slate-500">
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border border-slate-200 bg-white p-3">
+                        <p className="text-xs text-slate-500">Toxicity</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {issue.toxicity_score !== null &&
+                          issue.toxicity_score !== undefined
+                            ? `${Math.round(issue.toxicity_score * 100)}%`
+                            : "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-white p-3">
+                        <p className="text-xs text-slate-500">Spam Risk</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {issue.spam_score !== null &&
+                          issue.spam_score !== undefined
+                            ? `${Math.round(issue.spam_score * 100)}%`
+                            : "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 bg-white p-3">
+                        <p className="text-xs text-slate-500">
+                          Misinformation
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {issue.misinformation_score !== null &&
+                          issue.misinformation_score !== undefined
+                            ? `${Math.round(issue.misinformation_score * 100)}%`
+                            : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-xs text-slate-500">
                       {new Date(issue.created_at).toLocaleString()}
                     </p>
                   </div>
