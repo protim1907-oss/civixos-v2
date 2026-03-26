@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 type Issue = {
-  id: number;
+  id: string;
   title: string;
   description: string;
   status: string;
@@ -17,44 +17,42 @@ type Issue = {
   moderation_action: string | null;
 };
 
+type IssueVote = {
+  id: number;
+  issue_id: string;
+  user_id: string;
+};
+
+type IssueComment = {
+  id: number;
+  issue_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+};
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 );
 
 function getStatusBadgeClasses(status: string) {
-  if (status === "Open") {
+  if (status === "Open")
     return "bg-green-100 text-green-700 border-green-200";
-  }
-
-  if (status === "Under Review") {
+  if (status === "Under Review")
     return "bg-amber-100 text-amber-700 border-amber-200";
-  }
-
-  if (status === "Resolved") {
+  if (status === "Resolved")
     return "bg-blue-100 text-blue-700 border-blue-200";
-  }
-
-  if (status === "Blocked") {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
   return "bg-slate-100 text-slate-700 border-slate-200";
 }
 
 function getModerationBadgeClasses(action: string | null) {
-  if (action === "Approve") {
+  if (action === "Approve")
     return "bg-green-50 text-green-700 border-green-200";
-  }
-
-  if (action === "Review") {
+  if (action === "Review")
     return "bg-amber-50 text-amber-700 border-amber-200";
-  }
-
-  if (action === "Block") {
+  if (action === "Block")
     return "bg-red-50 text-red-700 border-red-200";
-  }
-
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
@@ -71,233 +69,222 @@ export default function FeedPage() {
 
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [votes, setVotes] = useState<IssueVote[]>([]);
+  const [comments, setComments] = useState<IssueComment[]>([]);
+  const [userId, setUserId] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+  const [loadingVote, setLoadingVote] = useState<string | null>(null);
+  const [loadingComment, setLoadingComment] = useState<string | null>(null);
+
   useEffect(() => {
-    const loadFeed = async () => {
+    const loadData = async () => {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }
 
-      const { data, error } = await supabase
+      setUserId(user.id);
+
+      const { data: issuesData } = await supabase
         .from("issues")
-        .select(
-          `
-          id,
-          title,
-          description,
-          status,
-          created_at,
-          toxicity_score,
-          spam_score,
-          misinformation_score,
-          moderation_action
-        `
-        )
+        .select("*")
         .neq("status", "Blocked")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Feed error:", error.message);
-      } else {
-        setIssues((data as Issue[]) || []);
-      }
+      const { data: votesData } = await supabase
+        .from("issue_votes")
+        .select("*");
+
+      const { data: commentsData } = await supabase
+        .from("issue_comments")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      setIssues((issuesData as Issue[]) || []);
+      setVotes((votesData as IssueVote[]) || []);
+      setComments((commentsData as IssueComment[]) || []);
 
       setLoading(false);
     };
 
-    loadFeed();
+    loadData();
   }, [router]);
 
   const filteredIssues = useMemo(() => {
-    return issues.filter((issue) => {
-      const matchesSearch =
-        issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        issue.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return issues.filter((i) => {
+      const search =
+        i.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        i.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === "All" ? true : issue.status === statusFilter;
+      const status =
+        statusFilter === "All" ? true : i.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      return search && status;
     });
   }, [issues, searchTerm, statusFilter]);
 
+  const getVoteCount = (id: string) =>
+    votes.filter((v) => v.issue_id === id).length;
+
+  const hasUserUpvoted = (id: string) =>
+    votes.some((v) => v.issue_id === id && v.user_id === userId);
+
+  const getComments = (id: string) =>
+    comments.filter((c) => c.issue_id === id);
+
+  const toggleVote = async (issueId: string) => {
+    setLoadingVote(issueId);
+
+    const existing = votes.find(
+      (v) => v.issue_id === issueId && v.user_id === userId
+    );
+
+    if (existing) {
+      await supabase.from("issue_votes").delete().eq("id", existing.id);
+      setVotes((prev) => prev.filter((v) => v.id !== existing.id));
+    } else {
+      const { data } = await supabase
+        .from("issue_votes")
+        .insert([{ issue_id: issueId, user_id: userId }])
+        .select()
+        .single();
+
+      if (data) setVotes((prev) => [...prev, data]);
+    }
+
+    setLoadingVote(null);
+  };
+
+  const submitComment = async (
+    e: FormEvent,
+    issueId: string
+  ) => {
+    e.preventDefault();
+
+    const content = (commentInputs[issueId] || "").trim();
+    if (!content) return;
+
+    setLoadingComment(issueId);
+
+    const { data } = await supabase
+      .from("issue_comments")
+      .insert([{ issue_id: issueId, user_id: userId, content }])
+      .select()
+      .single();
+
+    if (data) {
+      setComments((prev) => [...prev, data]);
+      setCommentInputs((prev) => ({ ...prev, [issueId]: "" }));
+    }
+
+    setLoadingComment(null);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-        <p className="text-lg text-slate-700">Loading public feed...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading feed...
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-                District Feed
-              </h1>
-              <p className="mt-3 text-lg text-slate-600">
-                Browse civic issues raised by citizens in the community.
-              </p>
+      <div className="mx-auto max-w-5xl space-y-6">
+
+        <h1 className="text-3xl font-bold">District Feed</h1>
+
+        <div className="flex gap-3">
+          <input
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 border p-2 rounded"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border p-2 rounded"
+          >
+            <option>All</option>
+            <option>Open</option>
+            <option>Under Review</option>
+            <option>Resolved</option>
+          </select>
+        </div>
+
+        {filteredIssues.map((issue) => (
+          <div key={issue.id} className="bg-white p-4 rounded shadow">
+
+            <h2 className="font-semibold">{issue.title}</h2>
+            <p className="text-sm text-gray-600">{issue.description}</p>
+
+            <div className="flex gap-2 mt-2">
+              <span className={`px-2 py-1 text-xs border rounded ${getStatusBadgeClasses(issue.status)}`}>
+                {issue.status}
+              </span>
+              <span className={`px-2 py-1 text-xs border rounded ${getModerationBadgeClasses(issue.moderation_action)}`}>
+                {formatModerationAction(issue.moderation_action)}
+              </span>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/dashboard"
-                className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => toggleVote(issue.id)}>
+                👍 {getVoteCount(issue.id)}
+              </button>
+
+              <button
+                onClick={() =>
+                  setOpenComments((prev) => ({
+                    ...prev,
+                    [issue.id]: !prev[issue.id],
+                  }))
+                }
               >
-                Back to Dashboard
-              </Link>
-              <Link
-                href="/create-post"
-                className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Create Civic Issue
+                💬 {getComments(issue.id).length}
+              </button>
+
+              <Link href="/chat/Representative">
+                Chat
               </Link>
             </div>
-          </div>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_220px]">
-            <input
-              type="text"
-              placeholder="Search issues by title or description"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-500"
-            />
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-500"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Open">Open</option>
-              <option value="Under Review">Under Review</option>
-              <option value="Resolved">Resolved</option>
-            </select>
-          </div>
-
-          <div className="mt-8">
-            {filteredIssues.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                <p className="text-slate-800">No issues found.</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Try changing the search or filter.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {filteredIssues.map((issue) => (
-                  <div
-                    key={issue.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="flex-1">
-                        <h2 className="text-xl font-semibold text-slate-900">
-                          {issue.title}
-                        </h2>
-                        <p className="mt-2 text-slate-600">
-                          {issue.description}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 lg:justify-end">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getStatusBadgeClasses(
-                            issue.status
-                          )}`}
-                        >
-                          {issue.status}
-                        </span>
-
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getModerationBadgeClasses(
-                            issue.moderation_action
-                          )}`}
-                        >
-                          {formatModerationAction(issue.moderation_action)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
-                      <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-xs text-slate-500">Toxicity</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-                          {issue.toxicity_score !== null &&
-                          issue.toxicity_score !== undefined
-                            ? `${Math.round(issue.toxicity_score * 100)}%`
-                            : "N/A"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-xs text-slate-500">Spam Risk</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-                          {issue.spam_score !== null &&
-                          issue.spam_score !== undefined
-                            ? `${Math.round(issue.spam_score * 100)}%`
-                            : "N/A"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-xs text-slate-500">Misinformation</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-                          {issue.misinformation_score !== null &&
-                          issue.misinformation_score !== undefined
-                            ? `${Math.round(issue.misinformation_score * 100)}%`
-                            : "N/A"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-xs text-slate-500">
-                        {new Date(issue.created_at).toLocaleString()}
-                      </p>
-
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          Upvote
-                        </button>
-
-                        <button
-                          type="button"
-                          className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          Comment
-                        </button>
-
-                        <Link
-                          href="/chat/Representative"
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                        >
-                          Chat with Representative
-                        </Link>
-                      </div>
-                    </div>
+            {openComments[issue.id] && (
+              <div className="mt-3">
+                {getComments(issue.id).map((c) => (
+                  <div key={c.id} className="text-sm border p-2 rounded mt-2">
+                    {c.content}
                   </div>
                 ))}
+
+                <form onSubmit={(e) => submitComment(e, issue.id)}>
+                  <textarea
+                    value={commentInputs[issue.id] || ""}
+                    onChange={(e) =>
+                      setCommentInputs((prev) => ({
+                        ...prev,
+                        [issue.id]: e.target.value,
+                      }))
+                    }
+                    className="w-full border mt-2 p-2 rounded"
+                  />
+                  <button className="mt-2 bg-black text-white px-3 py-1 rounded">
+                    Post
+                  </button>
+                </form>
               </div>
             )}
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
