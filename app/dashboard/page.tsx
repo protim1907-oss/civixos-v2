@@ -17,6 +17,14 @@ type Profile = {
   districts: District[] | null;
 };
 
+type Issue = {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+};
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
@@ -28,9 +36,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userEmail, setUserEmail] = useState("");
+  const [issues, setIssues] = useState<Issue[]>([]);
 
   useEffect(() => {
-    const loadUser = async () => {
+    const loadDashboard = async () => {
       const {
         data: { user },
         error,
@@ -43,7 +52,7 @@ export default function DashboardPage() {
 
       setUserEmail(user.email || "");
 
-      const { data, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select(
           `
@@ -61,20 +70,34 @@ export default function DashboardPage() {
 
       if (profileError) {
         console.error("Profile error:", profileError.message);
-      } else if (data) {
+      } else if (profileData) {
         setProfile({
-          id: data.id,
-          full_name: data.full_name,
-          email: data.email,
-          role: data.role,
-          districts: Array.isArray(data.districts) ? data.districts : [],
+          id: profileData.id,
+          full_name: profileData.full_name,
+          email: profileData.email,
+          role: profileData.role,
+          districts: Array.isArray(profileData.districts)
+            ? profileData.districts
+            : [],
         });
+      }
+
+      const { data: issuesData, error: issuesError } = await supabase
+        .from("issues")
+        .select("id, title, description, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (issuesError) {
+        console.error("Issues error:", issuesError.message);
+      } else {
+        setIssues(issuesData || []);
       }
 
       setLoading(false);
     };
 
-    loadUser();
+    loadDashboard();
   }, [router]);
 
   const handleLogout = async () => {
@@ -135,7 +158,7 @@ export default function DashboardPage() {
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Link
-                href="/create-issue"
+                href="/create-post"
                 className="rounded-xl bg-slate-900 px-4 py-3 text-center font-medium text-white hover:bg-slate-800"
               >
                 Create Civic Issue
@@ -162,12 +185,42 @@ export default function DashboardPage() {
               Recent Activity
             </h2>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-slate-700">No recent activity yet.</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Once you create posts or civic issues, they will appear here.
-              </p>
-            </div>
+            {issues.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-slate-700">No recent activity yet.</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Once you create posts or civic issues, they will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {issues.map((issue) => (
+                  <div
+                    key={issue.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-semibold text-slate-900">
+                          {issue.title}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {issue.description}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                        {issue.status}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      {new Date(issue.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="mt-8">
