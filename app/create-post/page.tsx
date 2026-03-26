@@ -61,7 +61,7 @@ export default function CreatePostPage() {
     setLoading(false);
   };
 
-  const handleSubmitAnyway = async () => {
+  const handleSubmitIssue = async () => {
     if (!moderationResult) return;
 
     setLoading(true);
@@ -126,9 +126,11 @@ export default function CreatePostPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-bold text-slate-900">Create Civic Issue</h1>
-        <p className="mt-2 text-slate-600">
+      <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+          Create Civic Issue
+        </h1>
+        <p className="mt-3 text-lg text-slate-600">
           Submit a concern for your district.
         </p>
 
@@ -142,7 +144,7 @@ export default function CreatePostPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Enter issue title"
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none focus:border-slate-500"
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-500"
               required
             />
           </div>
@@ -155,20 +157,20 @@ export default function CreatePostPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the civic issue"
-              rows={6}
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 outline-none focus:border-slate-500"
+              rows={7}
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-500"
               required
             />
           </div>
 
           {errorMessage && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {errorMessage}
             </div>
           )}
 
           {successMessage && (
-            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               {successMessage}
             </div>
           )}
@@ -176,7 +178,7 @@ export default function CreatePostPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-slate-900 px-4 py-3 font-medium text-white hover:bg-slate-800 disabled:opacity-70"
+            className="w-full rounded-2xl bg-slate-900 px-4 py-4 text-lg font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Reviewing..." : "Review with AI"}
           </button>
@@ -184,79 +186,89 @@ export default function CreatePostPage() {
       </div>
 
       {showOverlay && moderationResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-900">
-                AI Moderation Review
-              </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-5xl rounded-[28px] bg-white p-6 shadow-2xl sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900">
+                  AI Moderation Review
+                </h2>
+                <p className="mt-2 text-xl text-slate-600">
+                  We analyzed this post before submission.
+                </p>
+              </div>
+
               <button
+                type="button"
                 onClick={() => setShowOverlay(false)}
-                className="text-slate-500 hover:text-slate-700"
+                className="text-xl text-slate-500 hover:text-slate-700"
               >
                 Close
               </button>
             </div>
 
-            <p className="mt-3 text-slate-600">
-              We analyzed this post before submission.
-            </p>
+            <div className="mt-8 rounded-3xl border border-slate-200 p-6">
+              <div className="space-y-6 text-xl text-slate-700">
+                <div className="flex items-center justify-between">
+                  <span>Toxicity Score</span>
+                  <span className="font-medium text-slate-900">
+                    {Math.round(moderationResult.toxicity * 100)}%
+                  </span>
+                </div>
 
-            <div className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-700">Toxicity Score</span>
-                <span className="font-medium text-slate-900">
-                  {Math.round(moderationResult.toxicity * 100)}%
-                </span>
-              </div>
+                <div className="flex items-center justify-between">
+                  <span>Spam Risk</span>
+                  <span className="font-medium text-slate-900">
+                    {Math.round(moderationResult.spam * 100)}%
+                  </span>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-slate-700">Spam Risk</span>
-                <span className="font-medium text-slate-900">
-                  {Math.round(moderationResult.spam * 100)}%
-                </span>
-              </div>
+                <div className="flex items-center justify-between">
+                  <span>Misinformation Risk</span>
+                  <span className="font-medium text-slate-900">
+                    {Math.round(moderationResult.misinformation * 100)}%
+                  </span>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-slate-700">Misinformation Risk</span>
-                <span className="font-medium text-slate-900">
-                  {Math.round(moderationResult.misinformation * 100)}%
-                </span>
-              </div>
-
-              <div className="pt-2">
-                <span className="text-slate-700">Recommended action: </span>
-                <span className="font-semibold text-slate-900">
-                  {moderationResult.recommendedAction}
-                </span>
+                <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                  <span>Recommended action</span>
+                  <span className="font-semibold text-slate-900">
+                    {moderationResult.recommendedAction}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
+                type="button"
                 onClick={() => setShowOverlay(false)}
-                className="rounded-xl border border-slate-300 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-2xl border border-slate-300 px-5 py-3 text-base font-medium text-slate-700 hover:bg-slate-50"
               >
                 Edit Post
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   setShowOverlay(false);
                   setErrorMessage("Submission cancelled.");
                 }}
-                className="rounded-xl border border-red-300 px-4 py-3 font-medium text-red-700 hover:bg-red-50"
+                className="rounded-2xl border border-red-300 px-5 py-3 text-base font-medium text-red-700 hover:bg-red-50"
               >
                 Cancel
               </button>
 
               <button
-                onClick={handleSubmitAnyway}
+                type="button"
+                onClick={handleSubmitIssue}
                 disabled={loading || moderationResult.recommendedAction === "Block"}
-                className="rounded-xl bg-slate-900 px-4 py-3 font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl bg-slate-900 px-5 py-3 text-base font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {moderationResult.recommendedAction === "Block"
                   ? "Blocked by AI"
+                  : moderationResult.recommendedAction === "Approve"
+                  ? "Submit Issue"
                   : "Submit Anyway"}
               </button>
             </div>
