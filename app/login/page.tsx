@@ -13,9 +13,12 @@ const supabase = createClient(
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [magicEmail, setMagicEmail] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -27,7 +30,7 @@ export default function LoginPage() {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailOrUsername,
         password,
       });
 
@@ -49,50 +52,129 @@ export default function LoginPage() {
         router.push("/dashboard");
         router.refresh();
       }, 1000);
-    } catch (err) {
+    } catch {
       setErrorMessage("Something went wrong during login.");
-      setLoading(false);
-      return;
     }
 
     setLoading(false);
   };
 
+  const handleMagicLink = async () => {
+    setMagicLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!magicEmail.trim()) {
+      setErrorMessage("Please enter your email address for a one-time link.");
+      setMagicLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: magicEmail,
+        options: {
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/dashboard`
+              : undefined,
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setMagicLoading(false);
+        return;
+      }
+
+      setSuccessMessage("One-time login link sent to your email.");
+    } catch {
+      setErrorMessage("Could not send one-time link.");
+    }
+
+    setMagicLoading(false);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-sm">
-        <h1 className="text-center text-4xl font-bold text-slate-900">Login</h1>
-        <p className="mt-4 text-center text-lg text-slate-600">
-          Access your CivixOS account
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border border-slate-200">
+        <h1 className="text-3xl font-bold text-slate-900">Log In</h1>
+
+        <p className="mt-4 text-sm leading-6 text-slate-600">
+          By continuing, you agree to our User Agreement and acknowledge that
+          you understand the Privacy Policy.
         </p>
 
-        <form onSubmit={handleLogin} className="mt-10 space-y-6">
+        <button
+          type="button"
+          className="mt-6 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50"
+        >
+          Continue With Phone Number
+        </button>
+
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Email me a one-time link
+          </label>
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={magicEmail}
+            onChange={(e) => setMagicEmail(e.target.value)}
+            className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
+          />
+          <button
+            type="button"
+            onClick={handleMagicLink}
+            disabled={magicLoading}
+            className="mt-3 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
+          >
+            {magicLoading ? "Sending..." : "Email me a one-time link"}
+          </button>
+        </div>
+
+        <div className="my-6 flex items-center gap-4">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-medium tracking-wide text-slate-500">
+            OR
+          </span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Email
+              Email or username *
             </label>
             <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 text-lg outline-none focus:border-slate-500"
+              type="text"
+              value={emailOrUsername}
+              onChange={(e) => setEmailOrUsername(e.target.value)}
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
               required
             />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Password
+              Password *
             </label>
             <input
               type="password"
-              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 text-lg outline-none focus:border-slate-500"
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
               required
             />
+          </div>
+
+          <div className="-mt-2">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-blue-600 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </div>
 
           {errorMessage && (
@@ -110,24 +192,18 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-slate-900 px-4 py-4 text-lg font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? "Logging in..." : "Log In"}
           </button>
         </form>
 
-        <div className="mt-8 text-center text-base text-slate-600">
-          Don&apos;t have an account?{" "}
+        <p className="mt-6 text-sm text-slate-600">
+          New to Reddit?{" "}
           <Link href="/signup" className="font-medium text-blue-600 hover:underline">
-            Sign up
+            Sign Up
           </Link>
-        </div>
-
-        <div className="mt-4 text-center">
-          <Link href="/forgot-password" className="text-sm text-slate-500 hover:underline">
-            Forgot password?
-          </Link>
-        </div>
+        </p>
       </div>
     </div>
   );
