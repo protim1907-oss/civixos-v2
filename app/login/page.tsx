@@ -97,136 +97,148 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border border-slate-200">
-
-        {/* LOGO */}
-        <div className="flex flex-col items-center mb-6">
+    <div className="min-h-screen bg-slate-100 lg:grid lg:grid-cols-2">
+      <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-blue-700 via-indigo-700 to-red-600 px-12 text-white">
+        <div className="max-w-lg">
           <Image
-            src="/logo.png"
+            src="/civixos-Logo.png"
             alt="CivixOS Logo"
-            width={60}
-            height={60}
+            width={260}
+            height={90}
+            className="object-contain"
           />
-          <h2 className="mt-2 text-xl font-semibold text-slate-900">
-            CivixOS
-          </h2>
+          <h1 className="mt-8 text-4xl font-bold leading-tight">
+            Empowering civic engagement through community action
+          </h1>
+          <p className="mt-4 text-lg text-white/85">
+            Log in to raise issues, engage with your district, and help shape
+            better local communities through CivixOS.
+          </p>
         </div>
+      </div>
 
-        <h1 className="text-3xl font-bold text-slate-900">Log In</h1>
+      <div className="flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border border-slate-200">
+          <div className="flex flex-col items-center mb-6 lg:hidden">
+            <Image
+              src="/civixos-Logo.png"
+              alt="CivixOS Logo"
+              width={180}
+              height={60}
+              className="object-contain"
+            />
+          </div>
 
-        <p className="mt-4 text-sm text-slate-600 leading-6">
-          By continuing, you agree to our CivixOS Terms and acknowledge that
-          you understand the Privacy Policy.
-        </p>
+          <h1 className="text-3xl font-bold text-slate-900">Log In</h1>
 
-        {/* PHONE BUTTON */}
-        <button
-          type="button"
-          className="mt-6 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50"
-        >
-          Continue With Phone Number
-        </button>
-
-        {/* MAGIC LINK */}
-        <div className="mt-6">
-          <label className="text-sm font-medium text-slate-700 block mb-2">
-            Email me a one-time link
-          </label>
-
-          <input
-            type="email"
-            placeholder="Enter your email"
-            value={magicEmail}
-            onChange={(e) => setMagicEmail(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-500"
-          />
+          <p className="mt-4 text-sm leading-6 text-slate-600">
+            By continuing, you agree to our CivixOS Terms and acknowledge that
+            you understand the Privacy Policy.
+          </p>
 
           <button
             type="button"
-            onClick={handleMagicLink}
-            disabled={magicLoading}
-            className="mt-3 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
+            className="mt-6 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-800 hover:bg-slate-50"
           >
-            {magicLoading ? "Sending..." : "Email me a one-time link"}
+            Continue With Phone Number
           </button>
-        </div>
 
-        {/* DIVIDER */}
-        <div className="my-6 flex items-center gap-4">
-          <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs text-slate-500 font-medium">OR</span>
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
-
-        {/* LOGIN FORM */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
-              Email or username *
+          <div className="mt-6">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Email me a one-time link
             </label>
-
             <input
-              type="text"
-              value={emailOrUsername}
-              onChange={(e) => setEmailOrUsername(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-500"
-              required
+              type="email"
+              placeholder="Enter your email"
+              value={magicEmail}
+              onChange={(e) => setMagicEmail(e.target.value)}
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
             />
+            <button
+              type="button"
+              onClick={handleMagicLink}
+              disabled={magicLoading}
+              className="mt-3 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
+            >
+              {magicLoading ? "Sending..." : "Email me a one-time link"}
+            </button>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
-              Password *
-            </label>
-
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-slate-500"
-              required
-            />
+          <div className="my-6 flex items-center gap-4">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-medium tracking-wide text-slate-500">
+              OR
+            </span>
+            <div className="h-px flex-1 bg-slate-200" />
           </div>
 
-          <Link
-            href="/forgot-password"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Forgot password?
-          </Link>
-
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl">
-              {errorMessage}
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Email or username *
+              </label>
+              <input
+                type="text"
+                value={emailOrUsername}
+                onChange={(e) => setEmailOrUsername(e.target.value)}
+                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
+                required
+              />
             </div>
-          )}
 
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-700 text-sm p-3 rounded-xl">
-              {successMessage}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Password *
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-500"
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
-          >
-            {loading ? "Logging in..." : "Log In"}
-          </button>
-        </form>
+            <div className="-mt-2">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
-        {/* SIGNUP */}
-        <p className="mt-6 text-sm text-slate-600">
-          New to CivixOS?{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-blue-600 hover:underline"
-          >
-            Sign Up
-          </Link>
-        </p>
+            {errorMessage && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {successMessage}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
+            >
+              {loading ? "Logging in..." : "Log In"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-slate-600">
+            New to CivixOS?{" "}
+            <Link
+              href="/signup"
+              className="font-medium text-blue-600 hover:underline"
+            >
+              Sign Up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
