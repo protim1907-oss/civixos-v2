@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { Phone, Link as LinkIcon } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -105,8 +104,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 lg:grid lg:grid-cols-2">
-
-      {/* LEFT PANEL */}
       <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-blue-700 via-indigo-700 to-red-600 px-12 text-white">
         <div className="max-w-lg">
           <Image
@@ -126,11 +123,8 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* RIGHT PANEL */}
       <div className="flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border">
-
-          {/* MOBILE LOGO */}
           <div className="flex justify-center mb-6 lg:hidden">
             <Image
               src="/civixos-Logo.png"
@@ -146,14 +140,16 @@ export default function LoginPage() {
             By continuing, you agree to CivixOS Terms and Privacy Policy.
           </p>
 
-          {/* PHONE BUTTON */}
-          <button className="mt-6 w-full flex items-center justify-center gap-2 border rounded-2xl px-4 py-3 hover:bg-slate-50">
-            <Phone size={18} />
+          <button
+            type="button"
+            className="mt-6 w-full flex items-center justify-center gap-2 border rounded-2xl px-4 py-3 hover:bg-slate-50"
+          >
+            <span aria-hidden="true">📱</span>
             Continue With Phone Number
           </button>
 
-          {/* GOOGLE BUTTON (NO ICON) */}
           <button
+            type="button"
             onClick={handleGoogleLogin}
             disabled={googleLoading}
             className="mt-3 w-full flex items-center justify-center border rounded-2xl px-4 py-3 hover:bg-slate-50"
@@ -161,10 +157,9 @@ export default function LoginPage() {
             {googleLoading ? "Redirecting..." : "Continue with Google"}
           </button>
 
-          {/* MAGIC LINK */}
           <div className="mt-6">
             <label className="text-sm font-medium flex items-center gap-2 mb-2">
-              <LinkIcon size={16} />
+              <span aria-hidden="true">🔗</span>
               Email me a one-time link
             </label>
 
@@ -177,6 +172,7 @@ export default function LoginPage() {
             />
 
             <button
+              type="button"
               onClick={handleMagicLink}
               className="mt-3 w-full bg-black text-white rounded-2xl py-3"
             >
@@ -184,14 +180,12 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* DIVIDER */}
           <div className="my-6 flex items-center gap-4">
             <div className="h-px flex-1 bg-gray-200" />
             <span className="text-xs">OR</span>
             <div className="h-px flex-1 bg-gray-200" />
           </div>
 
-          {/* LOGIN FORM */}
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="text"
@@ -215,6 +209,10 @@ export default function LoginPage() {
 
             {errorMessage && (
               <div className="text-red-600 text-sm">{errorMessage}</div>
+            )}
+
+            {successMessage && (
+              <div className="text-green-600 text-sm">{successMessage}</div>
             )}
 
             <button className="w-full bg-black text-white rounded-2xl py-3">
