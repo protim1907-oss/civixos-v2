@@ -1,59 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+);
 
 export default function LoginPage() {
-  const supabase = createClient();
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setLoading(true);
-    setMessage("");
+    setErrorMessage("");
+    setSuccessMessage("");
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        setMessage(`Login failed: ${error.message}`);
+        setErrorMessage(error.message);
         setLoading(false);
         return;
       }
 
-      setMessage("Login successful. Redirecting...");
+      if (!data.user) {
+        setErrorMessage("Login failed. No user returned.");
+        setLoading(false);
+        return;
+      }
 
-      // IMPORTANT: use full reload so session is picked up
-      window.location.href = "/dashboard";
+      setSuccessMessage("Login successful. Redirecting...");
+
+      setTimeout(() => {
+        router.push("/dashboard");
+        router.refresh();
+      }, 1000);
     } catch (err) {
-      console.error(err);
-      setMessage("Unexpected error during login.");
+      setErrorMessage("Something went wrong during login.");
       setLoading(false);
+      return;
     }
+
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">
-          Login
-        </h1>
-        <p className="text-sm text-slate-600 text-center mb-6">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-sm">
+        <h1 className="text-center text-4xl font-bold text-slate-900">Login</h1>
+        <p className="mt-4 text-center text-lg text-slate-600">
           Access your CivixOS account
         </p>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="mt-10 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Email
             </label>
             <input
@@ -61,13 +76,13 @@ export default function LoginPage() {
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 text-lg outline-none focus:border-slate-500"
               required
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Password
             </label>
             <input
@@ -75,33 +90,44 @@ export default function LoginPage() {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4 text-lg outline-none focus:border-slate-500"
               required
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
             />
           </div>
 
-          {message && (
-            <p className="text-sm text-red-600">{message}</p>
+          {errorMessage && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {successMessage}
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-slate-900 text-white py-2.5 text-sm font-medium hover:bg-slate-800 disabled:opacity-60"
+            className="w-full rounded-2xl bg-slate-900 px-4 py-4 text-lg font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
-        <p className="text-sm text-slate-600 text-center mt-6">
+        <div className="mt-8 text-center text-base text-slate-600">
           Don&apos;t have an account?{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-blue-600 hover:underline"
-          >
+          <Link href="/signup" className="font-medium text-blue-600 hover:underline">
             Sign up
           </Link>
-        </p>
+        </div>
+
+        <div className="mt-4 text-center">
+          <Link href="/forgot-password" className="text-sm text-slate-500 hover:underline">
+            Forgot password?
+          </Link>
+        </div>
       </div>
     </div>
   );
