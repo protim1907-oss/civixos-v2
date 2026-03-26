@@ -1,24 +1,66 @@
 import { NextResponse } from "next/server";
-import { moderateContent } from "@/lib/moderation";
 
-export async function GET() {
-  return NextResponse.json({
-    message: "Moderation API is running. Use POST to analyze content.",
+function scoreText(text: string) {
+  const lower = text.toLowerCase();
+
+  let toxicity = 0.05;
+  let spam = 0.05;
+  let misinformation = 0.05;
+
+  const toxicWords = ["idiot", "stupid", "hate", "kill", "trash", "moron"];
+  const spamWords = ["buy now", "click here", "free money", "limited offer"];
+  const misinformationWords = ["government conspiracy", "fake cure", "microchip"];
+
+  toxicWords.forEach((word) => {
+    if (lower.includes(word)) toxicity += 0.18;
   });
+
+  spamWords.forEach((word) => {
+    if (lower.includes(word)) spam += 0.2;
+  });
+
+  misinformationWords.forEach((word) => {
+    if (lower.includes(word)) misinformation += 0.22;
+  });
+
+  toxicity = Math.min(Number(toxicity.toFixed(2)), 1);
+  spam = Math.min(Number(spam.toFixed(2)), 1);
+  misinformation = Math.min(Number(misinformation.toFixed(2)), 1);
+
+  let recommendedAction: "Approve" | "Review" | "Block" = "Approve";
+
+  if (toxicity >= 0.75 || spam >= 0.75 || misinformation >= 0.75) {
+    recommendedAction = "Block";
+  } else if (toxicity >= 0.35 || spam >= 0.35 || misinformation >= 0.35) {
+    recommendedAction = "Review";
+  }
+
+  return {
+    toxicity,
+    spam,
+    misinformation,
+    recommendedAction,
+  };
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, description } = body || {};
+    const title = typeof body.title === "string" ? body.title : "";
+    const description = typeof body.description === "string" ? body.description : "";
+    const combinedText = `${title} ${description}`.trim();
 
-    const result = moderateContent({ title, description });
+    if (!combinedText) {
+      return NextResponse.json(
+        { error: "Title and description are required." },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Moderation API error:", error);
+    return NextResponse.json(scoreText(combinedText));
+  } catch {
     return NextResponse.json(
-      { error: "Failed to analyze content." },
+      { error: "Failed to moderate content." },
       { status: 500 }
     );
   }
