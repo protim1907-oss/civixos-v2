@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type TabType = "All Posts" | "Official Updates" | "Community Issues" | "Resolved";
@@ -49,7 +50,6 @@ type DashboardPost = {
 
 function normalizeStatus(status?: string | null): DashboardPost["status"] {
   const value = (status || "").toLowerCase();
-
   if (value.includes("review")) return "Under Review";
   if (value.includes("resolve")) return "Resolved";
   if (value.includes("escalat")) return "Escalated";
@@ -76,7 +76,6 @@ function deriveType(role?: string | null): DashboardPost["type"] {
 
 function deriveUrgency(category?: string | null): DashboardPost["urgency"] {
   const value = (category || "").toLowerCase();
-
   if (value.includes("safety") || value.includes("emergency")) return "High";
   if (value.includes("transport") || value.includes("infrastructure")) return "Medium";
   return "Low";
@@ -111,7 +110,10 @@ function getUrgencyBadge(urgency: DashboardPost["urgency"]) {
 }
 
 export default function CitizenDashboardPage() {
+  const router = useRouter();
+
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
@@ -133,17 +135,20 @@ export default function CitizenDashboardPage() {
         const supabase = createClient();
 
         const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
-        if (userError) throw userError;
+        if (sessionError) {
+          throw sessionError;
+        }
 
-        if (!user) {
-          setError("No authenticated user found.");
-          setLoading(false);
+        if (!session?.user) {
+          router.replace("/login");
           return;
         }
+
+        setAuthChecked(true);
 
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
@@ -160,10 +165,12 @@ export default function CitizenDashboardPage() {
             )
           `
           )
-          .eq("id", user.id)
+          .eq("id", session.user.id)
           .single();
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          throw profileError;
+        }
 
         const typedProfile = profileData as unknown as ProfileRow;
         setProfile(typedProfile);
@@ -195,7 +202,9 @@ export default function CitizenDashboardPage() {
           .eq("district_id", typedProfile.district_id)
           .order("created_at", { ascending: false });
 
-        if (issuesError) throw issuesError;
+        if (issuesError) {
+          throw issuesError;
+        }
 
         const mappedPosts: DashboardPost[] = ((issuesData as unknown as IssueRow[]) || []).map(
           (item) => ({
@@ -223,7 +232,7 @@ export default function CitizenDashboardPage() {
     };
 
     loadDashboard();
-  }, []);
+  }, [router]);
 
   const filteredPosts = useMemo(() => {
     let result = [...posts];
@@ -284,7 +293,7 @@ export default function CitizenDashboardPage() {
 
   const districtName = profile?.districts?.[0]?.name || "Your District";
 
-  if (loading) {
+  if (loading || !authChecked) {
     return (
       <div className="min-h-screen bg-slate-50 p-6">
         <div className="mx-auto max-w-7xl">
