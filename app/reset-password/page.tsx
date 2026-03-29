@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -15,14 +15,57 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [ready, setReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [message, setMessage] = useState("");
 
-  const handleResetPassword = async (e: FormEvent<HTMLFormElement>) => {
+  // 🔥 CRITICAL FIX: Extract session from hash
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const hash = window.location.hash;
+
+        if (!hash || !hash.includes("access_token")) {
+          setErrorMessage("Invalid or expired reset link.");
+          return;
+        }
+
+        const params = new URLSearchParams(hash.substring(1));
+
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+
+        if (!access_token || !refresh_token) {
+          setErrorMessage("Missing authentication tokens.");
+          return;
+        }
+
+        // 🔥 Set session manually
+        const { error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+
+        if (error) {
+          setErrorMessage("Session setup failed.");
+          return;
+        }
+
+        setReady(true);
+      } catch {
+        setErrorMessage("Something went wrong.");
+      }
+    };
+
+    init();
+  }, []);
+
+  const handleResetPassword = async (e: FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
-    setMessage("");
     setErrorMessage("");
+    setMessage("");
 
     if (password !== confirmPassword) {
       setErrorMessage("Passwords do not match.");
@@ -40,7 +83,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setMessage("Password updated successfully. Redirecting to login...");
+    setMessage("Password updated successfully!");
 
     setTimeout(() => {
       router.push("/login");
@@ -49,13 +92,18 @@ export default function ResetPasswordPage() {
     setLoading(false);
   };
 
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Validating reset link...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border border-slate-200">
-        <h1 className="text-3xl font-bold text-slate-900">Reset Password</h1>
-        <p className="mt-3 text-sm text-slate-600">
-          Enter your new password below.
-        </p>
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border">
+        <h1 className="text-3xl font-bold">Reset Password</h1>
 
         <form onSubmit={handleResetPassword} className="mt-6 space-y-4">
           <input
@@ -63,32 +111,28 @@ export default function ResetPasswordPage() {
             placeholder="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3"
+            className="w-full border rounded-2xl px-4 py-3"
             required
           />
 
           <input
             type="password"
-            placeholder="Confirm new password"
+            placeholder="Confirm password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3"
+            className="w-full border rounded-2xl px-4 py-3"
             required
           />
 
           {errorMessage && (
-            <div className="text-sm text-red-600">{errorMessage}</div>
+            <div className="text-red-600 text-sm">{errorMessage}</div>
           )}
 
           {message && (
-            <div className="text-sm text-green-600">{message}</div>
+            <div className="text-green-600 text-sm">{message}</div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-black py-3 text-white"
-          >
+          <button className="w-full bg-black text-white py-3 rounded-2xl">
             {loading ? "Updating..." : "Update Password"}
           </button>
         </form>
