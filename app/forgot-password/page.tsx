@@ -1,98 +1,77 @@
-"use client";
+"use client"
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import Link from "next/link"
+import { useState } from "react"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { supabase } from "../../lib/supabase"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-);
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState("")
 
-export default function ResetPasswordPage() {
-  const router = useRouter();
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setMessage("")
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "http://localhost:3000/reset-password",
+      })
 
-  const handleResetPassword = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    setErrorMessage("");
+      if (error) {
+        alert(error.message)
+        return
+      }
 
-    if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
-      setLoading(false);
-      return;
+      setMessage("Password reset email sent. Please check your inbox.")
+    } catch (error) {
+      console.error(error)
+      alert("Something went wrong.")
+    } finally {
+      setLoading(false)
     }
-
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setLoading(false);
-      return;
-    }
-
-    setMessage("Password updated successfully. Redirecting to login...");
-
-    setTimeout(() => {
-      router.push("/login");
-    }, 1500);
-
-    setLoading(false);
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border border-slate-200">
-        <h1 className="text-3xl font-bold text-slate-900">Reset Password</h1>
-        <p className="mt-3 text-sm text-slate-600">
-          Enter your new password below.
-        </p>
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-12">
+        <Card className="w-full max-w-md p-8">
+          <h1 className="text-2xl font-bold text-slate-900">Forgot Password</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Enter your email and we’ll send you a password reset link.
+          </p>
 
-        <form onSubmit={handleResetPassword} className="mt-6 space-y-4">
-          <input
-            type="password"
-            placeholder="New password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3"
-            required
-          />
+          <form onSubmit={handleResetPassword} className="mt-6 space-y-5">
+            <Input
+              label="Email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
 
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3"
-            required
-          />
-
-          {errorMessage && (
-            <div className="text-sm text-red-600">{errorMessage}</div>
-          )}
+            <Button type="submit" fullWidth disabled={loading}>
+              {loading ? "Sending..." : "Send Reset Link"}
+            </Button>
+          </form>
 
           {message && (
-            <div className="text-sm text-green-600">{message}</div>
+            <p className="mt-4 text-sm font-medium text-green-600">{message}</p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-black py-3 text-white"
-          >
-            {loading ? "Updating..." : "Update Password"}
-          </button>
-        </form>
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Back to{" "}
+            <Link href="/login" className="font-semibold text-slate-900 hover:underline">
+              Sign In
+            </Link>
+          </p>
+        </Card>
       </div>
-    </div>
-  );
+    </main>
+  )
 }
