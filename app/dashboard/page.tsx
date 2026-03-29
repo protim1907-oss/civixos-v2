@@ -23,23 +23,20 @@ type IssueRow = {
   id: string;
   title: string;
   description: string | null;
-  status: string | null;
-  category: string | null;
-  created_at: string | null;
-  district_id: string | null;
   user_id: string | null;
-  profiles?: {
-    full_name: string | null;
-    role: string | null;
-  }[] | null;
-};
-
-type AiModerationRow = {
-  issue_id: string;
+  status: string | null;
+  created_at: string | null;
+  moderation_action: string | null;
   toxicity_score: number | null;
   spam_score: number | null;
   misinformation_score: number | null;
-  recommended_action: string | null;
+  moderation_reasons: string[] | null;
+  category: string | null;
+  profiles?: {
+    full_name: string | null;
+    role: string | null;
+    district_id: string | null;
+  }[] | null;
 };
 
 type DashboardPost = {
@@ -187,7 +184,8 @@ export default function CitizenDashboardPage() {
       const typedProfile = profileData as unknown as ProfileRow;
       setProfile(typedProfile);
 
-      if (!typedProfile?.district_id) {
+      const currentDistrictId = typedProfile?.district_id;
+      if (!currentDistrictId) {
         setPosts([]);
         return;
       }
@@ -199,23 +197,30 @@ export default function CitizenDashboardPage() {
             id,
             title,
             description,
-            status,
-            category,
-            created_at,
-            district_id,
             user_id,
+            status,
+            created_at,
+            moderation_action,
+            toxicity_score,
+            spam_score,
+            misinformation_score,
+            moderation_reasons,
+            category,
             profiles:user_id (
               full_name,
-              role
+              role,
+              district_id
             )
           `
         )
-        .eq("district_id", typedProfile.district_id)
         .order("created_at", { ascending: false });
 
       if (issuesError) throw issuesError;
 
-      const typedIssues = (issuesData as unknown as IssueRow[]) || [];
+      const typedIssues = ((issuesData as unknown as IssueRow[]) || []).filter(
+        (issue) => issue.profiles?.[0]?.district_id === currentDistrictId
+      );
+
       const issueIds = typedIssues.map((issue) => issue.id);
 
       if (issueIds.length === 0) {
@@ -223,21 +228,14 @@ export default function CitizenDashboardPage() {
         return;
       }
 
-      const [{ data: supportsData }, { data: commentsData }, { data: aiData }] = await Promise.all([
+      const [{ data: supportsData }, { data: commentsData }] = await Promise.all([
         supabase.from("issue_supports").select("issue_id,user_id").in("issue_id", issueIds),
         supabase.from("issue_comments").select("id,issue_id").in("issue_id", issueIds),
-        supabase
-          .from("issue_ai_moderation")
-          .select(
-            "issue_id,toxicity_score,spam_score,misinformation_score,recommended_action"
-          )
-          .in("issue_id", issueIds),
       ]);
 
       const supportMap = new Map<string, number>();
       const mySupportSet = new Set<string>();
       const commentMap = new Map<string, number>();
-      const aiMap = new Map<string, AiModerationRow>();
 
       (supportsData || []).forEach((row: any) => {
         supportMap.set(row.issue_id, (supportMap.get(row.issue_id) || 0) + 1);
@@ -250,36 +248,26 @@ export default function CitizenDashboardPage() {
         commentMap.set(row.issue_id, (commentMap.get(row.issue_id) || 0) + 1);
       });
 
-      (aiData || []).forEach((row: any) => {
-        aiMap.set(row.issue_id, row as AiModerationRow);
-      });
-
-      const mappedPosts: DashboardPost[] = typedIssues.map((item) => {
-        const ai = aiMap.get(item.id);
-
-        return {
-          id: item.id,
-          title: item.title || "Untitled Issue",
-          author: item.profiles?.[0]?.full_name || "Anonymous Citizen",
-          type: deriveType(item.profiles?.[0]?.role),
-          status: normalizeStatus(item.status),
-          category: item.category || "General",
-          urgency: deriveUrgency(item.category),
-          description: item.description || "No description provided.",
-          date: item.created_at || new Date().toISOString(),
-          supports: supportMap.get(item.id) || 0,
-          comments: commentMap.get(item.id) || 0,
-          userHasSupported: mySupportSet.has(item.id),
-          aiModeration: ai
-            ? {
-                toxicity: Number(ai.toxicity_score || 0),
-                spam: Number(ai.spam_score || 0),
-                misinformation: Number(ai.misinformation_score || 0),
-                recommendedAction: ai.recommended_action || "Approve",
-              }
-            : undefined,
-        };
-      });
+      const mappedPosts: DashboardPost[] = typedIssues.map((item) => ({
+        id: item.id,
+        title: item.title || "Untitled Issue",
+        author: item.profiles?.[0]?.full_name || "Anonymous Citizen",
+        type: deriveType(item.profiles?.[0]?.role),
+        status: normalizeStatus(item.status),
+        category: item.category || "General",
+        urgency: deriveUrgency(item.category),
+        description: item.description || "No description provided.",
+        date: item.created_at || new Date().toISOString(),
+        supports: supportMap.get(item.id) || 0,
+        comments: commentMap.get(item.id) || 0,
+        userHasSupported: mySupportSet.has(item.id),
+        aiModeration: {
+          toxicity: Number(item.toxicity_score || 0),
+          spam: Number(item.spam_score || 0),
+          misinformation: Number(item.misinformation_score || 0),
+          recommendedAction: item.moderation_action || "Approve",
+        },
+      }));
 
       setPosts(mappedPosts);
     } catch (err: any) {
@@ -302,30 +290,17 @@ export default function CitizenDashboardPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "issues" },
-        () => {
-          loadDashboard();
-        }
+        () => loadDashboard()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "issue_supports" },
-        () => {
-          loadDashboard();
-        }
+        () => loadDashboard()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "issue_comments" },
-        () => {
-          loadDashboard();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "issue_ai_moderation" },
-        () => {
-          loadDashboard();
-        }
+        () => loadDashboard()
       )
       .subscribe();
 
