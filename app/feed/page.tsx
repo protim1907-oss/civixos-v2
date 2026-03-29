@@ -1,490 +1,389 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 
-type Issue = {
-  id: string;
+type FeedPost = {
+  id: number;
   title: string;
+  author: string;
+  type: "Official" | "Citizen" | "Community";
+  status: "Open" | "Under Review" | "Resolved" | "Escalated";
+  category: "Infrastructure" | "Safety" | "Sanitation" | "Transportation" | "Education";
+  urgency: "Low" | "Medium" | "High";
   description: string;
-  status: string;
-  created_at: string;
-  toxicity_score: number | null;
-  spam_score: number | null;
-  misinformation_score: number | null;
-  moderation_action: string | null;
+  date: string;
+  supports: number;
+  comments: number;
 };
 
-type IssueVote = {
-  id: number;
-  issue_id: string;
-  user_id: string;
-};
+const mockPosts: FeedPost[] = [
+  {
+    id: 1,
+    title: "Streetlights not working on Maple Avenue",
+    author: "Priya Sharma",
+    type: "Citizen",
+    status: "Open",
+    category: "Safety",
+    urgency: "High",
+    description:
+      "Several streetlights have been non-functional for more than a week, creating visibility and safety concerns for pedestrians.",
+    date: "2026-03-28",
+    supports: 18,
+    comments: 6,
+  },
+  {
+    id: 2,
+    title: "Request for additional garbage bins near park",
+    author: "Daniel Lee",
+    type: "Citizen",
+    status: "Under Review",
+    category: "Sanitation",
+    urgency: "Medium",
+    description:
+      "The park entrance and walking track area need more waste bins to reduce littering during weekends.",
+    date: "2026-03-27",
+    supports: 11,
+    comments: 4,
+  },
+  {
+    id: 3,
+    title: "Crosswalk repainting near District Elementary",
+    author: "District Office",
+    type: "Official",
+    status: "Resolved",
+    category: "Transportation",
+    urgency: "Medium",
+    description:
+      "Crosswalk repainting has been completed and reflective markers have been installed for improved safety.",
+    date: "2026-03-25",
+    supports: 24,
+    comments: 8,
+  },
+  {
+    id: 4,
+    title: "Potholes on Elm Street causing traffic delays",
+    author: "Marcus Chen",
+    type: "Citizen",
+    status: "Escalated",
+    category: "Infrastructure",
+    urgency: "High",
+    description:
+      "Multiple potholes are affecting traffic flow and vehicle safety, especially during rain.",
+    date: "2026-03-26",
+    supports: 31,
+    comments: 12,
+  },
+  {
+    id: 5,
+    title: "Need safer bus stop shelter on 8th Street",
+    author: "Ana Lopez",
+    type: "Community",
+    status: "Open",
+    category: "Transportation",
+    urgency: "Medium",
+    description:
+      "The current bus stop has no weather protection and poor lighting, making it difficult for students and elderly residents.",
+    date: "2026-03-24",
+    supports: 9,
+    comments: 3,
+  },
+  {
+    id: 6,
+    title: "Improve school zone traffic signage",
+    author: "District PTA",
+    type: "Community",
+    status: "Under Review",
+    category: "Education",
+    urgency: "High",
+    description:
+      "Better traffic signage and speed reminders are needed around the school zone during drop-off and pick-up hours.",
+    date: "2026-03-23",
+    supports: 16,
+    comments: 7,
+  },
+];
 
-type IssueDownvote = {
-  id: number;
-  issue_id: string;
-  user_id: string;
-};
-
-type IssueComment = {
-  id: number;
-  issue_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
-};
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-);
-
-function getStatusBadgeClasses(status: string) {
-  if (status === "Open") {
-    return "bg-green-100 text-green-700 border-green-200";
+function getStatusStyles(status: FeedPost["status"]) {
+  switch (status) {
+    case "Open":
+      return "border-l-4 border-red-500";
+    case "Under Review":
+      return "border-l-4 border-amber-500";
+    case "Resolved":
+      return "border-l-4 border-emerald-500";
+    case "Escalated":
+      return "border-l-4 border-blue-500";
+    default:
+      return "border-l-4 border-slate-300";
   }
-  if (status === "Under Review") {
-    return "bg-amber-100 text-amber-700 border-amber-200";
-  }
-  if (status === "Resolved") {
-    return "bg-blue-100 text-blue-700 border-blue-200";
-  }
-  if (status === "Blocked") {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-  return "bg-slate-100 text-slate-700 border-slate-200";
 }
 
-function getModerationBadgeClasses(action: string | null) {
-  if (action === "Approve") {
-    return "bg-green-50 text-green-700 border-green-200";
+function getUrgencyBadge(urgency: FeedPost["urgency"]) {
+  switch (urgency) {
+    case "High":
+      return "bg-red-100 text-red-700";
+    case "Medium":
+      return "bg-amber-100 text-amber-700";
+    case "Low":
+      return "bg-green-100 text-green-700";
+    default:
+      return "bg-slate-100 text-slate-700";
   }
-  if (action === "Review") {
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  }
-  if (action === "Block") {
-    return "bg-red-50 text-red-700 border-red-200";
-  }
-  return "bg-slate-50 text-slate-700 border-slate-200";
-}
-
-function formatModerationAction(action: string | null) {
-  if (!action) return "Not Reviewed";
-  if (action === "Approve") return "AI Approved";
-  if (action === "Review") return "AI Flagged";
-  if (action === "Block") return "AI Blocked";
-  return action;
 }
 
 export default function FeedPage() {
-  const router = useRouter();
-
-  const [loading, setLoading] = useState(true);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [votes, setVotes] = useState<IssueVote[]>([]);
-  const [downvotes, setDownvotes] = useState<IssueDownvote[]>([]);
-  const [comments, setComments] = useState<IssueComment[]>([]);
-  const [userId, setUserId] = useState("");
-
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [urgencyFilter, setUrgencyFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("Newest");
 
-  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
-  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
-  const [loadingVote, setLoadingVote] = useState<string | null>(null);
-  const [loadingDownvote, setLoadingDownvote] = useState<string | null>(null);
-  const [loadingComment, setLoadingComment] = useState<string | null>(null);
-  const [shareMessage, setShareMessage] = useState("");
+  const filteredPosts = useMemo(() => {
+    let result = [...mockPosts];
 
-  useEffect(() => {
-    const loadData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      setUserId(user.id);
-
-      const { data: issuesData } = await supabase
-        .from("issues")
-        .select("*")
-        .neq("status", "Blocked")
-        .order("created_at", { ascending: false });
-
-      const { data: votesData } = await supabase
-        .from("issue_votes")
-        .select("*");
-
-      const { data: downvotesData } = await supabase
-        .from("issue_downvotes")
-        .select("*");
-
-      const { data: commentsData } = await supabase
-        .from("issue_comments")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      setIssues((issuesData as Issue[]) || []);
-      setVotes((votesData as IssueVote[]) || []);
-      setDownvotes((downvotesData as IssueDownvote[]) || []);
-      setComments((commentsData as IssueComment[]) || []);
-
-      setLoading(false);
-    };
-
-    loadData();
-  }, [router]);
-
-  const filteredIssues = useMemo(() => {
-    return issues.filter((issue) => {
-      const matchesSearch =
-        issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        issue.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStatus =
-        statusFilter === "All" ? true : issue.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [issues, searchTerm, statusFilter]);
-
-  const getVoteCount = (issueId: string) =>
-    votes.filter((vote) => vote.issue_id === issueId).length;
-
-  const getDownvoteCount = (issueId: string) =>
-    downvotes.filter((vote) => vote.issue_id === issueId).length;
-
-  const hasUserUpvoted = (issueId: string) =>
-    votes.some((vote) => vote.issue_id === issueId && vote.user_id === userId);
-
-  const hasUserDownvoted = (issueId: string) =>
-    downvotes.some(
-      (vote) => vote.issue_id === issueId && vote.user_id === userId
-    );
-
-  const getComments = (issueId: string) =>
-    comments.filter((comment) => comment.issue_id === issueId);
-
-  const toggleVote = async (issueId: string) => {
-    setLoadingVote(issueId);
-
-    try {
-      const existingUpvote = votes.find(
-        (vote) => vote.issue_id === issueId && vote.user_id === userId
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (post) =>
+          post.title.toLowerCase().includes(q) ||
+          post.description.toLowerCase().includes(q) ||
+          post.author.toLowerCase().includes(q)
       );
-
-      const existingDownvote = downvotes.find(
-        (vote) => vote.issue_id === issueId && vote.user_id === userId
-      );
-
-      if (existingUpvote) {
-        await supabase.from("issue_votes").delete().eq("id", existingUpvote.id);
-        setVotes((prev) => prev.filter((vote) => vote.id !== existingUpvote.id));
-        setLoadingVote(null);
-        return;
-      }
-
-      if (existingDownvote) {
-        await supabase
-          .from("issue_downvotes")
-          .delete()
-          .eq("id", existingDownvote.id);
-        setDownvotes((prev) =>
-          prev.filter((vote) => vote.id !== existingDownvote.id)
-        );
-      }
-
-      const { data } = await supabase
-        .from("issue_votes")
-        .insert([{ issue_id: issueId, user_id: userId }])
-        .select()
-        .single();
-
-      if (data) {
-        setVotes((prev) => [...prev, data as IssueVote]);
-      }
-    } finally {
-      setLoadingVote(null);
     }
-  };
 
-  const toggleDownvote = async (issueId: string) => {
-    setLoadingDownvote(issueId);
-
-    try {
-      const existingDownvote = downvotes.find(
-        (vote) => vote.issue_id === issueId && vote.user_id === userId
-      );
-
-      const existingUpvote = votes.find(
-        (vote) => vote.issue_id === issueId && vote.user_id === userId
-      );
-
-      if (existingDownvote) {
-        await supabase
-          .from("issue_downvotes")
-          .delete()
-          .eq("id", existingDownvote.id);
-        setDownvotes((prev) =>
-          prev.filter((vote) => vote.id !== existingDownvote.id)
-        );
-        setLoadingDownvote(null);
-        return;
-      }
-
-      if (existingUpvote) {
-        await supabase.from("issue_votes").delete().eq("id", existingUpvote.id);
-        setVotes((prev) => prev.filter((vote) => vote.id !== existingUpvote.id));
-      }
-
-      const { data } = await supabase
-        .from("issue_downvotes")
-        .insert([{ issue_id: issueId, user_id: userId }])
-        .select()
-        .single();
-
-      if (data) {
-        setDownvotes((prev) => [...prev, data as IssueDownvote]);
-      }
-    } finally {
-      setLoadingDownvote(null);
+    if (typeFilter !== "All") {
+      result = result.filter((post) => post.type === typeFilter);
     }
-  };
 
-  const submitComment = async (e: FormEvent, issueId: string) => {
-    e.preventDefault();
-
-    const content = (commentInputs[issueId] || "").trim();
-    if (!content) return;
-
-    setLoadingComment(issueId);
-
-    try {
-      const { data } = await supabase
-        .from("issue_comments")
-        .insert([{ issue_id: issueId, user_id: userId, content }])
-        .select()
-        .single();
-
-      if (data) {
-        setComments((prev) => [...prev, data as IssueComment]);
-        setCommentInputs((prev) => ({ ...prev, [issueId]: "" }));
-      }
-    } finally {
-      setLoadingComment(null);
+    if (statusFilter !== "All") {
+      result = result.filter((post) => post.status === statusFilter);
     }
-  };
 
-  const handleShare = async (issue: Issue) => {
-    const shareUrl =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/feed`
-        : "/feed";
-
-    const shareText = `Check out this civic issue on CivixOS: ${issue.title}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: issue.title,
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
-      }
-
-      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
-      setShareMessage("Link copied to clipboard.");
-      setTimeout(() => setShareMessage(""), 2000);
-    } catch {
-      setShareMessage("Could not share right now.");
-      setTimeout(() => setShareMessage(""), 2000);
+    if (categoryFilter !== "All") {
+      result = result.filter((post) => post.category === categoryFilter);
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading feed...
-      </div>
-    );
-  }
+    if (urgencyFilter !== "All") {
+      result = result.filter((post) => post.urgency === urgencyFilter);
+    }
+
+    if (sortBy === "Newest") {
+      result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (sortBy === "Most Supported") {
+      result.sort((a, b) => b.supports - a.supports);
+    } else if (sortBy === "Most Commented") {
+      result.sort((a, b) => b.comments - a.comments);
+    }
+
+    return result;
+  }, [search, typeFilter, statusFilter, categoryFilter, urgencyFilter, sortBy]);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <h1 className="text-3xl font-bold">District Feed</h1>
-
-        <div className="flex gap-3">
-          <input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 border p-2 rounded"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border p-2 rounded"
-          >
-            <option>All</option>
-            <option>Open</option>
-            <option>Under Review</option>
-            <option>Resolved</option>
-          </select>
-        </div>
-
-        {shareMessage && (
-          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            {shareMessage}
-          </div>
-        )}
-
-        {filteredIssues.map((issue) => (
-          <div key={issue.id} className="bg-white p-4 rounded shadow">
-            <h2 className="font-semibold">{issue.title}</h2>
-            <p className="text-sm text-gray-600">{issue.description}</p>
-
-            <div className="flex gap-2 mt-2 flex-wrap">
-              <span
-                className={`px-2 py-1 text-xs border rounded ${getStatusBadgeClasses(
-                  issue.status
-                )}`}
-              >
-                {issue.status}
-              </span>
-              <span
-                className={`px-2 py-1 text-xs border rounded ${getModerationBadgeClasses(
-                  issue.moderation_action
-                )}`}
-              >
-                {formatModerationAction(issue.moderation_action)}
-              </span>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500">District Feed</p>
+              <h1 className="text-2xl font-bold text-slate-900">California District 12</h1>
+              <p className="mt-1 text-sm text-slate-600">
+                Track civic issues, community proposals, and official updates in your district.
+              </p>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Toxicity</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {issue.toxicity_score != null
-                    ? `${Math.round(issue.toxicity_score * 100)}%`
-                    : "N/A"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Spam Risk</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {issue.spam_score != null
-                    ? `${Math.round(issue.spam_score * 100)}%`
-                    : "N/A"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs text-slate-500">Misinformation</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {issue.misinformation_score != null
-                    ? `${Math.round(issue.misinformation_score * 100)}%`
-                    : "N/A"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-4 flex-wrap">
-              <button
-                onClick={() => toggleVote(issue.id)}
-                disabled={loadingVote === issue.id}
-                className={`rounded-xl border px-4 py-2 text-sm font-medium ${
-                  hasUserUpvoted(issue.id)
-                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                    : "border-slate-300 text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                {loadingVote === issue.id
-                  ? "Saving..."
-                  : `👍 Upvote (${getVoteCount(issue.id)})`}
-              </button>
-
-              <button
-                onClick={() => toggleDownvote(issue.id)}
-                disabled={loadingDownvote === issue.id}
-                className={`rounded-xl border px-4 py-2 text-sm font-medium ${
-                  hasUserDownvoted(issue.id)
-                    ? "border-red-300 bg-red-50 text-red-700"
-                    : "border-slate-300 text-slate-700 hover:bg-slate-100"
-                }`}
-              >
-                {loadingDownvote === issue.id
-                  ? "Saving..."
-                  : `👎 Downvote (${getDownvoteCount(issue.id)})`}
-              </button>
-
-              <button
-                onClick={() =>
-                  setOpenComments((prev) => ({
-                    ...prev,
-                    [issue.id]: !prev[issue.id],
-                  }))
-                }
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              >
-                💬 Comments ({getComments(issue.id).length})
-              </button>
-
-              <button
-                onClick={() => handleShare(issue)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-              >
-                🔗 Share
-              </button>
-
+            <div className="flex flex-wrap gap-3">
               <Link
-                href="/chat/Representative"
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                href="/create-post"
+                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600"
+              >
+                New Issue +
+              </Link>
+              <Link
+                href="/chat-representatives"
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
                 Chat with Representative
               </Link>
             </div>
-
-            {openComments[issue.id] && (
-              <div className="mt-3">
-                {getComments(issue.id).map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="text-sm border p-2 rounded mt-2"
-                  >
-                    {comment.content}
-                  </div>
-                ))}
-
-                <form onSubmit={(e) => submitComment(e, issue.id)}>
-                  <textarea
-                    value={commentInputs[issue.id] || ""}
-                    onChange={(e) =>
-                      setCommentInputs((prev) => ({
-                        ...prev,
-                        [issue.id]: e.target.value,
-                      }))
-                    }
-                    className="w-full border mt-2 p-2 rounded"
-                    placeholder="Write a comment..."
-                  />
-                  <button className="mt-2 bg-black text-white px-3 py-1 rounded">
-                    {loadingComment === issue.id ? "Posting..." : "Post"}
-                  </button>
-                </form>
-              </div>
-            )}
           </div>
-        ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-5">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Search</label>
+              <input
+                type="text"
+                placeholder="Search issues..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">Type</h3>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {["All", "Official", "Citizen", "Community"].map((item) => (
+                    <label key={item} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="type"
+                        checked={typeFilter === item}
+                        onChange={() => setTypeFilter(item)}
+                      />
+                      {item}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">Status</h3>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {["All", "Open", "Under Review", "Resolved", "Escalated"].map((item) => (
+                    <label key={item} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="status"
+                        checked={statusFilter === item}
+                        onChange={() => setStatusFilter(item)}
+                      />
+                      {item}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">Category</h3>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {[
+                    "All",
+                    "Infrastructure",
+                    "Safety",
+                    "Sanitation",
+                    "Transportation",
+                    "Education",
+                  ].map((item) => (
+                    <label key={item} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="category"
+                        checked={categoryFilter === item}
+                        onChange={() => setCategoryFilter(item)}
+                      />
+                      {item}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">Urgency</h3>
+                <div className="space-y-2 text-sm text-slate-700">
+                  {["All", "High", "Medium", "Low"].map((item) => (
+                    <label key={item} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="urgency"
+                        checked={urgencyFilter === item}
+                        onChange={() => setUrgencyFilter(item)}
+                      />
+                      {item}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <section>
+            <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">{filteredPosts.length}</span> posts found
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-slate-700">Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                >
+                  <option>Newest</option>
+                  <option>Most Supported</option>
+                  <option>Most Commented</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+              {filteredPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className={`rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 ${getStatusStyles(post.status)}`}
+                >
+                  <div className="p-5">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                        {post.type}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getUrgencyBadge(post.urgency)}`}
+                      >
+                        {post.urgency} Urgency
+                      </span>
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                        {post.category}
+                      </span>
+                    </div>
+
+                    <h2 className="text-lg font-bold text-slate-900">{post.title}</h2>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      By {post.author} · {new Date(post.date).toLocaleDateString()}
+                    </p>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-700">{post.description}</p>
+
+                    <div className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      Status: {post.status}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 border-t border-slate-200 text-sm text-slate-600">
+                    <div className="flex items-center justify-center px-4 py-3">
+                      👍 {post.supports}
+                    </div>
+                    <div className="flex items-center justify-center border-x border-slate-200 px-4 py-3">
+                      💬 {post.comments}
+                    </div>
+                    <div className="flex items-center justify-center px-4 py-3">
+                      📍 District 12
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
+                    <Link
+                      href={`/feed/${post.id}`}
+                      className="text-sm font-semibold text-slate-700 hover:text-red-600"
+                    >
+                      View Details
+                    </Link>
+
+                    <button className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600">
+                      Support
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
