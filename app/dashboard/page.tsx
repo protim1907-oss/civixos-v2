@@ -1,15 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+
+type TabType = "All Posts" | "Official Updates" | "Community Issues" | "Resolved";
+
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  district_id: string | null;
+  role: string | null;
+  districts?: {
+    id: string;
+    name: string | null;
+  }[] | null;
+};
+
+type IssueRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string | null;
+  category: string | null;
+  created_at: string | null;
+  district_id: string | null;
+  user_id: string | null;
+  profiles?: {
+    full_name: string | null;
+    role: string | null;
+  }[] | null;
+};
 
 type DashboardPost = {
-  id: number;
+  id: string;
   title: string;
   author: string;
   type: "Official" | "Citizen" | "Community";
   status: "Open" | "Under Review" | "Resolved" | "Escalated";
-  category: "Infrastructure" | "Safety" | "Sanitation" | "Transportation" | "Education";
+  category: string;
   urgency: "Low" | "Medium" | "High";
   description: string;
   date: string;
@@ -17,94 +47,40 @@ type DashboardPost = {
   comments: number;
 };
 
-const mockPosts: DashboardPost[] = [
-  {
-    id: 1,
-    title: "Streetlights not working on Maple Avenue",
-    author: "Priya Sharma",
-    type: "Citizen",
-    status: "Open",
-    category: "Safety",
-    urgency: "High",
-    description:
-      "Several streetlights have been non-functional for more than a week, creating visibility and safety concerns for pedestrians.",
-    date: "2026-03-28",
-    supports: 18,
-    comments: 6,
-  },
-  {
-    id: 2,
-    title: "Request for additional garbage bins near park",
-    author: "Daniel Lee",
-    type: "Citizen",
-    status: "Under Review",
-    category: "Sanitation",
-    urgency: "Medium",
-    description:
-      "The park entrance and walking track area need more waste bins to reduce littering during weekends.",
-    date: "2026-03-27",
-    supports: 11,
-    comments: 4,
-  },
-  {
-    id: 3,
-    title: "Crosswalk repainting near District Elementary",
-    author: "District Office",
-    type: "Official",
-    status: "Resolved",
-    category: "Transportation",
-    urgency: "Medium",
-    description:
-      "Crosswalk repainting has been completed and reflective markers have been installed for improved safety.",
-    date: "2026-03-25",
-    supports: 24,
-    comments: 8,
-  },
-  {
-    id: 4,
-    title: "Potholes on Elm Street causing traffic delays",
-    author: "Marcus Chen",
-    type: "Citizen",
-    status: "Escalated",
-    category: "Infrastructure",
-    urgency: "High",
-    description:
-      "Multiple potholes are affecting traffic flow and vehicle safety, especially during rain.",
-    date: "2026-03-26",
-    supports: 31,
-    comments: 12,
-  },
-  {
-    id: 5,
-    title: "Need safer bus stop shelter on 8th Street",
-    author: "Neighborhood Group",
-    type: "Community",
-    status: "Open",
-    category: "Transportation",
-    urgency: "Medium",
-    description:
-      "The current bus stop has no weather protection and poor lighting, making it difficult for students and elderly residents.",
-    date: "2026-03-24",
-    supports: 9,
-    comments: 3,
-  },
-  {
-    id: 6,
-    title: "Improve school zone traffic signage",
-    author: "District PTA",
-    type: "Community",
-    status: "Resolved",
-    category: "Education",
-    urgency: "High",
-    description:
-      "Better traffic signage and speed reminders are needed around the school zone during drop-off and pick-up hours.",
-    date: "2026-03-23",
-    supports: 16,
-    comments: 7,
-  },
-];
+function normalizeStatus(status?: string | null): DashboardPost["status"] {
+  const value = (status || "").toLowerCase();
 
-type TabType = "All Posts" | "Official Updates" | "Community Issues" | "Resolved";
+  if (value.includes("review")) return "Under Review";
+  if (value.includes("resolve")) return "Resolved";
+  if (value.includes("escalat")) return "Escalated";
+  return "Open";
+}
+
+function deriveType(role?: string | null): DashboardPost["type"] {
+  const value = (role || "").toLowerCase();
+
+  if (
+    value.includes("admin") ||
+    value.includes("official") ||
+    value.includes("representative")
+  ) {
+    return "Official";
+  }
+
+  if (value.includes("community") || value.includes("moderator")) {
+    return "Community";
+  }
+
+  return "Citizen";
+}
+
+function deriveUrgency(category?: string | null): DashboardPost["urgency"] {
+  const value = (category || "").toLowerCase();
+
+  if (value.includes("safety") || value.includes("emergency")) return "High";
+  if (value.includes("transport") || value.includes("infrastructure")) return "Medium";
+  return "Low";
+}
 
 function getStatusBorder(status: DashboardPost["status"]) {
   switch (status) {
@@ -135,6 +111,12 @@ function getUrgencyBadge(urgency: DashboardPost["urgency"]) {
 }
 
 export default function CitizenDashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [posts, setPosts] = useState<DashboardPost[]>([]);
+
   const [activeTab, setActiveTab] = useState<TabType>("All Posts");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -142,15 +124,118 @@ export default function CitizenDashboardPage() {
   const [urgencyFilter, setUrgencyFilter] = useState("All");
   const [sortBy, setSortBy] = useState("Newest");
 
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) throw userError;
+
+        if (!user) {
+          setError("No authenticated user found.");
+          setLoading(false);
+          return;
+        }
+
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select(
+            `
+            id,
+            full_name,
+            email,
+            district_id,
+            role,
+            districts (
+              id,
+              name
+            )
+          `
+          )
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        const typedProfile = profileData as unknown as ProfileRow;
+        setProfile(typedProfile);
+
+        if (!typedProfile?.district_id) {
+          setPosts([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data: issuesData, error: issuesError } = await supabase
+          .from("issues")
+          .select(
+            `
+            id,
+            title,
+            description,
+            status,
+            category,
+            created_at,
+            district_id,
+            user_id,
+            profiles:user_id (
+              full_name,
+              role
+            )
+          `
+          )
+          .eq("district_id", typedProfile.district_id)
+          .order("created_at", { ascending: false });
+
+        if (issuesError) throw issuesError;
+
+        const mappedPosts: DashboardPost[] = ((issuesData as unknown as IssueRow[]) || []).map(
+          (item) => ({
+            id: item.id,
+            title: item.title || "Untitled Issue",
+            author: item.profiles?.[0]?.full_name || "Anonymous Citizen",
+            type: deriveType(item.profiles?.[0]?.role),
+            status: normalizeStatus(item.status),
+            category: item.category || "General",
+            urgency: deriveUrgency(item.category),
+            description: item.description || "No description provided.",
+            date: item.created_at || new Date().toISOString(),
+            supports: 0,
+            comments: 0,
+          })
+        );
+
+        setPosts(mappedPosts);
+      } catch (err: any) {
+        console.error("Dashboard load error:", err);
+        setError(err.message || "Failed to load dashboard.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
   const filteredPosts = useMemo(() => {
-    let result = [...mockPosts];
+    let result = [...posts];
 
     if (activeTab === "Official Updates") {
       result = result.filter((post) => post.type === "Official");
     }
 
     if (activeTab === "Community Issues") {
-      result = result.filter((post) => post.type === "Community" || post.type === "Citizen");
+      result = result.filter(
+        (post) => post.type === "Community" || post.type === "Citizen"
+      );
     }
 
     if (activeTab === "Resolved") {
@@ -188,21 +273,55 @@ export default function CitizenDashboardPage() {
     }
 
     return result;
-  }, [activeTab, search, statusFilter, categoryFilter, urgencyFilter, sortBy]);
+  }, [posts, activeTab, search, statusFilter, categoryFilter, urgencyFilter, sortBy]);
 
-  const tabs: TabType[] = ["All Posts", "Official Updates", "Community Issues", "Resolved"];
+  const tabs: TabType[] = [
+    "All Posts",
+    "Official Updates",
+    "Community Issues",
+    "Resolved",
+  ];
+
+  const districtName = profile?.districts?.[0]?.name || "Your District";
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <p className="text-sm text-slate-500">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <h1 className="text-xl font-bold text-slate-900">Citizen Dashboard</h1>
+            <p className="mt-3 text-sm text-red-600">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Citizen Dashboard</p>
-              <h1 className="text-2xl font-bold text-slate-900">Welcome back, Citizen</h1>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}
+              </h1>
               <p className="mt-1 text-sm text-slate-600">
-                Explore district activity, official announcements, community issues, and progress updates.
+                Explore district activity, official announcements, community issues, and
+                progress updates in {districtName}.
               </p>
             </div>
 
@@ -223,7 +342,6 @@ export default function CitizenDashboardPage() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="mb-6 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-wrap gap-2">
             {tabs.map((tab) => {
@@ -245,12 +363,12 @@ export default function CitizenDashboardPage() {
           </div>
         </div>
 
-        {/* Main layout */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          {/* Left sidebar */}
           <aside className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div className="mb-5">
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Search</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Search
+              </label>
               <input
                 type="text"
                 placeholder="Search posts..."
@@ -283,6 +401,7 @@ export default function CitizenDashboardPage() {
                 <div className="space-y-2 text-sm text-slate-700">
                   {[
                     "All",
+                    "General",
                     "Infrastructure",
                     "Safety",
                     "Sanitation",
@@ -321,38 +440,36 @@ export default function CitizenDashboardPage() {
             </div>
           </aside>
 
-          {/* Right content */}
           <section>
-            {/* Stats row */}
             <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <p className="text-sm text-slate-500">Open Issues</p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {mockPosts.filter((p) => p.status === "Open").length}
+                  {posts.filter((p) => p.status === "Open").length}
                 </p>
               </div>
               <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <p className="text-sm text-slate-500">Under Review</p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {mockPosts.filter((p) => p.status === "Under Review").length}
+                  {posts.filter((p) => p.status === "Under Review").length}
                 </p>
               </div>
               <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <p className="text-sm text-slate-500">Resolved</p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {mockPosts.filter((p) => p.status === "Resolved").length}
+                  {posts.filter((p) => p.status === "Resolved").length}
                 </p>
               </div>
               <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <p className="text-sm text-slate-500">Total Posts</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{mockPosts.length}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{posts.length}</p>
               </div>
             </div>
 
-            {/* Sort bar */}
             <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-slate-600">
-                <span className="font-semibold text-slate-900">{filteredPosts.length}</span> posts found
+                <span className="font-semibold text-slate-900">{filteredPosts.length}</span>{" "}
+                posts found
               </div>
 
               <div className="flex items-center gap-3">
@@ -369,72 +486,82 @@ export default function CitizenDashboardPage() {
               </div>
             </div>
 
-            {/* Cards */}
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              {filteredPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className={`rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 ${getStatusBorder(
-                    post.status
-                  )}`}
-                >
-                  <div className="p-5">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                        {post.type}
-                      </span>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getUrgencyBadge(
-                          post.urgency
-                        )}`}
+            {filteredPosts.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900">No posts found</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Try changing filters or create the first issue for this district.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                {filteredPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className={`rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 ${getStatusBorder(
+                      post.status
+                    )}`}
+                  >
+                    <div className="p-5">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          {post.type}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getUrgencyBadge(
+                            post.urgency
+                          )}`}
+                        >
+                          {post.urgency} Urgency
+                        </span>
+                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                          {post.category}
+                        </span>
+                      </div>
+
+                      <h2 className="text-lg font-bold text-slate-900">{post.title}</h2>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        By {post.author} · {new Date(post.date).toLocaleDateString()}
+                      </p>
+
+                      <p className="mt-4 text-sm leading-6 text-slate-700">
+                        {post.description}
+                      </p>
+
+                      <div className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        Status: {post.status}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 border-t border-slate-200 text-sm text-slate-600">
+                      <div className="flex items-center justify-center px-4 py-3">
+                        👍 {post.supports}
+                      </div>
+                      <div className="flex items-center justify-center border-x border-slate-200 px-4 py-3">
+                        💬 {post.comments}
+                      </div>
+                      <div className="flex items-center justify-center px-4 py-3">
+                        📍 {districtName}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
+                      <Link
+                        href={`/feed/${post.id}`}
+                        className="text-sm font-semibold text-slate-700 hover:text-red-600"
                       >
-                        {post.urgency} Urgency
-                      </span>
-                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                        {post.category}
-                      </span>
-                    </div>
+                        View Details
+                      </Link>
 
-                    <h2 className="text-lg font-bold text-slate-900">{post.title}</h2>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      By {post.author} · {new Date(post.date).toLocaleDateString()}
-                    </p>
-
-                    <p className="mt-4 text-sm leading-6 text-slate-700">{post.description}</p>
-
-                    <div className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Status: {post.status}
+                      <button className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600">
+                        Support
+                      </button>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-3 border-t border-slate-200 text-sm text-slate-600">
-                    <div className="flex items-center justify-center px-4 py-3">
-                      👍 {post.supports}
-                    </div>
-                    <div className="flex items-center justify-center border-x border-slate-200 px-4 py-3">
-                      💬 {post.comments}
-                    </div>
-                    <div className="flex items-center justify-center px-4 py-3">
-                      📍 District 12
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
-                    <Link
-                      href={`/feed/${post.id}`}
-                      className="text-sm font-semibold text-slate-700 hover:text-red-600"
-                    >
-                      View Details
-                    </Link>
-
-                    <button className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600">
-                      Support
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </div>
