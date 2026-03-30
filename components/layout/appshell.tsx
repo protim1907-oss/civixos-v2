@@ -1,5 +1,5 @@
 import { ReactNode } from "react"
-import { Sidebar } from "@/components/layout/Sidebar"
+import Sidebar from "@/components/layout/sidebar";
 import { TopNavbar } from "@/components/layout/topnavbar"
 
 type AppShellProps = {
