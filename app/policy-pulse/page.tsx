@@ -12,8 +12,6 @@ type PollResponseRow = {
   created_at: string;
 };
 
-const supabase = createClient();
-
 const steps = [
   {
     number: "1",
@@ -60,6 +58,8 @@ const concernOptions = [
 ];
 
 export default function PolicyPulsePage() {
+  const supabase = createClient();
+
   const [support, setSupport] = useState("Support with Modifications");
   const [concern, setConcern] = useState("Military escalation");
   const [recommendation, setRecommendation] = useState("");
