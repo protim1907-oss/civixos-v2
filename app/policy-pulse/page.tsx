@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import sidebar from "@/components/layout/sidebar";
 
 const pollQuestions = [
   "Do you support this approach?",
@@ -41,75 +41,33 @@ const steps = [
 ];
 
 const insightData = [
-  { label: "Support with Modifications", value: 62, width: "62%", barClass: "bg-green-500" },
-  { label: "Strongly Support", value: 39, width: "39%", barClass: "bg-blue-400" },
-  { label: "Oppose", value: 23, width: "23%", barClass: "bg-red-400" },
+  {
+    label: "Support with Modifications",
+    value: 62,
+    width: "62%",
+    barClass: "bg-green-500",
+  },
+  {
+    label: "Strongly Support",
+    value: 39,
+    width: "39%",
+    barClass: "bg-blue-400",
+  },
+  {
+    label: "Oppose",
+    value: 23,
+    width: "23%",
+    barClass: "bg-red-400",
+  },
 ];
 
 export default function PolicyPulsePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen">
-        {/* Sidebar */}
-        <aside className="hidden w-72 shrink-0 bg-slate-950 text-white lg:flex lg:flex-col">
-          <div className="border-b border-slate-800 px-7 py-8">
-            <h1 className="text-3xl font-bold tracking-tight">CivixOS</h1>
-            <p className="mt-2 text-sm text-slate-400">Citizen decision intelligence</p>
-          </div>
+        <Sidebar />
 
-          <nav className="flex-1 px-4 py-6">
-            <div className="space-y-2">
-              <Link
-                href="/dashboard"
-                className="block rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/feed"
-                className="block rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
-              >
-                District Feed
-              </Link>
-              <Link
-                href="/my-representatives"
-                className="block rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
-              >
-                Representatives
-              </Link>
-              <Link
-                href="/moderation"
-                className="block rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
-              >
-                Moderation
-              </Link>
-              <Link
-                href="/reports"
-                className="block rounded-xl px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-900 hover:text-white"
-              >
-                Reports
-              </Link>
-              <Link
-                href="/policy-pulse"
-                className="block rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white"
-              >
-                Policy Pulse
-              </Link>
-            </div>
-          </nav>
-
-          <div className="m-4 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-sm font-semibold">Prototype Goal</p>
-            <p className="mt-3 text-sm text-slate-300">Run a targeted civic poll</p>
-            <p className="mt-1 text-sm text-slate-400">
-              Collect fast policy sentiment before full platform launch.
-            </p>
-          </div>
-        </aside>
-
-        {/* Main content */}
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
-          {/* Top bar */}
           <div className="mb-8 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium text-green-700">Prototype / Policy Testing</p>
@@ -127,7 +85,6 @@ export default function PolicyPulsePage() {
             </button>
           </div>
 
-          {/* Hero */}
           <section className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
               <div className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green-700">
@@ -140,7 +97,8 @@ export default function PolicyPulsePage() {
 
               <p className="mt-4 text-sm leading-6 text-slate-600 sm:text-base">
                 Use this screen to test citizen sentiment on a time-sensitive policy issue, gather
-                comments, and produce a rapid civic insight brief for stakeholders like Costa Brown.
+                comments, and produce a rapid civic insight brief for stakeholders like Costa
+                Brown.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -177,9 +135,7 @@ export default function PolicyPulsePage() {
             </div>
           </section>
 
-          {/* Main two-column content */}
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            {/* Left */}
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-slate-900">Run the Civic Poll</h3>
@@ -218,7 +174,6 @@ export default function PolicyPulsePage() {
               </div>
             </div>
 
-            {/* Right */}
             <div className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h3 className="text-xl font-bold text-slate-900">Poll Questions</h3>
