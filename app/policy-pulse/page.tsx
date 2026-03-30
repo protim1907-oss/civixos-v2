@@ -1,13 +1,7 @@
 "use client";
 
+import { useState } from "react";
 import Sidebar from "@/components/layout/sidebar";
-
-const pollQuestions = [
-  "Do you support this approach?",
-  "What concerns you most?",
-  "What would you recommend instead?",
-  "Which best describes you?",
-];
 
 const steps = [
   {
@@ -62,6 +56,27 @@ const insightData = [
 ];
 
 export default function PolicyPulsePage() {
+  const [support, setSupport] = useState("Support with Modifications");
+  const [concern, setConcern] = useState("Military escalation");
+  const [recommendation, setRecommendation] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    console.log({
+      support,
+      concern,
+      recommendation,
+    });
+
+    setSubmitted(true);
+
+    setTimeout(() => {
+      setSubmitted(false);
+    }, 3000);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen">
@@ -97,7 +112,8 @@ export default function PolicyPulsePage() {
 
               <p className="mt-4 text-sm leading-6 text-slate-600 sm:text-base">
                 Use this screen to test citizen sentiment on a time-sensitive policy issue, gather
-                comments, and produce a rapid civic insight brief for stakeholders like Costa Brown.
+                comments, and produce a rapid civic insight brief for stakeholders like Costa
+                Brown.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -175,18 +191,70 @@ export default function PolicyPulsePage() {
 
             <div className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900">Poll Questions</h3>
-                <div className="mt-5 space-y-3">
-                  {pollQuestions.map((question, index) => (
-                    <div
-                      key={question}
-                      className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700"
+                <h3 className="text-xl font-bold text-slate-900">Civic Poll</h3>
+
+                <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      Do you support this approach?
+                    </label>
+                    <select
+                      name="support"
+                      value={support}
+                      onChange={(e) => setSupport(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-700 focus:border-green-500 focus:outline-none"
                     >
-                      <span className="mr-2 font-semibold text-slate-900">{index + 1}.</span>
-                      {question}
-                    </div>
-                  ))}
-                </div>
+                      <option>Strongly Support</option>
+                      <option>Support with Modifications</option>
+                      <option>Neutral</option>
+                      <option>Oppose</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      What concerns you most?
+                    </label>
+                    <select
+                      name="concern"
+                      value={concern}
+                      onChange={(e) => setConcern(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-700 focus:border-green-500 focus:outline-none"
+                    >
+                      <option>Military escalation</option>
+                      <option>Economic impact</option>
+                      <option>Diplomatic risk</option>
+                      <option>Effectiveness</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">
+                      What would you recommend instead?
+                    </label>
+                    <textarea
+                      name="recommendation"
+                      value={recommendation}
+                      onChange={(e) => setRecommendation(e.target.value)}
+                      rows={5}
+                      placeholder="Share your recommendation..."
+                      className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-700 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-green-600 p-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                  >
+                    Submit Response
+                  </button>
+                </form>
+
+                {submitted && (
+                  <div className="mt-4 rounded-2xl bg-green-50 p-3 text-sm font-medium text-green-700">
+                    Response submitted successfully.
+                  </div>
+                )}
 
                 <div className="mt-5 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                   2 min survey
