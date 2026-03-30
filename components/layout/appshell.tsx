@@ -17,7 +17,7 @@ const navItems = [
   { href: "/policy-pulse", label: "Policy Pulse" },
 ];
 
-export default function AppShell({ children }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
 
   return (
@@ -93,3 +93,5 @@ export default function AppShell({ children }: AppShellProps) {
     </div>
   );
 }
+
+export default AppShell;
