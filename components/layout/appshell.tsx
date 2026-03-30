@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 type AppShellProps = {
   children: ReactNode;
+  title?: string;
 };
 
 const navItems = [
@@ -17,8 +18,11 @@ const navItems = [
   { href: "/policy-pulse", label: "Policy Pulse" },
 ];
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, title }: AppShellProps) {
   const pathname = usePathname();
+
+  const currentLabel =
+    title || navItems.find((item) => item.href === pathname)?.label || "Dashboard";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -65,9 +69,7 @@ export function AppShell({ children }: AppShellProps) {
             <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
               <div>
                 <p className="text-sm text-slate-500">CivixOS Platform</p>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  {navItems.find((item) => item.href === pathname)?.label || "Dashboard"}
-                </h2>
+                <h2 className="text-lg font-semibold text-slate-900">{currentLabel}</h2>
               </div>
 
               <div className="flex items-center gap-3">
