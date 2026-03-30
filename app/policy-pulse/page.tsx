@@ -1,6 +1,6 @@
 "use client";
 
-import sidebar from "@/components/layout/sidebar";
+import Sidebar from "@/components/layout/sidebar";
 
 const pollQuestions = [
   "Do you support this approach?",
@@ -65,7 +65,7 @@ export default function PolicyPulsePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen">
-        <Sidebar />
+        <Sidebar/>
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
           <div className="mb-8 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
