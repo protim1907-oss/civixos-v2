@@ -65,7 +65,7 @@ export default function PolicyPulsePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen">
-        <Sidebar/>
+        <Sidebar />
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">
           <div className="mb-8 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -97,8 +97,7 @@ export default function PolicyPulsePage() {
 
               <p className="mt-4 text-sm leading-6 text-slate-600 sm:text-base">
                 Use this screen to test citizen sentiment on a time-sensitive policy issue, gather
-                comments, and produce a rapid civic insight brief for stakeholders like Costa
-                Brown.
+                comments, and produce a rapid civic insight brief for stakeholders like Costa Brown.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
