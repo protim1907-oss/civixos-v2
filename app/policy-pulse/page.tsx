@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/components/layout/sidebar";
+import { createClient } from "@/lib/supabase/client";
+
+type PollResponseRow = {
+  id: string;
+  support: string;
+  concern: string;
+  recommendation: string | null;
+  created_at: string;
+};
+
+const supabase = createClient();
 
 const steps = [
   {
@@ -34,25 +45,18 @@ const steps = [
   },
 ];
 
-const insightData = [
-  {
-    label: "Support with Modifications",
-    value: 62,
-    width: "62%",
-    barClass: "bg-green-500",
-  },
-  {
-    label: "Strongly Support",
-    value: 39,
-    width: "39%",
-    barClass: "bg-blue-400",
-  },
-  {
-    label: "Oppose",
-    value: 23,
-    width: "23%",
-    barClass: "bg-red-400",
-  },
+const supportOptions = [
+  "Strongly Support",
+  "Support with Modifications",
+  "Neutral",
+  "Oppose",
+];
+
+const concernOptions = [
+  "Military escalation",
+  "Economic impact",
+  "Diplomatic risk",
+  "Effectiveness",
 ];
 
 export default function PolicyPulsePage() {
@@ -60,19 +64,131 @@ export default function PolicyPulsePage() {
   const [concern, setConcern] = useState("Military escalation");
   const [recommendation, setRecommendation] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [responseCount, setResponseCount] = useState(0);
+  const [responses, setResponses] = useState<PollResponseRow[]>([]);
+  const [loadError, setLoadError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const fetchResponses = async () => {
+    const { data, error } = await supabase
+      .from("poll_responses")
+      .select("id, support, concern, recommendation, created_at")
+      .order("created_at", { ascending: false });
 
-    console.log({
-      support,
-      concern,
-      recommendation,
+    if (error) {
+      console.error("Error fetching poll responses:", error);
+      setLoadError("Unable to load live response data.");
+      return;
+    }
+
+    const rows = (data ?? []) as PollResponseRow[];
+    setResponses(rows);
+    setResponseCount(rows.length);
+    setLoadError("");
+  };
+
+  useEffect(() => {
+    fetchResponses();
+  }, []);
+
+  const supportBreakdown = useMemo(() => {
+    const total = responses.length;
+
+    return supportOptions.map((label) => {
+      const count = responses.filter((item) => item.support === label).length;
+      const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+
+      return {
+        label,
+        count,
+        percent,
+        width: `${percent}%`,
+        barClass:
+          label === "Support with Modifications"
+            ? "bg-green-500"
+            : label === "Strongly Support"
+              ? "bg-blue-400"
+              : label === "Neutral"
+                ? "bg-amber-400"
+                : "bg-red-400",
+      };
     });
+  }, [responses]);
+
+  const topConcern = useMemo(() => {
+    if (responses.length === 0) return "No responses yet";
+
+    const concernCounts = responses.reduce<Record<string, number>>((acc, item) => {
+      acc[item.concern] = (acc[item.concern] || 0) + 1;
+      return acc;
+    }, {});
+
+    const sorted = Object.entries(concernCounts).sort((a, b) => b[1] - a[1]);
+    return sorted[0]?.[0] || "No responses yet";
+  }, [responses]);
+
+  const keyInsight = useMemo(() => {
+    if (responses.length === 0) {
+      return "No responses have been submitted yet. Once citizens begin voting, CivixOS will summarize live sentiment here.";
+    }
+
+    const mod = responses.filter(
+      (item) => item.support === "Support with Modifications"
+    ).length;
+    const strong = responses.filter(
+      (item) => item.support === "Strongly Support"
+    ).length;
+    const oppose = responses.filter((item) => item.support === "Oppose").length;
+    const neutral = responses.filter((item) => item.support === "Neutral").length;
+
+    if (mod >= strong && mod >= oppose && mod >= neutral) {
+      return "Most respondents support the objective, but prefer a more measured version of the proposal rather than a highly escalatory posture.";
+    }
+
+    if (strong >= mod && strong >= oppose && strong >= neutral) {
+      return "Respondents are showing strong support for the proposal’s core direction, suggesting a favorable reception among current participants.";
+    }
+
+    if (oppose >= mod && oppose >= strong && oppose >= neutral) {
+      return "Current sentiment shows significant resistance to the proposal, indicating concerns around risk, escalation, or overall policy direction.";
+    }
+
+    return "Respondents are still split, and more participation will help clarify the dominant sentiment and recommended path forward.";
+  }, [responses]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+    setSubmitted(false);
+
+    const trimmedRecommendation = recommendation.trim();
+
+    const { error } = await supabase.from("poll_responses").insert([
+      {
+        support,
+        concern,
+        recommendation: trimmedRecommendation || null,
+      },
+    ]);
+
+    if (error) {
+      console.error("Error saving poll response:", error);
+      setSubmitError("Unable to submit response. Please try again.");
+      setIsSubmitting(false);
+      return;
+    }
 
     setSubmitted(true);
+    setSupport("Support with Modifications");
+    setConcern("Military escalation");
+    setRecommendation("");
+    setIsSubmitting(false);
 
-    setTimeout(() => {
+    await fetchResponses();
+
+    window.setTimeout(() => {
       setSubmitted(false);
     }, 3000);
   };
@@ -204,10 +320,9 @@ export default function PolicyPulsePage() {
                       onChange={(e) => setSupport(e.target.value)}
                       className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-700 focus:border-green-500 focus:outline-none"
                     >
-                      <option>Strongly Support</option>
-                      <option>Support with Modifications</option>
-                      <option>Neutral</option>
-                      <option>Oppose</option>
+                      {supportOptions.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -221,10 +336,9 @@ export default function PolicyPulsePage() {
                       onChange={(e) => setConcern(e.target.value)}
                       className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-700 focus:border-green-500 focus:outline-none"
                     >
-                      <option>Military escalation</option>
-                      <option>Economic impact</option>
-                      <option>Diplomatic risk</option>
-                      <option>Effectiveness</option>
+                      {concernOptions.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -244,15 +358,22 @@ export default function PolicyPulsePage() {
 
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-green-600 p-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl bg-green-600 p-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    Submit Response
+                    {isSubmitting ? "Submitting..." : "Submit Response"}
                   </button>
                 </form>
 
                 {submitted && (
                   <div className="mt-4 rounded-2xl bg-green-50 p-3 text-sm font-medium text-green-700">
                     Response submitted successfully.
+                  </div>
+                )}
+
+                {submitError && (
+                  <div className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-medium text-red-700">
+                    {submitError}
                   </div>
                 )}
 
@@ -263,14 +384,20 @@ export default function PolicyPulsePage() {
 
               <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
                 <h3 className="text-xl font-bold">Insight Snapshot</h3>
-                <p className="mt-2 text-sm text-slate-300">Responses: 128</p>
+                <p className="mt-2 text-sm text-slate-300">Responses: {responseCount}</p>
+
+                {loadError && (
+                  <div className="mt-4 rounded-2xl bg-red-500/10 p-3 text-sm text-red-200">
+                    {loadError}
+                  </div>
+                )}
 
                 <div className="mt-6 space-y-5">
-                  {insightData.map((item) => (
+                  {supportBreakdown.map((item) => (
                     <div key={item.label}>
                       <div className="mb-2 flex items-center justify-between text-sm">
                         <span className="text-slate-200">{item.label}</span>
-                        <span className="font-semibold text-white">{item.value}%</span>
+                        <span className="font-semibold text-white">{item.percent}%</span>
                       </div>
                       <div className="h-3 w-full rounded-full bg-slate-800">
                         <div
@@ -278,16 +405,19 @@ export default function PolicyPulsePage() {
                           style={{ width: item.width }}
                         />
                       </div>
+                      <div className="mt-1 text-xs text-slate-400">{item.count} responses</div>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                  <p className="text-sm font-semibold text-white">Top Concern</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{topConcern}</p>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
                   <p className="text-sm font-semibold text-white">Key Insight</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Most respondents support the objective, but prefer a more measured version of
-                    the proposal rather than a highly escalatory posture.
-                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{keyInsight}</p>
                 </div>
               </div>
             </div>
