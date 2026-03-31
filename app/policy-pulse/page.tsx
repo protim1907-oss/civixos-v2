@@ -38,37 +38,50 @@ export default function PolicyPulsePage() {
   const [submitError, setSubmitError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState("");
+  const [loadingResponses, setLoadingResponses] = useState(true);
 
-  // Fetch responses
   const fetchResponses = async () => {
+    setLoadingResponses(true);
+
     const { data, error } = await supabase
       .from("poll_responses")
-      .select("*")
+      .select("id, support, concern, recommendation, created_at")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setResponses(data);
-      setResponseCount(data.length);
+    if (error) {
+      console.error("Fetch error:", error);
+      setLoadingResponses(false);
+      return;
     }
+
+    const rows = (data ?? []) as PollResponseRow[];
+    setResponses(rows);
+    setResponseCount(rows.length);
+    setLoadingResponses(false);
   };
 
   useEffect(() => {
     fetchResponses();
   }, []);
 
-  // Submit Poll
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
+    setSubmitted(false);
 
-    const { error } = await supabase.from("poll_responses").insert([
-      {
-        support,
-        concern,
-        recommendation,
-      },
-    ]);
+    const { error } = await supabase
+      .from("poll_responses")
+      .insert([
+        {
+          support,
+          concern,
+          recommendation: recommendation.trim() || null,
+        },
+      ])
+      .select();
 
     if (error) {
+      console.error("Insert error:", error);
       alert(error.message);
       setSubmitError(error.message);
       return;
@@ -76,17 +89,17 @@ export default function PolicyPulsePage() {
 
     setSubmitted(true);
     setRecommendation("");
-    fetchResponses();
+
+    await fetchResponses();
 
     setTimeout(() => setSubmitted(false), 3000);
   };
 
-  // Upload File
-  const handleUpload = async (e: any) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploading(true);
 
-      const file = e.target.files[0];
+      const file = e.target.files?.[0];
       if (!file) return;
 
       const fileName = `${Date.now()}-${file.name}`;
@@ -110,7 +123,17 @@ export default function PolicyPulsePage() {
     }
   };
 
-  // Insights
+  const topConcern = useMemo(() => {
+    if (!responses.length) return "No data yet";
+
+    const counts: Record<string, number> = {};
+    responses.forEach((r) => {
+      counts[r.concern] = (counts[r.concern] || 0) + 1;
+    });
+
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }, [responses]);
+
   const keyInsight = useMemo(() => {
     if (responses.length === 0) return "Awaiting responses...";
 
@@ -121,21 +144,10 @@ export default function PolicyPulsePage() {
     ).length;
 
     if (positive / responses.length > 0.6) {
-      return "Majority sentiment supports the proposal, but prefers controlled execution.";
+      return "Majority sentiment supports the proposal, but prefers controlled or moderated execution.";
     }
 
-    return "Sentiment is mixed or cautious. Further validation recommended.";
-  }, [responses]);
-
-  const topConcern = useMemo(() => {
-    if (!responses.length) return "No data yet";
-
-    const counts: any = {};
-    responses.forEach((r) => {
-      counts[r.concern] = (counts[r.concern] || 0) + 1;
-    });
-
-    return Object.entries(counts).sort((a: any, b: any) => b[1] - a[1])[0][0];
+    return "Sentiment is mixed or cautious. More responses will improve confidence in the policy signal.";
   }, [responses]);
 
   return (
@@ -145,32 +157,37 @@ export default function PolicyPulsePage() {
       <main className="flex-1 p-8 space-y-6">
         <h1 className="text-3xl font-bold">Policy Pulse</h1>
 
-        {/* Upload Section */}
         <div>
-          <label className="cursor-pointer bg-white border px-5 py-3 rounded-xl">
+          <label className="inline-block cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             {uploading ? "Uploading..." : "Upload Policy Summary"}
-            <input type="file" className="hidden" onChange={handleUpload} />
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="hidden"
+              onChange={handleUpload}
+            />
           </label>
 
           {fileUrl && (
             <p className="mt-2 text-green-600">
               Uploaded:{" "}
-              <a href={fileUrl} target="_blank" className="underline">
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
                 View Document
               </a>
             </p>
           )}
         </div>
 
-        {/* Poll Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-xl space-y-4"
-        >
+        <form onSubmit={handleSubmit} className="rounded-xl bg-white p-6 space-y-4">
           <select
             value={support}
             onChange={(e) => setSupport(e.target.value)}
-            className="w-full p-3 border rounded"
+            className="w-full rounded border p-3"
           >
             {supportOptions.map((o) => (
               <option key={o}>{o}</option>
@@ -180,7 +197,7 @@ export default function PolicyPulsePage() {
           <select
             value={concern}
             onChange={(e) => setConcern(e.target.value)}
-            className="w-full p-3 border rounded"
+            className="w-full rounded border p-3"
           >
             {concernOptions.map((o) => (
               <option key={o}>{o}</option>
@@ -191,22 +208,22 @@ export default function PolicyPulsePage() {
             value={recommendation}
             onChange={(e) => setRecommendation(e.target.value)}
             placeholder="Recommendation"
-            className="w-full p-3 border rounded"
+            className="w-full rounded border p-3"
+            rows={4}
           />
 
-          <button className="w-full bg-green-600 text-white p-3 rounded">
+          <button className="w-full rounded bg-green-600 p-3 text-white">
             Submit Response
           </button>
 
-          {submitted && <p className="text-green-600">Submitted!</p>}
+          {submitted && <p className="text-green-600">Submitted successfully.</p>}
           {submitError && <p className="text-red-500">{submitError}</p>}
         </form>
 
-        {/* Insights */}
-        <div className="bg-black text-white p-6 rounded-xl">
+        <div className="rounded-xl bg-black p-6 text-white">
           <p>Responses: {responseCount}</p>
           <p className="mt-2 text-sm text-slate-300">
-            Based on {responseCount} responses
+            {loadingResponses ? "Loading live data..." : `Based on ${responseCount} responses`}
           </p>
 
           <p className="mt-4">
@@ -218,18 +235,23 @@ export default function PolicyPulsePage() {
           </p>
         </div>
 
-        {/* Recent Responses */}
-        <div className="bg-white p-6 rounded-xl">
-          <h3 className="font-bold mb-4">Recent Responses</h3>
+        <div className="rounded-xl bg-white p-6">
+          <h3 className="mb-4 font-bold">Recent Responses</h3>
 
-          {responses.slice(0, 5).map((r) => (
-            <div key={r.id} className="border-b py-2 text-sm">
-              <p>
-                <b>{r.support}</b> – {r.concern}
-              </p>
-              {r.recommendation && <p>"{r.recommendation}"</p>}
-            </div>
-          ))}
+          {responses.length === 0 ? (
+            <p className="text-sm text-slate-500">No responses yet.</p>
+          ) : (
+            responses.slice(0, 5).map((r) => (
+              <div key={r.id} className="border-b py-3 text-sm last:border-b-0">
+                <p>
+                  <b>{r.support}</b> — {r.concern}
+                </p>
+                {r.recommendation && (
+                  <p className="mt-1 text-slate-600">"{r.recommendation}"</p>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </main>
     </div>
