@@ -1,106 +1,100 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Sidebar from "../../components/layout/Sidebar";
 
 type FeedPost = {
   id: number;
   title: string;
-  author: string;
-  type: "Official" | "Citizen" | "Community";
-  status: "Open" | "Under Review" | "Resolved" | "Escalated";
-  category: "Infrastructure" | "Safety" | "Sanitation" | "Transportation" | "Education";
-  urgency: "Low" | "Medium" | "High";
   description: string;
-  date: string;
-  supports: number;
+  district: string;
+  category: string;
+  urgency: "High" | "Medium" | "Low";
+  status: "Open" | "Under Review" | "Resolved" | "Escalated";
+  upvotes: number;
   comments: number;
+  representative: string;
 };
 
-const mockPosts: FeedPost[] = [
+const feedPosts: FeedPost[] = [
   {
     id: 1,
-    title: "Streetlights not working on Maple Avenue",
-    author: "Priya Sharma",
-    type: "Citizen",
-    status: "Open",
-    category: "Safety",
-    urgency: "High",
+    title: "Potholes causing traffic delays on Main Street",
     description:
-      "Several streetlights have been non-functional for more than a week, creating visibility and safety concerns for pedestrians.",
-    date: "2026-03-28",
-    supports: 18,
-    comments: 6,
+      "Residents have reported multiple potholes creating unsafe driving conditions and slowing down traffic during peak hours.",
+    district: "California District 12",
+    category: "Infrastructure",
+    urgency: "High",
+    status: "Open",
+    upvotes: 42,
+    comments: 18,
+    representative: "Nancy Pelosi",
   },
   {
     id: 2,
-    title: "Request for additional garbage bins near park",
-    author: "Daniel Lee",
-    type: "Citizen",
-    status: "Under Review",
-    category: "Sanitation",
-    urgency: "Medium",
+    title: "Need improved street lighting near school zone",
     description:
-      "The park entrance and walking track area need more waste bins to reduce littering during weekends.",
-    date: "2026-03-27",
-    supports: 11,
-    comments: 4,
+      "Poor lighting near the school entrance is creating safety concerns for students and parents during early morning hours.",
+    district: "California District 12",
+    category: "Public Safety",
+    urgency: "Medium",
+    status: "Under Review",
+    upvotes: 31,
+    comments: 9,
+    representative: "Nancy Pelosi",
   },
   {
     id: 3,
-    title: "Crosswalk repainting near District Elementary",
-    author: "District Office",
-    type: "Official",
-    status: "Resolved",
-    category: "Transportation",
-    urgency: "Medium",
+    title: "Overflowing trash bins in public park",
     description:
-      "Crosswalk repainting has been completed and reflective markers have been installed for improved safety.",
-    date: "2026-03-25",
-    supports: 24,
-    comments: 8,
+      "Waste bins in the neighborhood park are not being cleared regularly, affecting cleanliness and public health.",
+    district: "California District 12",
+    category: "Sanitation",
+    urgency: "Low",
+    status: "Resolved",
+    upvotes: 19,
+    comments: 6,
+    representative: "Nancy Pelosi",
   },
   {
     id: 4,
-    title: "Potholes on Elm Street causing traffic delays",
-    author: "Marcus Chen",
-    type: "Citizen",
-    status: "Escalated",
-    category: "Infrastructure",
-    urgency: "High",
+    title: "Broken pedestrian crossing signal",
     description:
-      "Multiple potholes are affecting traffic flow and vehicle safety, especially during rain.",
-    date: "2026-03-26",
-    supports: 31,
-    comments: 12,
+      "The crossing signal at a busy intersection is not functioning, making it dangerous for elderly residents and children.",
+    district: "California District 12",
+    category: "Transportation",
+    urgency: "High",
+    status: "Escalated",
+    upvotes: 54,
+    comments: 21,
+    representative: "Nancy Pelosi",
   },
   {
     id: 5,
-    title: "Need safer bus stop shelter on 8th Street",
-    author: "Ana Lopez",
-    type: "Community",
-    status: "Open",
-    category: "Transportation",
-    urgency: "Medium",
+    title: "Request for more community policing presence",
     description:
-      "The current bus stop has no weather protection and poor lighting, making it difficult for students and elderly residents.",
-    date: "2026-03-24",
-    supports: 9,
-    comments: 3,
+      "Residents are asking for increased patrol visibility after a rise in petty theft complaints in the area.",
+    district: "California District 12",
+    category: "Public Safety",
+    urgency: "Medium",
+    status: "Under Review",
+    upvotes: 27,
+    comments: 12,
+    representative: "Nancy Pelosi",
   },
   {
     id: 6,
-    title: "Improve school zone traffic signage",
-    author: "District PTA",
-    type: "Community",
-    status: "Under Review",
-    category: "Education",
-    urgency: "High",
+    title: "Bus stop shelter damaged after storm",
     description:
-      "Better traffic signage and speed reminders are needed around the school zone during drop-off and pick-up hours.",
-    date: "2026-03-23",
-    supports: 16,
+      "The shelter roof is partially broken, leaving commuters exposed to rain and heat while waiting.",
+    district: "California District 12",
+    category: "Transportation",
+    urgency: "Medium",
+    status: "Open",
+    upvotes: 23,
     comments: 7,
+    representative: "Nancy Pelosi",
   },
 ];
 
@@ -126,265 +120,196 @@ function getUrgencyBadge(urgency: FeedPost["urgency"]) {
     case "Medium":
       return "bg-amber-100 text-amber-700";
     case "Low":
-      return "bg-green-100 text-green-700";
+      return "bg-emerald-100 text-emerald-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function getStatusBadge(status: FeedPost["status"]) {
+  switch (status) {
+    case "Open":
+      return "bg-red-100 text-red-700";
+    case "Under Review":
+      return "bg-amber-100 text-amber-700";
+    case "Resolved":
+      return "bg-emerald-100 text-emerald-700";
+    case "Escalated":
+      return "bg-blue-100 text-blue-700";
     default:
       return "bg-slate-100 text-slate-700";
   }
 }
 
 export default function FeedPage() {
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [categoryFilter, setCategoryFilter] = useState("All");
   const [urgencyFilter, setUrgencyFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("Newest");
 
   const filteredPosts = useMemo(() => {
-    let result = [...mockPosts];
+    return feedPosts.filter((post) => {
+      const matchesSearch =
+        post.title.toLowerCase().includes(search.toLowerCase()) ||
+        post.description.toLowerCase().includes(search.toLowerCase()) ||
+        post.district.toLowerCase().includes(search.toLowerCase());
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (post) =>
-          post.title.toLowerCase().includes(q) ||
-          post.description.toLowerCase().includes(q) ||
-          post.author.toLowerCase().includes(q)
-      );
-    }
+      const matchesType =
+        typeFilter === "All" || post.category === typeFilter;
 
-    if (typeFilter !== "All") {
-      result = result.filter((post) => post.type === typeFilter);
-    }
+      const matchesStatus =
+        statusFilter === "All" || post.status === statusFilter;
 
-    if (statusFilter !== "All") {
-      result = result.filter((post) => post.status === statusFilter);
-    }
+      const matchesUrgency =
+        urgencyFilter === "All" || post.urgency === urgencyFilter;
 
-    if (categoryFilter !== "All") {
-      result = result.filter((post) => post.category === categoryFilter);
-    }
-
-    if (urgencyFilter !== "All") {
-      result = result.filter((post) => post.urgency === urgencyFilter);
-    }
-
-    if (sortBy === "Newest") {
-      result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    } else if (sortBy === "Most Supported") {
-      result.sort((a, b) => b.supports - a.supports);
-    } else if (sortBy === "Most Commented") {
-      result.sort((a, b) => b.comments - a.comments);
-    }
-
-    return result;
-  }, [search, typeFilter, statusFilter, categoryFilter, urgencyFilter, sortBy]);
+      return matchesSearch && matchesType && matchesStatus && matchesUrgency;
+    });
+  }, [search, typeFilter, statusFilter, urgencyFilter]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">District Feed</p>
-              <h1 className="text-2xl font-bold text-slate-900">California District 12</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Track civic issues, community proposals, and official updates in your district.
-              </p>
-            </div>
+    <div className="flex min-h-screen bg-slate-100">
+      <Sidebar />
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/create-post"
-                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600"
-              >
-                New Issue +
-              </Link>
-              <Link
-                href="/chat-representatives"
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Chat with Representative
-              </Link>
-            </div>
+      <main className="flex-1 p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
+            <p className="mt-2 text-slate-600">
+              Browse civic issues, track status, and connect with your representative.
+            </p>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-5">
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Search</label>
+          <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <input
                 type="text"
                 placeholder="Search issues..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
               />
+
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
+              >
+                <option>All</option>
+                <option>Infrastructure</option>
+                <option>Public Safety</option>
+                <option>Sanitation</option>
+                <option>Transportation</option>
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
+              >
+                <option>All</option>
+                <option>Open</option>
+                <option>Under Review</option>
+                <option>Resolved</option>
+                <option>Escalated</option>
+              </select>
+
+              <select
+                value={urgencyFilter}
+                onChange={(e) => setUrgencyFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
+              >
+                <option>All</option>
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+              </select>
             </div>
+          </div>
 
-            <div className="space-y-5">
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-800">Type</h3>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {["All", "Official", "Citizen", "Community"].map((item) => (
-                    <label key={item} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="type"
-                        checked={typeFilter === item}
-                        onChange={() => setTypeFilter(item)}
-                      />
-                      {item}
-                    </label>
-                  ))}
-                </div>
+          <div className="space-y-5">
+            {filteredPosts.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+                <p className="text-slate-600">No issues matched your filters.</p>
               </div>
-
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-800">Status</h3>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {["All", "Open", "Under Review", "Resolved", "Escalated"].map((item) => (
-                    <label key={item} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="status"
-                        checked={statusFilter === item}
-                        onChange={() => setStatusFilter(item)}
-                      />
-                      {item}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-800">Category</h3>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {[
-                    "All",
-                    "Infrastructure",
-                    "Safety",
-                    "Sanitation",
-                    "Transportation",
-                    "Education",
-                  ].map((item) => (
-                    <label key={item} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="category"
-                        checked={categoryFilter === item}
-                        onChange={() => setCategoryFilter(item)}
-                      />
-                      {item}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-800">Urgency</h3>
-                <div className="space-y-2 text-sm text-slate-700">
-                  {["All", "High", "Medium", "Low"].map((item) => (
-                    <label key={item} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="urgency"
-                        checked={urgencyFilter === item}
-                        onChange={() => setUrgencyFilter(item)}
-                      />
-                      {item}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <section>
-            <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-slate-600">
-                <span className="font-semibold text-slate-900">{filteredPosts.length}</span> posts found
-              </div>
-
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-slate-700">Sort by:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
-                >
-                  <option>Newest</option>
-                  <option>Most Supported</option>
-                  <option>Most Commented</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              {filteredPosts.map((post) => (
+            ) : (
+              filteredPosts.map((post) => (
                 <div
                   key={post.id}
-                  className={`rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 ${getStatusStyles(post.status)}`}
+                  className={`rounded-2xl bg-white p-6 shadow-sm ${getStatusStyles(
+                    post.status
+                  )}`}
                 >
-                  <div className="p-5">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                        {post.type}
-                      </span>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getUrgencyBadge(post.urgency)}`}
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex-1">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getUrgencyBadge(
+                            post.urgency
+                          )}`}
+                        >
+                          {post.urgency} Urgency
+                        </span>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(
+                            post.status
+                          )}`}
+                        >
+                          {post.status}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                          {post.category}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                          {post.district}
+                        </span>
+                      </div>
+
+                      <h2 className="text-xl font-bold text-slate-900">
+                        {post.title}
+                      </h2>
+
+                      <p className="mt-3 text-slate-600">{post.description}</p>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                        <span>⬆ {post.upvotes} upvotes</span>
+                        <span>💬 {post.comments} comments</span>
+                        <span>Representative: {post.representative}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex w-full flex-col gap-3 lg:w-64">
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/chat/${encodeURIComponent(post.representative)}`
+                          )
+                        }
+                        className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
                       >
-                        {post.urgency} Urgency
-                      </span>
-                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                        {post.category}
-                      </span>
+                        Chat with my representative
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/chat/${encodeURIComponent(post.representative)}`
+                          )
+                        }
+                        className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        View representative thread
+                      </button>
                     </div>
-
-                    <h2 className="text-lg font-bold text-slate-900">{post.title}</h2>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      By {post.author} · {new Date(post.date).toLocaleDateString()}
-                    </p>
-
-                    <p className="mt-4 text-sm leading-6 text-slate-700">{post.description}</p>
-
-                    <div className="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Status: {post.status}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 border-t border-slate-200 text-sm text-slate-600">
-                    <div className="flex items-center justify-center px-4 py-3">
-                      👍 {post.supports}
-                    </div>
-                    <div className="flex items-center justify-center border-x border-slate-200 px-4 py-3">
-                      💬 {post.comments}
-                    </div>
-                    <div className="flex items-center justify-center px-4 py-3">
-                      📍 District 12
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
-                    <Link
-                      href={`/feed/${post.id}`}
-                      className="text-sm font-semibold text-slate-700 hover:text-red-600"
-                    >
-                      View Details
-                    </Link>
-
-                    <button className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600">
-                      Support
-                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
