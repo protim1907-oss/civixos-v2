@@ -11,223 +11,194 @@ export default function PolicyPulsePage() {
       <Sidebar />
 
       <main className="flex-1 p-6">
-        <div className="mx-auto max-w-7xl space-y-8">
-          {/* Hero Section */}
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-900 to-slate-800 px-8 py-12 text-white shadow-xl">
-            <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
-            <div className="absolute bottom-0 left-0 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="mx-auto max-w-7xl">
+          {/* Intro Section */}
+          <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-slate-900">Policy Pulse</h1>
 
-            <div className="relative z-10 grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
-              <div>
-                <div className="mb-4 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-sm font-medium text-blue-100">
-                  CivixOS • Policy Pulse
-                </div>
+            <p className="mt-3 max-w-3xl text-slate-600 leading-7">
+              Test policies before they become decisions. Policy Pulse lets you
+              run quick surveys, capture citizen sentiment, and identify key
+              concerns. Get instant insights on support levels, risks, and
+              recommendations. Make smarter, faster policy decisions.
+            </p>
 
-                <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-5xl">
-                  Test policies before they become decisions.
-                </h1>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push("/create-post")}
+                className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
+              >
+                Launch Survey
+              </button>
 
-                <p className="mt-5 max-w-3xl text-base leading-7 text-slate-200 md:text-lg">
-                  Policy Pulse lets you run quick surveys, capture citizen
-                  sentiment, and identify key concerns. Get instant insights on
-                  support levels, risks, and recommendations. Make smarter,
-                  faster policy decisions.
-                </p>
-
-                <div className="mt-8 flex flex-wrap gap-4">
-                  <button
-                    onClick={() => router.push("/create-post")}
-                    className="rounded-xl bg-blue-500 px-6 py-3 font-semibold text-white transition hover:bg-blue-600"
-                  >
-                    Launch New Survey
-                  </button>
-
-                  <button
-                    onClick={() => router.push("/feed")}
-                    className="rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white transition hover:bg-white/20"
-                  >
-                    View Public Responses
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative z-10">
-                <div className="rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-md">
-                  <h2 className="text-lg font-semibold text-white">
-                    Policy Pulse at a glance
-                  </h2>
-
-                  <div className="mt-5 grid grid-cols-2 gap-4">
-                    <div className="rounded-2xl bg-white/10 p-4">
-                      <p className="text-3xl font-bold">3–4</p>
-                      <p className="mt-1 text-sm text-slate-200">
-                        Focused survey questions
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white/10 p-4">
-                      <p className="text-3xl font-bold">Real-time</p>
-                      <p className="mt-1 text-sm text-slate-200">
-                        Sentiment insights
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white/10 p-4">
-                      <p className="text-3xl font-bold">Citizen</p>
-                      <p className="mt-1 text-sm text-slate-200">
-                        Feedback collection
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white/10 p-4">
-                      <p className="text-3xl font-bold">Actionable</p>
-                      <p className="mt-1 text-sm text-slate-200">
-                        Recommendations
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={() => router.push("/feed")}
+                className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                View Responses
+              </button>
             </div>
-          </section>
+          </div>
 
-          {/* How it works */}
-          <section className="rounded-3xl bg-white p-8 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">
-                How Policy Pulse works
+          {/* Overview Cards */}
+          <div className="mb-6 grid gap-6 md:grid-cols-3">
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Quick Policy Testing
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Run short, focused surveys to validate ideas before they move
+                into implementation.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Citizen Sentiment
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Capture support levels, concerns, and recommendations in a clear
+                and structured format.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Actionable Insights
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Turn survey responses into practical next steps for
+                communication, refinement, and decision-making.
+              </p>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900">
+                Upload Policy Summary
               </h2>
               <p className="mt-2 text-slate-600">
-                From policy summary to citizen insight in a simple, guided flow.
+                Add a short and clear overview of the policy so citizens can
+                understand the issue before responding.
               </p>
-            </div>
 
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                  1
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Upload policy summary
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Add a concise overview of the policy so citizens can
-                  understand the context before responding.
+              <div className="mt-6 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <p className="text-sm text-slate-600">
+                  Upload policy documents or summaries here.
                 </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                  2
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Launch a targeted survey
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Ask support level, top concerns, and recommendations through a
-                  focused set of high-value questions.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                  3
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Gather citizen sentiment
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Capture structured public input and surface themes, risks, and
-                  emerging concerns in one place.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                  4
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Turn insight into action
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Use survey findings to shape communication, adjust policy
-                  direction, and support better decisions.
-                </p>
+                <button className="mt-4 rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white transition hover:bg-slate-800">
+                  Upload Policy Summary
+                </button>
               </div>
             </div>
-          </section>
 
-          {/* CTA / Preview Section */}
-          <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-            <div className="rounded-3xl bg-white p-8 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900">
-                Why teams use Policy Pulse
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900">
+                Survey Snapshot
               </h2>
 
-              <div className="mt-6 space-y-4">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="font-semibold text-slate-900">
-                    Faster validation
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Test assumptions early and understand whether a proposal has
-                    support before it moves forward.
+              <div className="mt-5 space-y-4">
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">Questions</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">3–4</p>
+                </div>
+
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">Sentiment Tracking</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    Real-time
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="font-semibold text-slate-900">
-                    Clearer communication
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Present policy ideas in plain language so feedback is based
-                    on understanding, not confusion.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="font-semibold text-slate-900">
-                    Better decision-making
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Combine quantitative response patterns with qualitative
-                    recommendations to guide next steps.
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">Outcome</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    Actionable Insights
                   </p>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="rounded-3xl bg-slate-900 p-8 text-white shadow-sm">
-              <h2 className="text-2xl font-bold">Ready to start a pulse?</h2>
-              <p className="mt-3 leading-7 text-slate-300">
-                Launch a short, focused consultation flow and capture meaningful
-                public feedback in minutes.
-              </p>
+          {/* Recent Responses */}
+          <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">
+              Recent Survey Responses
+            </h2>
+            <p className="mt-2 text-slate-600">
+              View citizen feedback, key concerns, and overall support levels as
+              survey responses come in.
+            </p>
 
-              <div className="mt-6 space-y-3">
-                <button
-                  onClick={() => router.push("/create-post")}
-                  className="w-full rounded-xl bg-blue-500 px-5 py-3 font-semibold text-white transition hover:bg-blue-600"
-                >
-                  Start Policy Survey
-                </button>
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left">
+                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                      Citizen
+                    </th>
+                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                      Support Level
+                    </th>
+                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                      Top Concern
+                    </th>
+                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                      Recommendation
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-100">
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Citizen A
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Supportive
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Budget clarity
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Share more cost details
+                    </td>
+                  </tr>
 
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="w-full rounded-xl border border-white/20 bg-white/5 px-5 py-3 font-semibold text-white transition hover:bg-white/10"
-                >
-                  Back to Dashboard
-                </button>
-              </div>
+                  <tr className="border-b border-slate-100">
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Citizen B
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Neutral
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Implementation timeline
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Run a phased rollout
+                    </td>
+                  </tr>
 
-              <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-slate-300">
-                  Best for policy testing, community consultation, pilot
-                  feedback, and issue-based public sentiment tracking.
-                </p>
-              </div>
+                  <tr>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Citizen C
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Concerned
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Access and fairness
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      Add safeguards for vulnerable groups
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          </section>
+          </div>
         </div>
       </main>
     </div>
