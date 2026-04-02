@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
 
@@ -10,10 +10,47 @@ type UploadedFile = {
   type: string;
 };
 
+type VoteOption =
+  | "Strongly Support"
+  | "Support"
+  | "Neutral"
+  | "Oppose"
+  | "Strongly Oppose";
+
+const voteOptions: VoteOption[] = [
+  "Strongly Support",
+  "Support",
+  "Neutral",
+  "Oppose",
+  "Strongly Oppose",
+];
+
+const initialVotes: Record<VoteOption, number> = {
+  "Strongly Support": 24,
+  Support: 18,
+  Neutral: 9,
+  Oppose: 6,
+  "Strongly Oppose": 3,
+};
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getSentimentSummary(votes: Record<VoteOption, number>) {
+  const positive = votes["Strongly Support"] + votes["Support"];
+  const neutral = votes["Neutral"];
+  const negative = votes["Oppose"] + votes["Strongly Oppose"];
+
+  if (positive > negative && positive > neutral) {
+    return "Generally Supportive";
+  }
+  if (negative > positive && negative > neutral) {
+    return "Generally Negative";
+  }
+  return "Mixed / Neutral";
 }
 
 export default function PolicyPulsePage() {
@@ -22,6 +59,38 @@ export default function PolicyPulsePage() {
 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
+  const [voteSubmittedMessage, setVoteSubmittedMessage] = useState("");
+  const [votes, setVotes] = useState<Record<VoteOption, number>>(initialVotes);
+
+  const totalVotes = useMemo(
+    () => Object.values(votes).reduce((sum, count) => sum + count, 0),
+    [votes]
+  );
+
+  const generalSentiment = useMemo(() => getSentimentSummary(votes), [votes]);
+
+  const chartData = useMemo(() => {
+    return voteOptions.map((option) => {
+      const value = votes[option];
+      const percentage = totalVotes > 0 ? (value / totalVotes) * 100 : 0;
+      return {
+        label: option,
+        value,
+        percentage,
+        barClass:
+          option === "Strongly Support"
+            ? "bg-green-600"
+            : option === "Support"
+            ? "bg-green-400"
+            : option === "Neutral"
+            ? "bg-yellow-400"
+            : option === "Oppose"
+            ? "bg-red-400"
+            : "bg-red-600",
+      };
+    });
+  }, [votes, totalVotes]);
 
   const handleOpenFilePicker = () => {
     fileInputRef.current?.click();
@@ -42,8 +111,16 @@ export default function PolicyPulsePage() {
 
     setUploadedFiles(mappedFiles);
     setUploadMessage(
-      `${mappedFiles.length} file${mappedFiles.length > 1 ? "s" : ""} selected successfully.`
+      `${mappedFiles.length} file${mappedFiles.length > 1 ? "s" : ""} uploaded Successfully.`
     );
+  };
+
+  const handleVoteSubmit = () => {
+    setVotes((prev) => ({
+      ...prev,
+      [selectedVote]: prev[selectedVote] + 1,
+    }));
+    setVoteSubmittedMessage(`Your vote has been recorded as "${selectedVote}".`);
   };
 
   return (
@@ -200,30 +277,104 @@ export default function PolicyPulsePage() {
 
               <div className="mt-5 space-y-4">
                 <div className="rounded-xl border-l-4 border-yellow-500 bg-yellow-50 p-4">
-                  <p className="text-sm text-slate-500">Questions</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">3–4</p>
+                  <p className="text-sm text-slate-500">Total Votes Received</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {totalVotes}
+                  </p>
                 </div>
 
                 <div className="rounded-xl border-l-4 border-blue-500 bg-blue-50 p-4">
-                  <p className="text-sm text-slate-500">Sentiment Tracking</p>
+                  <p className="text-sm text-slate-500">General Sentiment</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    Real-time
+                    {generalSentiment}
                   </p>
                 </div>
 
                 <div className="rounded-xl border-l-4 border-red-500 bg-red-50 p-4">
-                  <p className="text-sm text-slate-500">Risk Monitoring</p>
+                  <p className="text-sm text-slate-500">Top Concern</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    Concerns
+                    Budget / Access
                   </p>
                 </div>
 
                 <div className="rounded-xl border-l-4 border-green-500 bg-green-50 p-4">
-                  <p className="text-sm text-slate-500">Outcome</p>
+                  <p className="text-sm text-slate-500">Recommended Action</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    Insights
+                    Continue Consultation
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900">
+                Cast Your Vote
+              </h2>
+              <p className="mt-2 text-slate-600">
+                Select your position on this policy and submit your response.
+              </p>
+
+              <div className="mt-5">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Voting Option
+                </label>
+                <select
+                  value={selectedVote}
+                  onChange={(e) => setSelectedVote(e.target.value as VoteOption)}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                >
+                  {voteOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={handleVoteSubmit}
+                  className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
+                >
+                  Submit Vote
+                </button>
+
+                {voteSubmittedMessage && (
+                  <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    {voteSubmittedMessage}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900">
+                Citizen Sentiment Chart
+              </h2>
+              <p className="mt-2 text-slate-600">
+                View how citizens are voting across all response categories.
+              </p>
+
+              <div className="mt-6 space-y-5">
+                {chartData.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="font-medium text-slate-700">
+                        {item.label}
+                      </span>
+                      <span className="text-slate-600">
+                        {item.value} votes ({item.percentage.toFixed(1)}%)
+                      </span>
+                    </div>
+
+                    <div className="h-4 w-full rounded-full bg-slate-200">
+                      <div
+                        className={`h-4 rounded-full ${item.barClass} transition-all duration-500`}
+                        style={{ width: `${item.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
