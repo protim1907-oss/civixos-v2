@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Sidebar from "../../components/layout/sidebar";
+import Sidebar from "../../components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
 
 type PollResponseRow = {
