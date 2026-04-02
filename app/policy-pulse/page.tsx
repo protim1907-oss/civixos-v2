@@ -17,6 +17,11 @@ type VoteOption =
   | "Oppose"
   | "Strongly Oppose";
 
+type TrendPoint = {
+  concern: string;
+  supportScore: number;
+};
+
 const voteOptions: VoteOption[] = [
   "Strongly Support",
   "Support",
@@ -32,6 +37,14 @@ const initialVotes: Record<VoteOption, number> = {
   Oppose: 6,
   "Strongly Oppose": 3,
 };
+
+const trendData: TrendPoint[] = [
+  { concern: "Budget Clarity", supportScore: 78 },
+  { concern: "Access & Fairness", supportScore: 64 },
+  { concern: "Implementation Timeline", supportScore: 58 },
+  { concern: "Data Privacy", supportScore: 71 },
+  { concern: "Service Quality", supportScore: 83 },
+];
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -92,6 +105,19 @@ export default function PolicyPulsePage() {
     });
   }, [votes, totalVotes]);
 
+  const linePoints = useMemo(() => {
+    if (trendData.length === 0) return "";
+
+    const maxX = trendData.length - 1;
+    const points = trendData.map((item, index) => {
+      const x = maxX === 0 ? 0 : (index / maxX) * 100;
+      const y = 100 - item.supportScore;
+      return `${x},${y}`;
+    });
+
+    return points.join(" ");
+  }, []);
+
   const handleOpenFilePicker = () => {
     fileInputRef.current?.click();
   };
@@ -121,6 +147,10 @@ export default function PolicyPulsePage() {
       [selectedVote]: prev[selectedVote] + 1,
     }));
     setVoteSubmittedMessage(`Your vote has been recorded as "${selectedVote}".`);
+  };
+
+  const handleViewUploadedDocument = (fileName: string) => {
+    alert(`Preview for "${fileName}" can be connected here.`);
   };
 
   return (
@@ -250,7 +280,7 @@ export default function PolicyPulsePage() {
                         key={`${file.name}-${index}`}
                         className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
                       >
-                        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
                             <p className="font-semibold text-slate-900">
                               {file.name}
@@ -259,9 +289,19 @@ export default function PolicyPulsePage() {
                               {file.type}
                             </p>
                           </div>
-                          <span className="text-sm font-medium text-slate-700">
-                            {file.size}
-                          </span>
+
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-slate-700">
+                              {file.size}
+                            </span>
+
+                            <button
+                              onClick={() => handleViewUploadedDocument(file.name)}
+                              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            >
+                              View Uploaded Document
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -388,71 +428,149 @@ export default function PolicyPulsePage() {
               survey responses come in.
             </p>
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left">
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      Citizen
-                    </th>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      Support Level
-                    </th>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      Top Concern
-                    </th>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      Recommendation
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-slate-100">
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Citizen A
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Supportive
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Budget clarity
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Share more cost details
-                    </td>
-                  </tr>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left">
+                      <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                        Citizen
+                      </th>
+                      <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                        Support Level
+                      </th>
+                      <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                        Top Concern
+                      </th>
+                      <th className="px-4 py-3 text-sm font-semibold text-slate-700">
+                        Recommendation
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-100">
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Citizen A
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Supportive
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Budget clarity
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Share more cost details
+                      </td>
+                    </tr>
 
-                  <tr className="border-b border-slate-100">
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Citizen B
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Neutral
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Implementation timeline
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Run a phased rollout
-                    </td>
-                  </tr>
+                    <tr className="border-b border-slate-100">
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Citizen B
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Neutral
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Implementation timeline
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Run a phased rollout
+                      </td>
+                    </tr>
 
-                  <tr>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Citizen C
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Concerned
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Access and fairness
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      Add safeguards for vulnerable groups
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    <tr>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Citizen C
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Concerned
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Access and fairness
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        Add safeguards for vulnerable groups
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Top Concerns vs Support Levels
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  This trendline shows how citizen support changes across the
+                  main concerns raised in the survey.
+                </p>
+
+                <div className="mt-6">
+                  <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
+                    <span>Lower Support</span>
+                    <span>Higher Support</span>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-4 shadow-sm">
+                    <svg viewBox="0 0 100 100" className="h-64 w-full">
+                      <line
+                        x1="0"
+                        y1="100"
+                        x2="100"
+                        y2="100"
+                        stroke="#cbd5e1"
+                        strokeWidth="0.8"
+                      />
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="100"
+                        stroke="#cbd5e1"
+                        strokeWidth="0.8"
+                      />
+
+                      <polyline
+                        fill="none"
+                        stroke="#2563eb"
+                        strokeWidth="2"
+                        points={linePoints}
+                      />
+
+                      {trendData.map((item, index) => {
+                        const maxX = trendData.length - 1;
+                        const x = maxX === 0 ? 0 : (index / maxX) * 100;
+                        const y = 100 - item.supportScore;
+
+                        return (
+                          <g key={item.concern}>
+                            <circle cx={x} cy={y} r="2.2" fill="#2563eb" />
+                          </g>
+                        );
+                      })}
+                    </svg>
+
+                    <div className="mt-4 space-y-2">
+                      {trendData.map((item, index) => (
+                        <div
+                          key={item.concern}
+                          className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-blue-600" />
+                            <span className="text-slate-700">
+                              {index + 1}. {item.concern}
+                            </span>
+                          </div>
+                          <span className="font-semibold text-slate-900">
+                            {item.supportScore}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
