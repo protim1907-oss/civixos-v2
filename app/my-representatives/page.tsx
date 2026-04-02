@@ -1,213 +1,144 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { AppShell } from "@/components/layout/appshell"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation";
+import Sidebar from "@/components/layout/Sidebar";
 
 type Representative = {
-  id: number
-  name: string
-  title: string
-  district: string
-  image: string
-  email: string
-  linkedin: string
-}
+  name: string;
+  image: string;
+  email: string;
+  linkedin: string;
+};
 
 const representatives: Representative[] = [
   {
-    id: 1,
-    name: "Sarah Mitchell",
-    title: "City Council Member",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80",
-    email: "sarah.mitchell@cityoffice.gov",
-    linkedin: "https://www.linkedin.com/in/sarah-mitchell-demo",
+    name: "Nancy Pelosi",
+    image: "https://randomuser.me/api/portraits/women/1.jpg",
+    email: "nancy@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 2,
-    name: "Daniel Brooks",
-    title: "State Representative",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
-    email: "daniel.brooks@stateoffice.gov",
-    linkedin: "https://www.linkedin.com/in/daniel-brooks-demo",
+    name: "Kevin McCarthy",
+    image: "https://randomuser.me/api/portraits/men/2.jpg",
+    email: "kevin@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 3,
-    name: "Priya Raman",
-    title: "County Commissioner",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=600&q=80",
-    email: "priya.raman@countyoffice.gov",
-    linkedin: "https://www.linkedin.com/in/priya-raman-demo",
+    name: "Alexandria Ocasio-Cortez",
+    image: "https://randomuser.me/api/portraits/women/3.jpg",
+    email: "aoc@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 4,
-    name: "James Carter",
-    title: "School Board Member",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80",
-    email: "james.carter@schoolboard.gov",
-    linkedin: "https://www.linkedin.com/in/james-carter-demo",
+    name: "Ted Cruz",
+    image: "https://randomuser.me/api/portraits/men/4.jpg",
+    email: "ted@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 5,
-    name: "Elena Cruz",
-    title: "Public Works Liaison",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80",
-    email: "elena.cruz@publicworks.gov",
-    linkedin: "https://www.linkedin.com/in/elena-cruz-demo",
+    name: "Kamala Harris",
+    image: "https://randomuser.me/api/portraits/women/5.jpg",
+    email: "kamala@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 6,
-    name: "Michael Turner",
-    title: "Transportation Advisor",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=600&q=80",
-    email: "michael.turner@transport.gov",
-    linkedin: "https://www.linkedin.com/in/michael-turner-demo",
+    name: "Bernie Sanders",
+    image: "https://randomuser.me/api/portraits/men/6.jpg",
+    email: "bernie@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 7,
-    name: "Ayesha Khan",
-    title: "Housing Committee Lead",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=600&q=80",
-    email: "ayesha.khan@housingoffice.gov",
-    linkedin: "https://www.linkedin.com/in/ayesha-khan-demo",
+    name: "Elizabeth Warren",
+    image: "https://randomuser.me/api/portraits/women/7.jpg",
+    email: "elizabeth@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 8,
-    name: "Robert Hayes",
-    title: "District Outreach Director",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&w=600&q=80",
-    email: "robert.hayes@districtoffice.gov",
-    linkedin: "https://www.linkedin.com/in/robert-hayes-demo",
+    name: "Marco Rubio",
+    image: "https://randomuser.me/api/portraits/men/8.jpg",
+    email: "marco@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 9,
-    name: "Maria Lopez",
-    title: "Community Affairs Officer",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
-    email: "maria.lopez@communityoffice.gov",
-    linkedin: "https://www.linkedin.com/in/maria-lopez-demo",
+    name: "Gavin Newsom",
+    image: "https://randomuser.me/api/portraits/men/9.jpg",
+    email: "gavin@example.com",
+    linkedin: "https://linkedin.com",
   },
   {
-    id: 10,
-    name: "Kevin Foster",
-    title: "Legislative Aide",
-    district: "District 12",
-    image: "https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?auto=format&fit=crop&w=600&q=80",
-    email: "kevin.foster@legislativeoffice.gov",
-    linkedin: "https://www.linkedin.com/in/kevin-foster-demo",
+    name: "Ron DeSantis",
+    image: "https://randomuser.me/api/portraits/men/10.jpg",
+    email: "ron@example.com",
+    linkedin: "https://linkedin.com",
   },
-]
+];
 
 export default function MyRepresentativesPage() {
-  function handleChat(name: string) {
-    alert(`Start chat with ${name}`)
-  }
+  const router = useRouter();
 
   return (
-    <AppShell title="My Representatives">
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Citizen Services</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">
-            My Representatives
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Connect with your district representatives, send emails to their offices,
-            chat with them, or view their professional profiles.
-          </p>
-        </div>
-      </div>
+    <div className="flex">
+      <Sidebar />
 
-      <Card className="p-6">
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Representatives for District 12
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Browse your civic representatives and contact channels.
-          </p>
-        </div>
+      <div className="flex-1 p-6">
+        <h1 className="text-2xl font-bold mb-6">
+          My Representatives
+        </h1>
 
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {representatives.map((rep) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {representatives.map((rep, index) => (
             <div
-              key={rep.id}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+              key={index}
+              className="bg-white rounded-2xl shadow p-4 flex flex-col items-center text-center"
             >
-              <div className="relative h-52 w-full">
-                <Image
-                  src={rep.image}
-                  alt={rep.name}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
+              {/* Image */}
+              <img
+                src={rep.image}
+                alt={rep.name}
+                className="w-24 h-24 rounded-full mb-4 object-cover"
+              />
 
-              <div className="p-5">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    {rep.name}
-                  </h3>
-                  <p className="mt-1 text-sm font-medium text-slate-700">
-                    {rep.title}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {rep.district}
-                  </p>
-                </div>
+              {/* Name */}
+              <h2 className="text-lg font-semibold mb-2">
+                {rep.name}
+              </h2>
 
-                <div className="space-y-3">
-                  <Button
-                    fullWidth
-                    onClick={() => {
-  window.location.href = `/chat/${encodeURIComponent(rep.name)}`
-}}
-                  >
-                    Chat
-                  </Button>
+              {/* Buttons */}
+              <div className="flex flex-col gap-2 w-full mt-2">
+                
+                {/* ✅ FIXED CHAT BUTTON */}
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/chat/${encodeURIComponent(rep.name)}`
+                    )
+                  }
+                  className="bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                  Chat with Representative
+                </button>
 
-                  <a
-                    href={`mailto:${rep.email}`}
-                    className="block"
-                  >
-                    <button
-                      type="button"
-                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Email Office
-                    </button>
-                  </a>
+                {/* Email */}
+                <a
+                  href={`mailto:${rep.email}`}
+                  className="bg-gray-200 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Send Email
+                </a>
 
-                  <a
-                    href={rep.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <button
-                      type="button"
-                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      View LinkedIn
-                    </button>
-                  </a>
-                </div>
+                {/* LinkedIn */}
+                <a
+                  href={rep.linkedin}
+                  target="_blank"
+                  className="bg-gray-100 py-2 rounded-lg hover:bg-gray-200 transition"
+                >
+                  View LinkedIn
+                </a>
               </div>
             </div>
           ))}
         </div>
-      </Card>
-    </AppShell>
-  )
+      </div>
+    </div>
+  );
 }
