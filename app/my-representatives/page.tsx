@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Sidebar from "../components/layout/sidebar";
+import Sidebar from "../../components/layout/sidebar";
 
 type Representative = {
   name: string;
