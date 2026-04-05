@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<!-- saved from url=(0065)file:///Users/protimghosh/Downloads/policy-pulse-standalone.html? -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CivixOS | Policy Pulse</title>
-  <script src="./index_files/saved_resource"></script>
-  <script src="./index_files/supabase-js@2"></script>
-  <script src="./index_files/chart.js"></script>
-<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.mx-auto{margin-left:auto;margin-right:auto}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mt-3{margin-top:0.75rem}.mt-6{margin-top:1.5rem}.mt-8{margin-top:2rem}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.h-3{height:0.75rem}.h-full{height:100%}.min-h-screen{min-height:100vh}.w-full{width:100%}.max-w-3xl{max-width:48rem}.max-w-7xl{max-width:80rem}.cursor-pointer{cursor:pointer}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.items-center{align-items:center}.justify-between{justify-content:space-between}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-amber-200{--tw-border-opacity:1;border-color:rgb(253 230 138 / var(--tw-border-opacity, 1))}.border-blue-100{--tw-border-opacity:1;border-color:rgb(219 234 254 / var(--tw-border-opacity, 1))}.border-blue-200{--tw-border-opacity:1;border-color:rgb(191 219 254 / var(--tw-border-opacity, 1))}.border-blue-400{--tw-border-opacity:1;border-color:rgb(96 165 250 / var(--tw-border-opacity, 1))}.border-green-400{--tw-border-opacity:1;border-color:rgb(74 222 128 / var(--tw-border-opacity, 1))}.border-orange-400{--tw-border-opacity:1;border-color:rgb(251 146 60 / var(--tw-border-opacity, 1))}.border-red-400{--tw-border-opacity:1;border-color:rgb(248 113 113 / var(--tw-border-opacity, 1))}.border-slate-200{--tw-border-opacity:1;border-color:rgb(226 232 240 / var(--tw-border-opacity, 1))}.border-yellow-400{--tw-border-opacity:1;border-color:rgb(250 204 21 / var(--tw-border-opacity, 1))}.bg-amber-50{--tw-bg-opacity:1;background-color:rgb(255 251 235 / var(--tw-bg-opacity, 1))}.bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-blue-50{--tw-bg-opacity:1;background-color:rgb(239 246 255 / var(--tw-bg-opacity, 1))}.bg-blue-500{--tw-bg-opacity:1;background-color:rgb(59 130 246 / var(--tw-bg-opacity, 1))}.bg-blue-600{--tw-bg-opacity:1;background-color:rgb(37 99 235 / var(--tw-bg-opacity, 1))}.bg-green-50{--tw-bg-opacity:1;background-color:rgb(240 253 244 / var(--tw-bg-opacity, 1))}.bg-green-600{--tw-bg-opacity:1;background-color:rgb(22 163 74 / var(--tw-bg-opacity, 1))}.bg-red-50{--tw-bg-opacity:1;background-color:rgb(254 242 242 / var(--tw-bg-opacity, 1))}.bg-slate-100{--tw-bg-opacity:1;background-color:rgb(241 245 249 / var(--tw-bg-opacity, 1))}.bg-slate-200{--tw-bg-opacity:1;background-color:rgb(226 232 240 / var(--tw-bg-opacity, 1))}.bg-slate-50{--tw-bg-opacity:1;background-color:rgb(248 250 252 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-yellow-50{--tw-bg-opacity:1;background-color:rgb(254 252 232 / var(--tw-bg-opacity, 1))}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-10{padding-top:2.5rem;padding-bottom:2.5rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.text-2xl{font-size:1.5rem;line-height:2rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-wide{letter-spacing:0.025em}.text-amber-700{--tw-text-opacity:1;color:rgb(180 83 9 / var(--tw-text-opacity, 1))}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139 / var(--tw-text-opacity, 1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105 / var(--tw-text-opacity, 1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85 / var(--tw-text-opacity, 1))}.text-slate-900{--tw-text-opacity:1;color:rgb(15 23 42 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-green-700{--tw-text-opacity:1;color:rgb(21 128 61 / var(--tw-text-opacity, 1))}.shadow{--tw-shadow:0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}@media (min-width: 768px){.md\:col-span-2{grid-column:span 2 / span 2}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style></head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
 <body class="bg-slate-100 min-h-screen">
 
   <header class="bg-white border-b px-6 py-4">
@@ -32,17 +32,17 @@
 
         <div class="bg-green-50 p-4 rounded-xl border-2 border-green-400">
           <p class="text-sm text-gray-600">Responses</p>
-          <p id="count" class="text-2xl font-bold">5</p>
+          <p id="count" class="text-2xl font-bold">0</p>
         </div>
 
         <div class="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-400">
           <p class="text-sm text-gray-600">Sentiment</p>
-          <p id="sentiment" class="text-xl font-bold">Positive</p>
+          <p id="sentiment" class="text-xl font-bold">Pending</p>
         </div>
 
         <div class="bg-red-50 p-4 rounded-xl border-2 border-red-400">
           <p class="text-sm text-gray-600">Top Concern</p>
-          <p id="topConcernText" class="text-xl font-bold">Cost</p>
+          <p id="topConcernText" class="text-xl font-bold">Pending</p>
         </div>
       </div>
     </div>
@@ -66,7 +66,12 @@
             </p>
           </details>
 
-          <a href="https://docs.google.com/document/d/1NKe3nuSfkEpVz6EHUxWfgW23LrTWoO4I/view" target="_blank" rel="noopener noreferrer" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-xl">
+          <a
+            href="https://docs.google.com/document/d/1NKe3nuSfkEpVz6EHUxWfgW23LrTWoO4I/view"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-blue-600 text-white px-4 py-2 rounded-xl"
+          >
             View Document 1
           </a>
         </div>
@@ -85,7 +90,12 @@
             </p>
           </details>
 
-          <a href="https://docs.google.com/document/d/1Blgd9AS-wUZZdVji8sggwjiqaLTYyTxB/view" target="_blank" rel="noopener noreferrer" class="inline-block bg-green-600 text-white px-4 py-2 rounded-xl">
+          <a
+            href="https://docs.google.com/document/d/1Blgd9AS-wUZZdVji8sggwjiqaLTYyTxB/view"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-green-600 text-white px-4 py-2 rounded-xl"
+          >
             View Document 2
           </a>
         </div>
@@ -94,11 +104,22 @@
       <form id="responseForm" class="bg-white p-6 rounded-xl shadow space-y-4">
         <h2 class="text-xl font-bold">Submit Response</h2>
 
-        <input id="fullName" placeholder="Full Name" class="w-full border p-3 rounded-xl" required="">
+        <input
+          id="fullName"
+          placeholder="Full Name"
+          class="w-full border p-3 rounded-xl"
+          required
+        />
 
-        <input id="email" type="email" placeholder="Email" class="w-full border p-3 rounded-xl" required="">
+        <input
+          id="email"
+          type="email"
+          placeholder="Email"
+          class="w-full border p-3 rounded-xl"
+          required
+        />
 
-        <select id="support" class="w-full border p-3 rounded-xl" required="">
+        <select id="support" class="w-full border p-3 rounded-xl" required>
           <option value="">Support Level</option>
           <option>Strongly Support</option>
           <option>Support</option>
@@ -107,7 +128,7 @@
           <option>Strongly Oppose</option>
         </select>
 
-        <select id="concern" class="w-full border p-3 rounded-xl" required="">
+        <select id="concern" class="w-full border p-3 rounded-xl" required>
           <option value="">Top Concern</option>
           <option>Cost</option>
           <option>Timeline</option>
@@ -116,45 +137,65 @@
           <option>Security</option>
         </select>
 
-        <textarea id="recommendation" placeholder="Recommendation..." rows="5" class="w-full border p-3 rounded-xl" required=""></textarea>
+        <textarea
+          id="recommendation"
+          placeholder="Recommendation..."
+          rows="5"
+          class="w-full border p-3 rounded-xl"
+          required
+        ></textarea>
 
         <div class="flex items-center gap-4">
           <button id="submitBtn" type="submit" class="bg-black text-white px-6 py-3 rounded-xl">
             Submit
           </button>
-          <p id="statusMessage" class="text-sm text-green-700">Submitted successfully.</p>
+          <p id="statusMessage" class="text-sm text-slate-600"></p>
         </div>
+
+        <p class="text-sm text-slate-500">
+          Takes less than 1 minute. Your response helps shape data-driven decisions.
+        </p>
       </form>
     </section>
 
     <aside class="bg-white p-6 rounded-xl shadow">
       <h2 class="text-xl font-bold mb-4">Survey Snapshot</h2>
 
-      <canvas id="chart" style="box-sizing: border-box; display: block; height: 173.3px; width: 346.7px;" width="693" height="346"></canvas>
+      <canvas id="chart"></canvas>
 
       <div class="mt-6 space-y-4">
         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
           <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">Top 3 Insights</h3>
           <ul id="topInsights" class="space-y-2 text-sm text-slate-700">
-        <li>• Majority sentiment is supportive (60%).</li>
-        <li>• Top concern is Cost (2 responses).</li>
-        <li>• Top concern is Cost (2 responses).</li>
-      </ul>
+            <li>Waiting for responses...</li>
+          </ul>
         </div>
 
         <div class="bg-blue-50 rounded-xl p-4 border border-blue-200">
           <h3 class="text-sm font-semibold text-blue-700 uppercase tracking-wide mb-2">Participation Progress</h3>
           <p class="text-lg font-bold text-slate-900">
-            <span id="progressCount">5</span> / 50 responses received
+            <span id="progressCount">0</span> / 50 responses received
           </p>
           <div class="mt-3 w-full bg-white rounded-full h-3 overflow-hidden border border-blue-100">
-            <div id="progressBar" class="h-full bg-blue-500 rounded-full" style="width: 10%;"></div>
+            <div id="progressBar" class="h-full bg-blue-500 rounded-full" style="width: 0%"></div>
           </div>
         </div>
 
         <div class="bg-amber-50 rounded-xl p-4 border border-amber-200">
           <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-2">Risk Signal</h3>
-          <p id="riskSignal" class="text-sm text-slate-700">Watch closely: Cost is the dominant concern and may slow acceptance or implementation if not addressed clearly.</p>
+          <p id="riskSignal" class="text-sm text-slate-700">
+            Waiting for enough responses to identify risk patterns.
+          </p>
+        </div>
+
+        <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-2">Recommended Action</h3>
+          <p id="recommendedAction" class="text-base font-bold text-slate-900">
+            Waiting for responses...
+          </p>
+          <ul id="recommendedActionNotes" class="mt-2 space-y-1 text-sm text-slate-700">
+            <li>Submit responses to generate a recommendation.</li>
+          </ul>
         </div>
       </div>
     </aside>
@@ -389,6 +430,53 @@
       riskEl.textContent = `Current risk level appears manageable, though ${topConcern.label} remains the most cited concern and should be addressed in stakeholder communications.`;
     }
 
+    function updateRecommendedAction(rows) {
+      const actionEl = document.getElementById("recommendedAction");
+      const notesEl = document.getElementById("recommendedActionNotes");
+
+      if (!rows.length) {
+        actionEl.textContent = "Waiting for responses...";
+        notesEl.innerHTML = "<li>Submit responses to generate a recommendation.</li>";
+        return;
+      }
+
+      const total = rows.length;
+      const supportCounts = getSupportCounts(rows);
+      const positive = supportCounts["Strongly Support"] + supportCounts["Support"];
+      const negative = supportCounts["Oppose"] + supportCounts["Strongly Oppose"];
+      const neutral = supportCounts["Neutral"];
+      const positivePct = Math.round((positive / total) * 100);
+      const negativePct = Math.round((negative / total) * 100);
+      const topConcern = getTopConcernWithCount(rows);
+
+      let action = "";
+      const notes = [];
+
+      if (positivePct >= 65 && negativePct < 20) {
+        action = "Proceed";
+        notes.push(`Support is strong at ${positivePct}% of responses.`);
+        notes.push(`Primary watch item is ${topConcern.label}.`);
+        notes.push("Proceed while addressing the leading concern in communications.");
+      } else if (negativePct >= 40) {
+        action = "Re-evaluate";
+        notes.push(`Resistance is elevated at ${negativePct}% of responses.`);
+        notes.push(`${topConcern.label} is emerging as the main blocker.`);
+        notes.push("Pause and revisit positioning, scope, or implementation approach.");
+      } else {
+        action = "Proceed with modifications";
+        notes.push(`Sentiment is mixed, with ${positivePct}% supportive and ${negativePct}% negative.`);
+        notes.push(`${topConcern.label} is the dominant concern to address.`);
+        notes.push("Refine the proposal before wider rollout or final approval.");
+      }
+
+      if (neutral >= Math.ceil(total * 0.3)) {
+        notes.push("A meaningful neutral segment suggests more explanation may improve support.");
+      }
+
+      actionEl.textContent = action;
+      notesEl.innerHTML = notes.map(note => `<li>• ${note}</li>`).join("");
+    }
+
     async function loadData() {
       const { data, error } = await supabaseClient
         .from(TABLE_NAME)
@@ -409,6 +497,7 @@
       updateParticipationProgress(rows.length);
       updateTopInsights(rows);
       updateRiskSignal(rows);
+      updateRecommendedAction(rows);
     }
 
     responseForm.addEventListener("submit", async (e) => {
@@ -444,5 +533,5 @@
 
     loadData();
   </script>
-
-</body></html>
+</body>
+</html>
