@@ -2,432 +2,510 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CivixOS | Policy Pulse</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body class="bg-slate-100 min-h-screen">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Policy Pulse</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  <header class="bg-white border-b px-6 py-4">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-      <h1 class="text-xl font-bold">CivixOS</h1>
-      <span class="text-sm bg-slate-200 px-3 py-1 rounded-full">Policy Pulse</span>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+      line-height: 1.5;
+    }
+
+    .container {
+      width: 92%;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #fff;
+      padding: 28px 0;
+      border-bottom: 4px solid #2563eb;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .header p {
+      color: #cbd5e1;
+      font-size: 15px;
+    }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      padding: 20px;
+    }
+
+    .metric-title {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .metric-sub {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .green { border-left: 6px solid #16a34a; }
+    .blue { border-left: 6px solid #2563eb; }
+    .amber { border-left: 6px solid #f59e0b; }
+    .red { border-left: 6px solid #dc2626; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #0f172a;
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+
+    .chart-card {
+      min-height: 420px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 320px;
+    }
+
+    .insight-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .insight-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .insight-item h4 {
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+
+    .insight-item p {
+      font-size: 14px;
+      color: #475569;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+    }
+
+    .badge-green {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-amber {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-red {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    .table th,
+    .table td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+    }
+
+    .table th {
+      color: #475569;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .progress-row {
+      margin-bottom: 16px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      height: 10px;
+    }
+
+    .progress-fill {
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    .fill-green { background: #16a34a; }
+    .fill-blue { background: #2563eb; }
+    .fill-amber { background: #f59e0b; }
+    .fill-red { background: #dc2626; }
+
+    .footer {
+      padding: 20px 0 32px;
+      color: #64748b;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 1024px) {
+      .top-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .main-grid,
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .top-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .metric-value {
+        font-size: 24px;
+      }
+
+      .chart-wrap {
+        height: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1>Policy Pulse Dashboard</h1>
+      <p>Live public sentiment, policy risk indicators, and district-level engagement insights</p>
     </div>
   </header>
 
-  <section class="bg-white px-6 py-10">
-    <div class="max-w-7xl mx-auto">
-      <h2 class="text-4xl font-bold">Policy Pulse</h2>
-      <p class="mt-3 text-gray-600 max-w-3xl">
-        Review the documents, share your perspective, and help turn citizen feedback into structured, real-time decision intelligence.
-      </p>
-
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-        <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-400">
-          <p class="text-sm text-gray-600">Target</p>
-          <p class="text-2xl font-bold">50+</p>
-        </div>
-
-        <div class="bg-green-50 p-4 rounded-xl border-2 border-green-400">
-          <p class="text-sm text-gray-600">Responses</p>
-          <p id="count" class="text-2xl font-bold">0</p>
-        </div>
-
-        <div class="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-400">
-          <p class="text-sm text-gray-600">Sentiment</p>
-          <p id="sentiment" class="text-xl font-bold">Pending</p>
-        </div>
-
-        <div class="bg-red-50 p-4 rounded-xl border-2 border-red-400">
-          <p class="text-sm text-gray-600">Top Concern</p>
-          <p id="topConcernText" class="text-xl font-bold">Pending</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <main class="max-w-7xl mx-auto p-6 grid md:grid-cols-3 gap-6">
-    <section class="md:col-span-2 space-y-6">
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-xl shadow border-2 border-red-400">
-          <h2 class="text-xl font-bold mb-4">Document 1</h2>
-
-          <p class="text-sm text-slate-600 mb-3">
-            This amendment proposal focuses on strengthening equal protection, voting fairness, and limiting judicial overreach in constitutional interpretation.
-          </p>
-
-          <details class="mb-4 bg-slate-50 p-3 rounded-lg">
-            <summary class="cursor-pointer font-medium">Read full document summary</summary>
-            <p class="mt-3 text-sm text-slate-600">
-              This proposed constitutional amendment strengthens equal protection, voting fairness, and representation standards while limiting judicial overreach by requiring courts to rely on original constitutional meaning. It introduces a “one citizen, one vote” framework based on voting-age citizens and restricts political party dominance and artificial entity personhood. The amendment also allows Congress to override Supreme Court interpretations under strict conditions. Overall, it aims to rebalance power between courts, legislatures, and citizens.
-            </p>
-          </details>
-
-          <a
-            href="https://docs.google.com/document/d/1NKe3nuSfkEpVz6EHUxWfgW23LrTWoO4I/view"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-block bg-blue-600 text-white px-4 py-2 rounded-xl"
-          >
-            View Document 1
-          </a>
-        </div>
-
-        <div class="bg-white p-6 rounded-xl shadow border-2 border-orange-400">
-          <h2 class="text-xl font-bold mb-4">Document 2</h2>
-
-          <p class="text-sm text-slate-600 mb-3">
-            The letter asks U.S. leaders to take a firm response to threats in the Strait of Hormuz. It argues unlawful maritime tolls should be met with strong deterrence.
-          </p>
-
-          <details class="mb-4 bg-slate-50 p-3 rounded-lg">
-            <summary class="cursor-pointer font-medium">Read full document summary</summary>
-            <p class="mt-3 text-sm text-slate-600">
-              This letter urges U.S. leadership to respond decisively to threats in the Strait of Hormuz, framing them as violations of the long-standing principle of freedom of the seas. It proposes a strategy of deterrence through disproportionate economic and strategic retaliation against actors imposing unlawful maritime tolls. Drawing on historical precedent and military ethos, the author calls for strong Congressional and Executive action.
-            </p>
-          </details>
-
-          <a
-            href="https://docs.google.com/document/d/1Blgd9AS-wUZZdVji8sggwjiqaLTYyTxB/view"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-block bg-green-600 text-white px-4 py-2 rounded-xl"
-          >
-            View Document 2
-          </a>
-        </div>
+  <main class="container">
+    <section class="top-grid">
+      <div class="card green">
+        <div class="metric-title">Citizen Support</div>
+        <div class="metric-value">68%</div>
+        <div class="metric-sub">Overall support across active responses</div>
       </div>
 
-      <form id="responseForm" class="bg-white p-6 rounded-xl shadow space-y-4">
-        <h2 class="text-xl font-bold">Submit Response</h2>
+      <div class="card blue">
+        <div class="metric-title">Responses Collected</div>
+        <div class="metric-value">1,248</div>
+        <div class="metric-sub">From 14 participating districts</div>
+      </div>
 
-        <input
-          id="fullName"
-          placeholder="Full Name"
-          class="w-full border p-3 rounded-xl"
-          required
-        />
+      <div class="card amber">
+        <div class="metric-title">Neutral / Undecided</div>
+        <div class="metric-value">19%</div>
+        <div class="metric-sub">Citizens seeking more clarity</div>
+      </div>
 
-        <input
-          id="email"
-          type="email"
-          placeholder="Email"
-          class="w-full border p-3 rounded-xl"
-          required
-        />
-
-        <select id="support" class="w-full border p-3 rounded-xl" required>
-          <option value="">Support Level</option>
-          <option>Strongly Support</option>
-          <option>Support</option>
-          <option>Neutral</option>
-          <option>Oppose</option>
-          <option>Strongly Oppose</option>
-        </select>
-
-        <select id="concern" class="w-full border p-3 rounded-xl" required>
-          <option value="">Top Concern</option>
-          <option>Cost</option>
-          <option>Timeline</option>
-          <option>Compliance</option>
-          <option>Citizen Impact</option>
-          <option>Security</option>
-        </select>
-
-        <textarea
-          id="recommendation"
-          placeholder="Recommendation..."
-          rows="5"
-          class="w-full border p-3 rounded-xl"
-          required
-        ></textarea>
-
-        <div class="flex items-center gap-4">
-          <button id="submitBtn" type="submit" class="bg-black text-white px-6 py-3 rounded-xl">
-            Submit
-          </button>
-          <p id="statusMessage" class="text-sm text-slate-600"></p>
-        </div>
-
-        <p class="text-sm text-slate-500">
-          Takes less than 1 minute. Your response helps shape data-driven decisions.
-        </p>
-      </form>
+      <div class="card red">
+        <div class="metric-title">Opposition Risk</div>
+        <div class="metric-value">13%</div>
+        <div class="metric-sub">Driven by cost and implementation concerns</div>
+      </div>
     </section>
 
-    <aside class="space-y-6">
-      <div class="bg-white p-6 rounded-xl shadow">
-        <h2 class="text-xl font-bold mb-4">Participation Progress</h2>
-        <p class="text-lg font-bold text-slate-900">
-          <span id="progressCount">0</span> / 50 responses received
-        </p>
-        <div class="mt-3 w-full bg-white rounded-full h-3 overflow-hidden border border-blue-100">
-          <div id="progressBar" class="h-full bg-blue-500 rounded-full" style="width: 0%"></div>
+    <section class="main-grid">
+      <div class="card chart-card">
+        <div class="section-title">Citizen Sentiment Chart</div>
+        <div class="section-subtitle">
+          Support, neutral, and opposition trends across recent policy response periods
+        </div>
+        <div class="chart-wrap">
+          <canvas id="sentimentChart"></canvas>
         </div>
       </div>
 
-      <div class="bg-white rounded-3xl shadow p-6 border border-slate-200">
-        <h3 class="text-3xl font-bold text-slate-900">Citizen Sentiment Chart</h3>
-        <p class="mt-4 text-lg text-slate-500">
-          View how citizens are voting across all response categories.
-        </p>
+      <div class="card">
+        <div class="section-title">Policy Insight Snapshot</div>
+        <div class="section-subtitle">
+          Key takeaways from live citizen responses and district-level feedback
+        </div>
 
-        <div id="sentimentBreakdown" class="mt-8 space-y-8">
-          <!-- Filled by JavaScript -->
+        <div class="insight-list">
+          <div class="insight-item">
+            <span class="badge badge-green">Positive Signal</span>
+            <h4>Strong baseline support</h4>
+            <p>Most citizens support the proposal when benefits are explained in simple, local terms.</p>
+          </div>
+
+          <div class="insight-item">
+            <span class="badge badge-amber">Watch Area</span>
+            <h4>Need for implementation clarity</h4>
+            <p>Neutral respondents want clearer timelines, measurable outcomes, and cost transparency.</p>
+          </div>
+
+          <div class="insight-item">
+            <span class="badge badge-red">Risk Area</span>
+            <h4>Localized cost concern</h4>
+            <p>Opposition rises in districts where citizens perceive uneven economic impact or unclear accountability.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom-grid">
+      <div class="card">
+        <div class="section-title">Top Citizen Concerns</div>
+        <div class="section-subtitle">
+          Most frequently cited issues from survey responses
+        </div>
+
+        <div class="progress-row">
+          <div class="progress-label">
+            <span>Cost of Implementation</span>
+            <span>72%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill fill-red" style="width: 72%;"></div>
+          </div>
+        </div>
+
+        <div class="progress-row">
+          <div class="progress-label">
+            <span>Timeline / Delivery Confidence</span>
+            <span>58%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill fill-amber" style="width: 58%;"></div>
+          </div>
+        </div>
+
+        <div class="progress-row">
+          <div class="progress-label">
+            <span>Impact on Local Services</span>
+            <span>49%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill fill-blue" style="width: 49%;"></div>
+          </div>
+        </div>
+
+        <div class="progress-row">
+          <div class="progress-label">
+            <span>Fairness / Equity</span>
+            <span>37%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill fill-green" style="width: 37%;"></div>
+          </div>
         </div>
       </div>
 
-      <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-        <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-2">Recommended Action</h3>
-        <p id="recommendedAction" class="text-base font-bold text-slate-900">
-          Waiting for responses...
-        </p>
-        <ul id="recommendedActionNotes" class="mt-2 space-y-1 text-sm text-slate-700">
-          <li>Submit responses to generate a recommendation.</li>
-        </ul>
+      <div class="card">
+        <div class="section-title">District Activity</div>
+        <div class="section-subtitle">
+          Sample district-level pulse from the latest feedback cycle
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>District</th>
+              <th>Support</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>District 04</td>
+              <td>74%</td>
+              <td>Low</td>
+            </tr>
+            <tr>
+              <td>District 07</td>
+              <td>66%</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td>District 09</td>
+              <td>61%</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td>District 11</td>
+              <td>53%</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td>District 14</td>
+              <td>70%</td>
+              <td>Low</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </aside>
+    </section>
   </main>
 
+  <div class="footer">
+    Policy Pulse • Interactive prototype dashboard
+  </div>
+
   <script>
-    const SUPABASE_URL = "https://rforlplkumfokjfwxhmc.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmb3JscGxrdW1mb2tqZnd4aG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM0MjgsImV4cCI6MjA4OTg2OTQyOH0.gxxHUkbmU4JnbhZnf924JFBBxLa574mogFXxxcZPytc";
-    const TABLE_NAME = "policy_pulse_responses";
+    const ctx = document.getElementById('sentimentChart').getContext('2d');
 
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    const responseForm = document.getElementById("responseForm");
-    const fullNameInput = document.getElementById("fullName");
-    const emailInput = document.getElementById("email");
-    const supportInput = document.getElementById("support");
-    const concernInput = document.getElementById("concern");
-    const recommendationInput = document.getElementById("recommendation");
-    const submitBtn = document.getElementById("submitBtn");
-    const statusMessage = document.getElementById("statusMessage");
-    const countEl = document.getElementById("count");
-    const sentimentEl = document.getElementById("sentiment");
-    const topConcernEl = document.getElementById("topConcernText");
-
-    function setStatus(message, type = "default") {
-      statusMessage.textContent = message;
-      if (type === "success") {
-        statusMessage.className = "text-sm text-green-700";
-      } else if (type === "error") {
-        statusMessage.className = "text-sm text-red-700";
-      } else {
-        statusMessage.className = "text-sm text-slate-600";
-      }
-    }
-
-    function getSentiment(rows) {
-      if (!rows.length) return "Pending";
-
-      const scoreMap = {
-        "Strongly Support": 2,
-        "Support": 1,
-        "Neutral": 0,
-        "Oppose": -1,
-        "Strongly Oppose": -2
-      };
-
-      const avg = rows.reduce((sum, row) => sum + (scoreMap[row.support_level] || 0), 0) / rows.length;
-
-      if (avg > 0.5) return "Positive";
-      if (avg < -0.5) return "Negative";
-      return "Neutral";
-    }
-
-    function getTopConcern(rows) {
-      if (!rows.length) return "Pending";
-
-      const counts = {};
-      for (const row of rows) {
-        counts[row.top_concern] = (counts[row.top_concern] || 0) + 1;
-      }
-
-      return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || "Pending";
-    }
-
-    function getSupportCounts(rows) {
-      const counts = {
-        "Strongly Support": 0,
-        "Support": 0,
-        "Neutral": 0,
-        "Oppose": 0,
-        "Strongly Oppose": 0
-      };
-
-      for (const row of rows) {
-        if (counts[row.support_level] !== undefined) {
-          counts[row.support_level] += 1;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+        datasets: [
+          {
+            label: 'Support',
+            data: [58, 61, 63, 65, 67, 68],
+            backgroundColor: '#16a34a',
+            borderRadius: 6
+          },
+          {
+            label: 'Neutral',
+            data: [24, 23, 22, 21, 20, 19],
+            backgroundColor: '#f59e0b',
+            borderRadius: 6
+          },
+          {
+            label: 'Opposition',
+            data: [18, 16, 15, 14, 13, 13],
+            backgroundColor: '#dc2626',
+            borderRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              boxWidth: 12,
+              boxHeight: 12,
+              padding: 12,
+              font: {
+                size: 11
+              }
+            }
+          },
+          tooltip: {
+            enabled: true
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              font: {
+                size: 10
+              }
+            },
+            grid: {
+              display: false
+            }
+          },
+          y: {
+            beginAtZero: true,
+            max: 80,
+            ticks: {
+              stepSize: 10,
+              font: {
+                size: 10
+              },
+              callback: function(value) {
+                return value + '%';
+              }
+            },
+            grid: {
+              color: '#e5e7eb'
+            }
+          }
         }
       }
-
-      return counts;
-    }
-
-    function getTopConcernWithCount(rows) {
-      if (!rows.length) return { label: "Pending", count: 0 };
-
-      const counts = {};
-      for (const row of rows) {
-        counts[row.top_concern] = (counts[row.top_concern] || 0) + 1;
-      }
-
-      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      return { label: top[0], count: top[1] };
-    }
-
-    function updateParticipationProgress(total) {
-      const target = 50;
-      const pct = Math.min((total / target) * 100, 100);
-
-      document.getElementById("progressCount").textContent = String(total);
-      document.getElementById("progressBar").style.width = pct + "%";
-    }
-
-    function renderCitizenSentimentChart(rows) {
-      const container = document.getElementById("sentimentBreakdown");
-      if (!container) return;
-
-      const labels = [
-        "Strongly Support",
-        "Support",
-        "Neutral",
-        "Oppose",
-        "Strongly Oppose"
-      ];
-
-      const colors = {
-        "Strongly Support": "bg-green-600",
-        "Support": "bg-emerald-400",
-        "Neutral": "bg-yellow-400",
-        "Oppose": "bg-rose-400",
-        "Strongly Oppose": "bg-red-600"
-      };
-
-      const counts = getSupportCounts(rows);
-
-      container.innerHTML = labels.map((label) => {
-        const count = counts[label] || 0;
-        const pct = rows.length ? ((count / rows.length) * 100).toFixed(1) : "0.0";
-
-        return `
-          <div>
-            <div class="flex items-center justify-between mb-3 gap-4">
-              <span class="text-2xl text-slate-700 font-medium">${label}</span>
-              <span class="text-2xl text-slate-500 whitespace-nowrap">${count} votes (${pct}%)</span>
-            </div>
-            <div class="w-full h-8 bg-slate-200 rounded-full overflow-hidden">
-              <div class="${colors[label]} h-8 rounded-full" style="width:${pct}%"></div>
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    function updateRecommendedAction(rows) {
-      const actionEl = document.getElementById("recommendedAction");
-      const notesEl = document.getElementById("recommendedActionNotes");
-
-      if (!rows.length) {
-        actionEl.textContent = "Waiting for responses...";
-        notesEl.innerHTML = "<li>Submit responses to generate a recommendation.</li>";
-        return;
-      }
-
-      const total = rows.length;
-      const supportCounts = getSupportCounts(rows);
-      const positive = supportCounts["Strongly Support"] + supportCounts["Support"];
-      const negative = supportCounts["Oppose"] + supportCounts["Strongly Oppose"];
-      const neutral = supportCounts["Neutral"];
-      const positivePct = Math.round((positive / total) * 100);
-      const negativePct = Math.round((negative / total) * 100);
-      const topConcern = getTopConcernWithCount(rows);
-
-      let action = "";
-      const notes = [];
-
-      if (positivePct >= 65 && negativePct < 20) {
-        action = "Proceed";
-        notes.push(`Support is strong at ${positivePct}% of responses.`);
-        notes.push(`Primary watch item is ${topConcern.label}.`);
-        notes.push("Proceed while addressing the leading concern in communications.");
-      } else if (negativePct >= 40) {
-        action = "Re-evaluate";
-        notes.push(`Resistance is elevated at ${negativePct}% of responses.`);
-        notes.push(`${topConcern.label} is emerging as the main blocker.`);
-        notes.push("Pause and revisit positioning, scope, or implementation approach.");
-      } else {
-        action = "Proceed with modifications";
-        notes.push(`Sentiment is mixed, with ${positivePct}% supportive and ${negativePct}% negative.`);
-        notes.push(`${topConcern.label} is the dominant concern to address.`);
-        notes.push("Refine the proposal before wider rollout or final approval.");
-      }
-
-      if (neutral >= Math.ceil(total * 0.3)) {
-        notes.push("A meaningful neutral segment suggests more explanation may improve support.");
-      }
-
-      actionEl.textContent = action;
-      notesEl.innerHTML = notes.map(note => `<li>• ${note}</li>`).join("");
-    }
-
-    async function loadData() {
-      const { data, error } = await supabaseClient
-        .from(TABLE_NAME)
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        console.error("Load error:", error);
-        setStatus("Could not load dashboard data.", "error");
-        return;
-      }
-
-      const rows = data || [];
-      countEl.textContent = String(rows.length);
-      sentimentEl.textContent = getSentiment(rows);
-      topConcernEl.textContent = getTopConcern(rows);
-      updateParticipationProgress(rows.length);
-      renderCitizenSentimentChart(rows);
-      updateRecommendedAction(rows);
-    }
-
-    responseForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const payload = {
-        full_name: fullNameInput.value.trim(),
-        email: emailInput.value.trim(),
-        support_level: supportInput.value,
-        top_concern: concernInput.value,
-        recommendation: recommendationInput.value.trim()
-      };
-
-      submitBtn.disabled = true;
-      setStatus("Submitting...");
-
-      const { error } = await supabaseClient
-        .from(TABLE_NAME)
-        .insert([payload]);
-
-      if (error) {
-        console.error("Insert error:", error);
-        setStatus("Error submitting response.", "error");
-        submitBtn.disabled = false;
-        return;
-      }
-
-      responseForm.reset();
-      setStatus("Submitted successfully.", "success");
-      submitBtn.disabled = false;
-      await loadData();
     });
-
-    loadData();
   </script>
 </body>
 </html>
