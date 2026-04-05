@@ -131,7 +131,6 @@
     </section>
 
     <aside class="space-y-6">
-
       <div class="bg-white p-6 rounded-xl shadow">
         <h3 class="text-lg font-bold mb-2">Participation Progress</h3>
         <p class="text-sm text-slate-600"><span id="progressCount">0</span> / 50</p>
@@ -150,17 +149,19 @@
         <p id="recommendedAction" class="font-semibold mt-2 text-sm">Waiting...</p>
       </div>
 
-      <!-- Added section 1 -->
-      <div class="bg-white p-6 rounded-xl shadow border">
-        <h3 class="text-lg font-bold mb-4">Top 3 Insights</h3>
-        <div id="topInsights" class="space-y-3">
-          <div class="bg-slate-50 border rounded-lg p-3 text-sm text-slate-600">
-            Waiting for citizen responses...
-          </div>
-        </div>
+      <!-- Replaced Top 3 Insights with these two cards -->
+      <div class="rounded-[28px] bg-[#ece9d9] border-l-[6px] border-[#f4b000] px-10 py-8 shadow-sm">
+        <p class="text-[18px] md:text-[20px] text-slate-500 font-medium">Total Votes Received</p>
+        <p id="totalVotesCard" class="mt-4 text-[46px] leading-none font-bold text-slate-900">0</p>
       </div>
 
-      <!-- Added section 2 -->
+      <div class="rounded-[28px] bg-[#e3e9f2] border-l-[6px] border-[#3b82f6] px-10 py-8 shadow-sm">
+        <p class="text-[18px] md:text-[20px] text-slate-500 font-medium">General Sentiment</p>
+        <p id="generalSentimentCard" class="mt-4 text-[34px] md:text-[38px] leading-tight font-bold text-slate-900">
+          Pending
+        </p>
+      </div>
+
       <div class="bg-white p-6 rounded-xl shadow border">
         <h3 class="text-lg font-bold mb-4">Risk Signal</h3>
         <div class="flex items-center justify-between mb-2">
@@ -176,7 +177,6 @@
           No response data available yet.
         </p>
       </div>
-
     </aside>
   </main>
 
@@ -204,7 +204,9 @@
     const sentimentBreakdownEl = document.getElementById("sentimentBreakdown");
     const recommendedActionEl = document.getElementById("recommendedAction");
 
-    const topInsightsEl = document.getElementById("topInsights");
+    const totalVotesCardEl = document.getElementById("totalVotesCard");
+    const generalSentimentCardEl = document.getElementById("generalSentimentCard");
+
     const riskLabelEl = document.getElementById("riskLabel");
     const riskBarEl = document.getElementById("riskBar");
     const riskSummaryEl = document.getElementById("riskSummary");
@@ -254,6 +256,26 @@
       if (avg > 0.5) return "Positive";
       if (avg < -0.5) return "Negative";
       return "Neutral";
+    }
+
+    function getGeneralSentimentLabel(rows) {
+      if (!rows.length) return "Pending";
+
+      const counts = getSupportCounts(rows);
+      const total = rows.length;
+
+      const positive = counts["Strongly Support"] + counts["Support"];
+      const negative = counts["Oppose"] + counts["Strongly Oppose"];
+      const neutral = counts["Neutral"];
+
+      const positivePct = (positive / total) * 100;
+      const negativePct = (negative / total) * 100;
+      const neutralPct = (neutral / total) * 100;
+
+      if (positivePct >= 60) return "Generally Supportive";
+      if (negativePct >= 60) return "Generally Opposed";
+      if (neutralPct >= 45) return "Mostly Neutral";
+      return "Mixed Sentiment";
     }
 
     function getTopConcern(rows) {
@@ -328,39 +350,9 @@
       }
     }
 
-    function updateTopInsights(rows) {
-      if (!rows.length) {
-        topInsightsEl.innerHTML = `
-          <div class="bg-slate-50 border rounded-lg p-3 text-sm text-slate-600">
-            Waiting for citizen responses...
-          </div>
-        `;
-        return;
-      }
-
-      const total = rows.length;
-      const counts = getSupportCounts(rows);
-      const topConcern = getTopConcern(rows);
-      const positive = counts["Strongly Support"] + counts["Support"];
-      const negative = counts["Oppose"] + counts["Strongly Oppose"];
-      const neutral = counts["Neutral"];
-
-      const positivePct = Math.round((positive / total) * 100);
-      const negativePct = Math.round((negative / total) * 100);
-      const neutralPct = Math.round((neutral / total) * 100);
-
-      const insights = [
-        `Support is currently at ${positivePct}% of total responses.`,
-        `${topConcern} is the most frequently selected top concern.`,
-        `${neutralPct}% of citizens remain neutral, while ${negativePct}% express opposition.`
-      ];
-
-      topInsightsEl.innerHTML = insights.map((text, index) => `
-        <div class="bg-slate-50 border rounded-lg p-3">
-          <p class="text-xs font-semibold text-slate-500 mb-1">Insight ${index + 1}</p>
-          <p class="text-sm text-slate-700">${text}</p>
-        </div>
-      `).join("");
+    function updateInsightCards(rows) {
+      totalVotesCardEl.textContent = rows.length;
+      generalSentimentCardEl.textContent = getGeneralSentimentLabel(rows);
     }
 
     function updateRiskSignal(rows) {
@@ -436,7 +428,7 @@
       updateParticipation(rows);
       renderCitizenSentiment(rows);
       updateRecommendedAction(rows);
-      updateTopInsights(rows);
+      updateInsightCards(rows);
       updateRiskSignal(rows);
     }
 
