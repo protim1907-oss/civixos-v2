@@ -7,10 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body class="bg-slate-100 min-h-screen">
 
-  <!-- HEADER -->
   <header class="bg-white border-b px-6 py-4">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
       <h1 class="text-xl font-bold">CivixOS</h1>
@@ -18,7 +16,6 @@
     </div>
   </header>
 
-  <!-- HERO -->
   <section class="bg-white px-6 py-10">
     <div class="max-w-7xl mx-auto">
       <h2 class="text-4xl font-bold">Policy Pulse</h2>
@@ -51,55 +48,56 @@
   </section>
 
   <main class="max-w-7xl mx-auto p-6 grid md:grid-cols-3 gap-6">
-
-    <!-- LEFT -->
     <section class="md:col-span-2 space-y-6">
 
-      <!-- DOCUMENTS -->
       <div class="grid md:grid-cols-2 gap-6">
-        
         <div class="bg-white p-6 rounded-xl shadow border-2 border-red-400">
           <h2 class="text-xl font-bold mb-4">Document 1</h2>
           <p class="text-sm text-slate-600 mb-3">
-            This amendment proposal focuses on strengthening equal protection, voting fairness, and limiting judicial overreach.
+            This amendment proposal focuses on strengthening equal protection, voting fairness, and limiting judicial overreach in constitutional interpretation.
           </p>
 
           <details class="mb-4 bg-slate-50 p-3 rounded-lg">
             <summary class="cursor-pointer font-medium text-sm">Read full document summary</summary>
             <p class="mt-3 text-sm text-slate-600">
-              Strengthens equal protection, voting fairness, and limits judicial overreach using original constitutional meaning.
+              This proposed constitutional amendment strengthens equal protection, voting fairness, and representation standards while limiting judicial overreach by requiring courts to rely on original constitutional meaning. It introduces a “one citizen, one vote” framework based on voting-age citizens and restricts political party dominance and artificial entity personhood. The amendment also allows Congress to override Supreme Court interpretations under strict conditions. Overall, it aims to rebalance power between courts, legislatures, and citizens.
             </p>
           </details>
 
-          <a href="https://docs.google.com/document/d/1NKe3nuSfkEpVz6EHUxWfgW23LrTWoO4I/view"
-             target="_blank"
-             class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">
-             View Document 1
+          <a
+            href="https://docs.google.com/document/d/1NKe3nuSfkEpVz6EHUxWfgW23LrTWoO4I/view"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
+          >
+            View Document 1
           </a>
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow border-2 border-orange-400">
           <h2 class="text-xl font-bold mb-4">Document 2</h2>
           <p class="text-sm text-slate-600 mb-3">
-            Calls for strong U.S. response to Strait of Hormuz threats and maritime violations.
+            The letter asks U.S. leaders to take a firm response to threats in the Strait of Hormuz. It argues unlawful maritime tolls should be met with strong deterrence.
           </p>
 
           <details class="mb-4 bg-slate-50 p-3 rounded-lg">
             <summary class="cursor-pointer font-medium text-sm">Read full document summary</summary>
             <p class="mt-3 text-sm text-slate-600">
-              Proposes deterrence strategy using economic and strategic retaliation.
+              This letter urges U.S. leadership to respond decisively to threats in the Strait of Hormuz, framing them as violations of the long-standing principle of freedom of the seas. It proposes a strategy of deterrence through disproportionate economic and strategic retaliation against actors imposing unlawful maritime tolls. Drawing on historical precedent and military ethos, the author calls for strong Congressional and Executive action.
             </p>
           </details>
 
-          <a href="https://docs.google.com/document/d/1Blgd9AS-wUZZdVji8sggwjiqaLTYyTxB/view"
-             target="_blank"
-             class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">
-             View Document 2
+          <a
+            href="https://docs.google.com/document/d/1Blgd9AS-wUZZdVji8sggwjiqaLTYyTxB/view"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
+          >
+            View Document 2
           </a>
         </div>
       </div>
 
-      <!-- FORM -->
       <form id="responseForm" class="bg-white p-6 rounded-xl shadow space-y-4">
         <h2 class="text-xl font-bold">Submit Response</h2>
 
@@ -126,32 +124,27 @@
         <textarea id="recommendation" rows="4" placeholder="Recommendation..." class="w-full border p-3 rounded-xl" required></textarea>
 
         <div class="flex items-center gap-4">
-          <button id="submitBtn" class="bg-black text-white px-6 py-3 rounded-xl">Submit</button>
-          <p id="statusMessage" class="text-sm"></p>
+          <button id="submitBtn" type="submit" class="bg-black text-white px-6 py-3 rounded-xl">Submit</button>
+          <p id="statusMessage" class="text-sm text-slate-600"></p>
         </div>
       </form>
     </section>
 
-    <!-- RIGHT -->
     <aside class="space-y-6">
 
-      <!-- PROGRESS -->
       <div class="bg-white p-6 rounded-xl shadow">
         <h3 class="text-lg font-bold mb-2">Participation Progress</h3>
-        <p><span id="progressCount">0</span> / 50</p>
+        <p class="text-sm text-slate-600"><span id="progressCount">0</span> / 50</p>
         <div class="mt-2 w-full bg-gray-200 h-2 rounded-full">
           <div id="progressBar" class="bg-blue-500 h-2 rounded-full" style="width:0%"></div>
         </div>
       </div>
 
-      <!-- SENTIMENT -->
       <div class="bg-white p-6 rounded-xl shadow">
         <h3 class="text-lg font-bold">Citizen Sentiment</h3>
-
-        <div id="sentimentBreakdown" class="mt-4 space-y-5"></div>
+        <div id="sentimentBreakdown" class="mt-4 space-y-4"></div>
       </div>
 
-      <!-- ACTION -->
       <div class="bg-emerald-50 p-4 rounded-xl border">
         <h3 class="text-sm font-bold text-emerald-700">Recommended Action</h3>
         <p id="recommendedAction" class="font-semibold mt-2 text-sm">Waiting...</p>
@@ -161,70 +154,200 @@
   </main>
 
 <script>
-const supabase = window.supabase.createClient(
-  "https://rforlplkumfokjfwxhmc.supabase.co",
-  "YOUR_KEY"
-);
-
+const SUPABASE_URL = "https://rforlplkumfokjfwxhmc.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmb3JscGxrdW1mb2tqZnd4aG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM0MjgsImV4cCI6MjA4OTg2OTQyOH0.gxxHUkbmU4JnbhZnf924JFBBxLa574mogFXxxcZPytc";
 const TABLE = "policy_pulse_responses";
 
-function getCounts(rows){
-  const map={};
-  rows.forEach(r=>map[r.support_level]=(map[r.support_level]||0)+1);
-  return map;
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const responseForm = document.getElementById("responseForm");
+const fullNameInput = document.getElementById("fullName");
+const emailInput = document.getElementById("email");
+const supportInput = document.getElementById("support");
+const concernInput = document.getElementById("concern");
+const recommendationInput = document.getElementById("recommendation");
+const submitBtn = document.getElementById("submitBtn");
+const statusMessage = document.getElementById("statusMessage");
+
+const countEl = document.getElementById("count");
+const sentimentEl = document.getElementById("sentiment");
+const topConcernEl = document.getElementById("topConcernText");
+const progressCountEl = document.getElementById("progressCount");
+const progressBarEl = document.getElementById("progressBar");
+const sentimentBreakdownEl = document.getElementById("sentimentBreakdown");
+const recommendedActionEl = document.getElementById("recommendedAction");
+
+function setStatus(message, type = "default") {
+  statusMessage.textContent = message;
+  if (type === "success") {
+    statusMessage.className = "text-sm text-green-700";
+  } else if (type === "error") {
+    statusMessage.className = "text-sm text-red-700";
+  } else {
+    statusMessage.className = "text-sm text-slate-600";
+  }
 }
 
-function renderChart(rows){
-  const el=document.getElementById("sentimentBreakdown");
-  const counts=getCounts(rows);
-  const labels=["Strongly Support","Support","Neutral","Oppose","Strongly Oppose"];
+function getSupportCounts(rows) {
+  const counts = {
+    "Strongly Support": 0,
+    "Support": 0,
+    "Neutral": 0,
+    "Oppose": 0,
+    "Strongly Oppose": 0
+  };
 
-  el.innerHTML=labels.map(l=>{
-    const c=counts[l]||0;
-    const pct=rows.length?((c/rows.length)*100).toFixed(1):0;
+  rows.forEach((row) => {
+    if (counts[row.support_level] !== undefined) {
+      counts[row.support_level] += 1;
+    }
+  });
+
+  return counts;
+}
+
+function getSentiment(rows) {
+  if (!rows.length) return "Pending";
+
+  const scoreMap = {
+    "Strongly Support": 2,
+    "Support": 1,
+    "Neutral": 0,
+    "Oppose": -1,
+    "Strongly Oppose": -2
+  };
+
+  const avg = rows.reduce((sum, row) => sum + (scoreMap[row.support_level] || 0), 0) / rows.length;
+
+  if (avg > 0.5) return "Positive";
+  if (avg < -0.5) return "Negative";
+  return "Neutral";
+}
+
+function getTopConcern(rows) {
+  if (!rows.length) return "Pending";
+
+  const counts = {};
+  rows.forEach((row) => {
+    counts[row.top_concern] = (counts[row.top_concern] || 0) + 1;
+  });
+
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || "Pending";
+}
+
+function renderCitizenSentiment(rows) {
+  const labels = ["Strongly Support", "Support", "Neutral", "Oppose", "Strongly Oppose"];
+  const counts = getSupportCounts(rows);
+
+  const colors = {
+    "Strongly Support": "bg-green-600",
+    "Support": "bg-emerald-400",
+    "Neutral": "bg-yellow-400",
+    "Oppose": "bg-rose-400",
+    "Strongly Oppose": "bg-red-600"
+  };
+
+  sentimentBreakdownEl.innerHTML = labels.map((label) => {
+    const count = counts[label] || 0;
+    const pct = rows.length ? ((count / rows.length) * 100).toFixed(1) : "0.0";
 
     return `
-    <div>
-      <div class="flex justify-between text-sm mb-1">
-        <span>${l}</span>
-        <span>${c} (${pct}%)</span>
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-sm text-slate-700 font-medium">${label}</span>
+          <span class="text-xs text-slate-500">${count} (${pct}%)</span>
+        </div>
+        <div class="bg-gray-200 h-2 rounded-full">
+          <div class="${colors[label]} h-2 rounded-full" style="width:${pct}%"></div>
+        </div>
       </div>
-      <div class="bg-gray-200 h-2 rounded-full">
-        <div class="bg-green-500 h-2 rounded-full" style="width:${pct}%"></div>
-      </div>
-    </div>`;
+    `;
   }).join("");
 }
 
-async function load(){
-  const {data}=await supabase.from(TABLE).select("*");
-  const rows=data||[];
+function updateParticipation(rows) {
+  const total = rows.length;
+  const pct = Math.min((total / 50) * 100, 100);
 
-  document.getElementById("count").textContent=rows.length;
-  document.getElementById("progressCount").textContent=rows.length;
-  document.getElementById("progressBar").style.width=(rows.length/50*100)+"%";
-
-  renderChart(rows);
+  progressCountEl.textContent = String(total);
+  progressBarEl.style.width = pct + "%";
 }
 
-document.getElementById("responseForm").addEventListener("submit", async(e)=>{
+function updateRecommendedAction(rows) {
+  if (!rows.length) {
+    recommendedActionEl.textContent = "Waiting...";
+    return;
+  }
+
+  const total = rows.length;
+  const counts = getSupportCounts(rows);
+  const positive = counts["Strongly Support"] + counts["Support"];
+  const negative = counts["Oppose"] + counts["Strongly Oppose"];
+
+  const positivePct = Math.round((positive / total) * 100);
+  const negativePct = Math.round((negative / total) * 100);
+
+  if (positivePct >= 65 && negativePct < 20) {
+    recommendedActionEl.textContent = "Proceed";
+  } else if (negativePct >= 40) {
+    recommendedActionEl.textContent = "Re-evaluate";
+  } else {
+    recommendedActionEl.textContent = "Proceed with modifications";
+  }
+}
+
+async function loadData() {
+  const { data, error } = await supabaseClient
+    .from(TABLE)
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Load error:", error);
+    setStatus("Could not load data.", "error");
+    return;
+  }
+
+  const rows = data || [];
+
+  countEl.textContent = String(rows.length);
+  sentimentEl.textContent = getSentiment(rows);
+  topConcernEl.textContent = getTopConcern(rows);
+  updateParticipation(rows);
+  renderCitizenSentiment(rows);
+  updateRecommendedAction(rows);
+}
+
+responseForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const payload={
-    full_name:fullName.value,
-    email:email.value,
-    support_level:support.value,
-    top_concern:concern.value,
-    recommendation:recommendation.value
+  const payload = {
+    full_name: fullNameInput.value.trim(),
+    email: emailInput.value.trim(),
+    support_level: supportInput.value,
+    top_concern: concernInput.value,
+    recommendation: recommendationInput.value.trim()
   };
 
-  await supabase.from(TABLE).insert([payload]);
+  submitBtn.disabled = true;
+  setStatus("Submitting...");
 
-  statusMessage.textContent="Submitted successfully";
-  load();
+  const { error } = await supabaseClient.from(TABLE).insert([payload]);
+
+  if (error) {
+    console.error("Insert error:", error);
+    setStatus("Error submitting response.", "error");
+    submitBtn.disabled = false;
+    return;
+  }
+
+  responseForm.reset();
+  setStatus("Submitted successfully.", "success");
+  submitBtn.disabled = false;
+  await loadData();
 });
 
-load();
+loadData();
 </script>
 
 </body>
