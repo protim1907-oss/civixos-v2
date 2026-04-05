@@ -6,7 +6,6 @@
   <title>CivixOS | Policy Pulse</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen">
 
@@ -158,45 +157,36 @@
       </form>
     </section>
 
-    <aside class="bg-white p-6 rounded-xl shadow">
-      <h2 class="text-xl font-bold mb-4">Survey Snapshot</h2>
-
-      <canvas id="chart"></canvas>
-
-      <div class="mt-6 space-y-4">
-        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-          <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">Top 3 Insights</h3>
-          <ul id="topInsights" class="space-y-2 text-sm text-slate-700">
-            <li>Waiting for responses...</li>
-          </ul>
+    <aside class="space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-xl font-bold mb-4">Participation Progress</h2>
+        <p class="text-lg font-bold text-slate-900">
+          <span id="progressCount">0</span> / 50 responses received
+        </p>
+        <div class="mt-3 w-full bg-white rounded-full h-3 overflow-hidden border border-blue-100">
+          <div id="progressBar" class="h-full bg-blue-500 rounded-full" style="width: 0%"></div>
         </div>
+      </div>
 
-        <div class="bg-blue-50 rounded-xl p-4 border border-blue-200">
-          <h3 class="text-sm font-semibold text-blue-700 uppercase tracking-wide mb-2">Participation Progress</h3>
-          <p class="text-lg font-bold text-slate-900">
-            <span id="progressCount">0</span> / 50 responses received
-          </p>
-          <div class="mt-3 w-full bg-white rounded-full h-3 overflow-hidden border border-blue-100">
-            <div id="progressBar" class="h-full bg-blue-500 rounded-full" style="width: 0%"></div>
-          </div>
-        </div>
+      <div class="bg-white rounded-3xl shadow p-6 border border-slate-200">
+        <h3 class="text-3xl font-bold text-slate-900">Citizen Sentiment Chart</h3>
+        <p class="mt-4 text-lg text-slate-500">
+          View how citizens are voting across all response categories.
+        </p>
 
-        <div class="bg-amber-50 rounded-xl p-4 border border-amber-200">
-          <h3 class="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-2">Risk Signal</h3>
-          <p id="riskSignal" class="text-sm text-slate-700">
-            Waiting for enough responses to identify risk patterns.
-          </p>
+        <div id="sentimentBreakdown" class="mt-8 space-y-8">
+          <!-- Filled by JavaScript -->
         </div>
+      </div>
 
-        <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-          <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-2">Recommended Action</h3>
-          <p id="recommendedAction" class="text-base font-bold text-slate-900">
-            Waiting for responses...
-          </p>
-          <ul id="recommendedActionNotes" class="mt-2 space-y-1 text-sm text-slate-700">
-            <li>Submit responses to generate a recommendation.</li>
-          </ul>
-        </div>
+      <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+        <h3 class="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-2">Recommended Action</h3>
+        <p id="recommendedAction" class="text-base font-bold text-slate-900">
+          Waiting for responses...
+        </p>
+        <ul id="recommendedActionNotes" class="mt-2 space-y-1 text-sm text-slate-700">
+          <li>Submit responses to generate a recommendation.</li>
+        </ul>
       </div>
     </aside>
   </main>
@@ -219,9 +209,6 @@
     const countEl = document.getElementById("count");
     const sentimentEl = document.getElementById("sentiment");
     const topConcernEl = document.getElementById("topConcernText");
-    const chartCanvas = document.getElementById("chart");
-
-    let chartInstance = null;
 
     function setStatus(message, type = "default") {
       statusMessage.textContent = message;
@@ -245,8 +232,7 @@
         "Strongly Oppose": -2
       };
 
-      const avg =
-        rows.reduce((sum, row) => sum + (scoreMap[row.support_level] || 0), 0) / rows.length;
+      const avg = rows.reduce((sum, row) => sum + (scoreMap[row.support_level] || 0), 0) / rows.length;
 
       if (avg > 0.5) return "Positive";
       if (avg < -0.5) return "Negative";
@@ -294,40 +280,6 @@
       return { label: top[0], count: top[1] };
     }
 
-    function buildChart(rows) {
-      const labels = ["Strongly Support", "Support", "Neutral", "Oppose", "Strongly Oppose"];
-      const counts = getSupportCounts(rows);
-
-      if (chartInstance) {
-        chartInstance.destroy();
-      }
-
-      chartInstance = new Chart(chartCanvas, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: "Responses",
-              data: labels.map((label) => counts[label])
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { precision: 0 }
-            }
-          }
-        }
-      });
-    }
-
     function updateParticipationProgress(total) {
       const target = 50;
       const pct = Math.min((total / target) * 100, 100);
@@ -336,98 +288,44 @@
       document.getElementById("progressBar").style.width = pct + "%";
     }
 
-    function updateTopInsights(rows) {
-      const insightsEl = document.getElementById("topInsights");
+    function renderCitizenSentimentChart(rows) {
+      const container = document.getElementById("sentimentBreakdown");
+      if (!container) return;
 
-      if (!rows.length) {
-        insightsEl.innerHTML = "<li>Waiting for responses...</li>";
-        return;
-      }
+      const labels = [
+        "Strongly Support",
+        "Support",
+        "Neutral",
+        "Oppose",
+        "Strongly Oppose"
+      ];
 
-      const total = rows.length;
-      const supportCounts = getSupportCounts(rows);
-      const positive = supportCounts["Strongly Support"] + supportCounts["Support"];
-      const negative = supportCounts["Oppose"] + supportCounts["Strongly Oppose"];
-      const neutral = supportCounts["Neutral"];
-      const positivePct = Math.round((positive / total) * 100);
-      const negativePct = Math.round((negative / total) * 100);
-      const neutralPct = Math.round((neutral / total) * 100);
+      const colors = {
+        "Strongly Support": "bg-green-600",
+        "Support": "bg-emerald-400",
+        "Neutral": "bg-yellow-400",
+        "Oppose": "bg-rose-400",
+        "Strongly Oppose": "bg-red-600"
+      };
 
-      const topConcern = getTopConcernWithCount(rows);
+      const counts = getSupportCounts(rows);
 
-      let leadSignal = "Sentiment is broadly mixed.";
-      if (positive > negative) {
-        leadSignal = `Majority sentiment is supportive (${positivePct}%).`;
-      } else if (negative > positive) {
-        leadSignal = `Resistance is leading (${negativePct}%).`;
-      } else if (neutralPct > 0) {
-        leadSignal = `A significant share remains neutral (${neutralPct}%).`;
-      }
+      container.innerHTML = labels.map((label) => {
+        const count = counts[label] || 0;
+        const pct = rows.length ? ((count / rows.length) * 100).toFixed(1) : "0.0";
 
-      const recommendationCounts = {};
-      for (const row of rows) {
-        const text = (row.recommendation || "").toLowerCase();
-
-        if (text.includes("phase")) {
-          recommendationCounts["Phased rollout is a recurring recommendation."] =
-            (recommendationCounts["Phased rollout is a recurring recommendation."] || 0) + 1;
-        }
-        if (text.includes("cost") || text.includes("budget") || text.includes("fund")) {
-          recommendationCounts["Cost and funding are repeatedly mentioned in recommendations."] =
-            (recommendationCounts["Cost and funding are repeatedly mentioned in recommendations."] || 0) + 1;
-        }
-        if (text.includes("timeline") || text.includes("time")) {
-          recommendationCounts["Implementation timeline is showing up in recommendations."] =
-            (recommendationCounts["Implementation timeline is showing up in recommendations."] || 0) + 1;
-        }
-        if (text.includes("transparen")) {
-          recommendationCounts["Respondents are asking for more transparency."] =
-            (recommendationCounts["Respondents are asking for more transparency."] || 0) + 1;
-        }
-      }
-
-      let thirdInsight = `Top concern is ${topConcern.label} (${topConcern.count} responses).`;
-      const recTop = Object.entries(recommendationCounts).sort((a, b) => b[1] - a[1])[0];
-      if (recTop) {
-        thirdInsight = recTop[0];
-      }
-
-      insightsEl.innerHTML = `
-        <li>• ${leadSignal}</li>
-        <li>• Top concern is ${topConcern.label} (${topConcern.count} responses).</li>
-        <li>• ${thirdInsight}</li>
-      `;
-    }
-
-    function updateRiskSignal(rows) {
-      const riskEl = document.getElementById("riskSignal");
-
-      if (!rows.length) {
-        riskEl.textContent = "Waiting for enough responses to identify risk patterns.";
-        return;
-      }
-
-      const total = rows.length;
-      const supportCounts = getSupportCounts(rows);
-      const negative = supportCounts["Oppose"] + supportCounts["Strongly Oppose"];
-      const negativePct = Math.round((negative / total) * 100);
-      const topConcern = getTopConcernWithCount(rows);
-
-      if (negativePct >= 40) {
-        riskEl.textContent = `Elevated resistance detected: ${negativePct}% of responses are negative, with ${topConcern.label} emerging as the main risk area.`;
-        return;
-      }
-
-      if (
-        topConcern.label === "Cost" ||
-        topConcern.label === "Timeline" ||
-        topConcern.label === "Compliance"
-      ) {
-        riskEl.textContent = `Watch closely: ${topConcern.label} is the dominant concern and may slow acceptance or implementation if not addressed clearly.`;
-        return;
-      }
-
-      riskEl.textContent = `Current risk level appears manageable, though ${topConcern.label} remains the most cited concern and should be addressed in stakeholder communications.`;
+        return `
+          <div>
+            <div class="flex items-center justify-between mb-3 gap-4">
+              <span class="text-2xl text-slate-700 font-medium">${label}</span>
+              <span class="text-2xl text-slate-500 whitespace-nowrap">${count} votes (${pct}%)</span>
+            </div>
+            <div class="w-full h-8 bg-slate-200 rounded-full overflow-hidden">
+              <div class="${colors[label]} h-8 rounded-full" style="width:${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
     function updateRecommendedAction(rows) {
@@ -493,10 +391,8 @@
       countEl.textContent = String(rows.length);
       sentimentEl.textContent = getSentiment(rows);
       topConcernEl.textContent = getTopConcern(rows);
-      buildChart(rows);
       updateParticipationProgress(rows.length);
-      updateTopInsights(rows);
-      updateRiskSignal(rows);
+      renderCitizenSentimentChart(rows);
       updateRecommendedAction(rows);
     }
 
