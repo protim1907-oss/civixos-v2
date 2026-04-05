@@ -4,14 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CivixOS | Policy Pulse</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body class="bg-slate-100 min-h-screen">
 
-  <!-- HEADER -->
   <header class="bg-white border-b px-6 py-4">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
       <h1 class="text-xl font-bold">CivixOS</h1>
@@ -19,7 +16,6 @@
     </div>
   </header>
 
-  <!-- HERO -->
   <section class="bg-white px-6 py-10">
     <div class="max-w-7xl mx-auto">
       <h2 class="text-4xl font-bold">Policy Pulse</h2>
@@ -27,7 +23,6 @@
         Review the documents, share your perspective, and help turn citizen feedback into structured, real-time decision intelligence.
       </p>
 
-      <!-- METRICS -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
         <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-400">
           <p class="text-sm text-gray-600">Target</p>
@@ -52,54 +47,57 @@
     </div>
   </section>
 
-  <!-- MAIN -->
   <main class="max-w-7xl mx-auto p-6 grid md:grid-cols-3 gap-6">
-
-    <!-- LEFT SECTION -->
     <section class="md:col-span-2 space-y-6">
 
-      <!-- DOCUMENTS -->
       <div class="grid md:grid-cols-2 gap-6">
-
         <div class="bg-white p-6 rounded-xl shadow border-2 border-red-400">
           <h2 class="text-xl font-bold mb-4">Document 1</h2>
           <p class="text-sm text-slate-600 mb-3">
-            Constitutional amendment focused on equal protection and voting fairness.
+            This amendment proposal focuses on strengthening equal protection, voting fairness, and limiting judicial overreach in constitutional interpretation.
           </p>
 
           <details class="mb-4 bg-slate-50 p-3 rounded-lg">
-            <summary class="cursor-pointer text-sm font-medium">Read full summary</summary>
+            <summary class="cursor-pointer font-medium text-sm">Read full document summary</summary>
             <p class="mt-3 text-sm text-slate-600">
-              Strengthens representation, limits judicial overreach, and reinforces citizen voting rights.
+              This proposed constitutional amendment strengthens equal protection, voting fairness, and representation standards while limiting judicial overreach by requiring courts to rely on original constitutional meaning. It introduces a “one citizen, one vote” framework based on voting-age citizens and restricts political party dominance and artificial entity personhood. The amendment also allows Congress to override Supreme Court interpretations under strict conditions. Overall, it aims to rebalance power between courts, legislatures, and citizens.
             </p>
           </details>
 
-          <a href="#" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm">
-            View Document
+          <a
+            href="https://docs.google.com/document/d/1NKe3nuSfkEpVz6EHUxWfgW23LrTWoO4I/view"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
+          >
+            View Document 1
           </a>
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow border-2 border-orange-400">
           <h2 class="text-xl font-bold mb-4">Document 2</h2>
           <p class="text-sm text-slate-600 mb-3">
-            Strategic response to maritime threats in the Strait of Hormuz.
+            The letter asks U.S. leaders to take a firm response to threats in the Strait of Hormuz. It argues unlawful maritime tolls should be met with strong deterrence.
           </p>
 
           <details class="mb-4 bg-slate-50 p-3 rounded-lg">
-            <summary class="cursor-pointer text-sm font-medium">Read full summary</summary>
+            <summary class="cursor-pointer font-medium text-sm">Read full document summary</summary>
             <p class="mt-3 text-sm text-slate-600">
-              Advocates deterrence strategy and protection of global maritime freedom.
+              This letter urges U.S. leadership to respond decisively to threats in the Strait of Hormuz, framing them as violations of the long-standing principle of freedom of the seas. It proposes a strategy of deterrence through disproportionate economic and strategic retaliation against actors imposing unlawful maritime tolls. Drawing on historical precedent and military ethos, the author calls for strong Congressional and Executive action.
             </p>
           </details>
 
-          <a href="#" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">
-            View Document
+          <a
+            href="https://docs.google.com/document/d/1Blgd9AS-wUZZdVji8sggwjiqaLTYyTxB/view"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block bg-green-600 text-white px-4 py-2 rounded-xl text-sm"
+          >
+            View Document 2
           </a>
         </div>
-
       </div>
 
-      <!-- FORM -->
       <form id="responseForm" class="bg-white p-6 rounded-xl shadow space-y-4">
         <h2 class="text-xl font-bold">Submit Response</h2>
 
@@ -125,40 +123,104 @@
 
         <textarea id="recommendation" rows="4" placeholder="Recommendation..." class="w-full border p-3 rounded-xl" required></textarea>
 
-        <button id="submitBtn" class="bg-black text-white px-6 py-3 rounded-xl">
-          Submit
-        </button>
+        <div class="flex items-center gap-4">
+          <button id="submitBtn" type="submit" class="bg-black text-white px-6 py-3 rounded-xl">Submit</button>
+          <p id="statusMessage" class="text-sm text-slate-600"></p>
+        </div>
       </form>
     </section>
 
-    <!-- RIGHT PANEL -->
     <aside class="space-y-6">
-
-      <!-- TOTAL VOTES -->
-      <div class="rounded-[28px] bg-[#ece9d9] border-l-[6px] border-[#f4b000] px-8 py-6 shadow-sm">
-        <p class="text-[16px] text-slate-500 font-medium">Total Votes Received</p>
-        <p id="totalVotesCard" class="mt-3 text-[34px] font-bold text-slate-900">0</p>
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h3 class="text-lg font-bold mb-2">Participation Progress</h3>
+        <p class="text-sm text-slate-600"><span id="progressCount">0</span> / 50</p>
+        <div class="mt-2 w-full bg-gray-200 h-2 rounded-full">
+          <div id="progressBar" class="bg-blue-500 h-2 rounded-full" style="width:0%"></div>
+        </div>
       </div>
 
-      <!-- GENERAL SENTIMENT -->
-      <div class="rounded-[28px] bg-[#e3e9f2] border-l-[6px] border-[#3b82f6] px-8 py-6 shadow-sm">
-        <p class="text-[16px] text-slate-500 font-medium">General Sentiment</p>
-        <p id="generalSentimentCard" class="mt-3 text-[26px] font-bold text-slate-900 leading-snug">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h3 class="text-lg font-bold">Citizen Sentiment</h3>
+        <div id="sentimentBreakdown" class="mt-4 space-y-4"></div>
+      </div>
+
+      <div class="bg-emerald-50 p-4 rounded-xl border">
+        <h3 class="text-sm font-bold text-emerald-700">Recommended Action</h3>
+        <p id="recommendedAction" class="font-semibold mt-2 text-sm">Waiting...</p>
+      </div>
+
+      <!-- Replaced Top 3 Insights with these two cards -->
+      <div class="rounded-[28px] bg-[#ece9d9] border-l-[6px] border-[#f4b000] px-10 py-8 shadow-sm">
+        <p class="text-[18px] md:text-[20px] text-slate-500 font-medium">Total Votes Received</p>
+        <p id="totalVotesCard" class="mt-4 text-[46px] leading-none font-bold text-slate-900">0</p>
+      </div>
+
+      <div class="rounded-[28px] bg-[#e3e9f2] border-l-[6px] border-[#3b82f6] px-10 py-8 shadow-sm">
+        <p class="text-[18px] md:text-[20px] text-slate-500 font-medium">General Sentiment</p>
+        <p id="generalSentimentCard" class="mt-4 text-[34px] md:text-[38px] leading-tight font-bold text-slate-900">
           Pending
         </p>
       </div>
 
+      <div class="bg-white p-6 rounded-xl shadow border">
+        <h3 class="text-lg font-bold mb-4">Risk Signal</h3>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm text-slate-600">Overall risk level</span>
+          <span id="riskLabel" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-200 text-slate-700">
+            Pending
+          </span>
+        </div>
+        <div class="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+          <div id="riskBar" class="h-3 rounded-full bg-slate-400" style="width: 0%"></div>
+        </div>
+        <p id="riskSummary" class="mt-3 text-sm text-slate-600">
+          No response data available yet.
+        </p>
+      </div>
     </aside>
-
   </main>
 
-  <!-- SCRIPT -->
   <script>
     const SUPABASE_URL = "https://rforlplkumfokjfwxhmc.supabase.co";
-    const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmb3JscGxrdW1mb2tqZnd4aG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM0MjgsImV4cCI6MjA4OTg2OTQyOH0.gxxHUkbmU4JnbhZnf924JFBBxLa574mogFXxxcZPytc";
     const TABLE = "policy_pulse_responses";
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const responseForm = document.getElementById("responseForm");
+    const fullNameInput = document.getElementById("fullName");
+    const emailInput = document.getElementById("email");
+    const supportInput = document.getElementById("support");
+    const concernInput = document.getElementById("concern");
+    const recommendationInput = document.getElementById("recommendation");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusMessage = document.getElementById("statusMessage");
+
+    const countEl = document.getElementById("count");
+    const sentimentEl = document.getElementById("sentiment");
+    const topConcernEl = document.getElementById("topConcernText");
+    const progressCountEl = document.getElementById("progressCount");
+    const progressBarEl = document.getElementById("progressBar");
+    const sentimentBreakdownEl = document.getElementById("sentimentBreakdown");
+    const recommendedActionEl = document.getElementById("recommendedAction");
+
+    const totalVotesCardEl = document.getElementById("totalVotesCard");
+    const generalSentimentCardEl = document.getElementById("generalSentimentCard");
+
+    const riskLabelEl = document.getElementById("riskLabel");
+    const riskBarEl = document.getElementById("riskBar");
+    const riskSummaryEl = document.getElementById("riskSummary");
+
+    function setStatus(message, type = "default") {
+      statusMessage.textContent = message;
+      if (type === "success") {
+        statusMessage.className = "text-sm text-green-700";
+      } else if (type === "error") {
+        statusMessage.className = "text-sm text-red-700";
+      } else {
+        statusMessage.className = "text-sm text-slate-600";
+      }
+    }
 
     function getSupportCounts(rows) {
       const counts = {
@@ -168,37 +230,51 @@
         "Oppose": 0,
         "Strongly Oppose": 0
       };
-      rows.forEach(r => {
-        if (counts[r.support_level] !== undefined) counts[r.support_level]++;
+
+      rows.forEach((row) => {
+        if (counts[row.support_level] !== undefined) {
+          counts[row.support_level] += 1;
+        }
       });
+
       return counts;
     }
 
     function getSentiment(rows) {
       if (!rows.length) return "Pending";
 
-      const c = getSupportCounts(rows);
-      const total = rows.length;
+      const scoreMap = {
+        "Strongly Support": 2,
+        "Support": 1,
+        "Neutral": 0,
+        "Oppose": -1,
+        "Strongly Oppose": -2
+      };
 
-      const positive = c["Strongly Support"] + c["Support"];
-      const negative = c["Oppose"] + c["Strongly Oppose"];
+      const avg = rows.reduce((sum, row) => sum + (scoreMap[row.support_level] || 0), 0) / rows.length;
 
-      if ((positive/total)*100 >= 60) return "Positive";
-      if ((negative/total)*100 >= 60) return "Negative";
+      if (avg > 0.5) return "Positive";
+      if (avg < -0.5) return "Negative";
       return "Neutral";
     }
 
-    function getGeneralSentiment(rows) {
+    function getGeneralSentimentLabel(rows) {
       if (!rows.length) return "Pending";
 
-      const c = getSupportCounts(rows);
+      const counts = getSupportCounts(rows);
       const total = rows.length;
 
-      const positive = c["Strongly Support"] + c["Support"];
-      const negative = c["Oppose"] + c["Strongly Oppose"];
+      const positive = counts["Strongly Support"] + counts["Support"];
+      const negative = counts["Oppose"] + counts["Strongly Oppose"];
+      const neutral = counts["Neutral"];
 
-      if ((positive/total)*100 >= 60) return "Generally Supportive";
-      if ((negative/total)*100 >= 60) return "Generally Opposed";
+      const positivePct = (positive / total) * 100;
+      const negativePct = (negative / total) * 100;
+      const neutralPct = (neutral / total) * 100;
+
+      if (positivePct >= 60) return "Generally Supportive";
+      if (negativePct >= 60) return "Generally Opposed";
+      if (neutralPct >= 45) return "Mostly Neutral";
       return "Mixed Sentiment";
     }
 
@@ -206,26 +282,186 @@
       if (!rows.length) return "Pending";
 
       const counts = {};
-      rows.forEach(r => {
-        counts[r.top_concern] = (counts[r.top_concern] || 0) + 1;
+      rows.forEach((row) => {
+        counts[row.top_concern] = (counts[row.top_concern] || 0) + 1;
       });
 
-      return Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+      return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || "Pending";
+    }
+
+    function renderCitizenSentiment(rows) {
+      const labels = ["Strongly Support", "Support", "Neutral", "Oppose", "Strongly Oppose"];
+      const counts = getSupportCounts(rows);
+
+      const colors = {
+        "Strongly Support": "bg-green-600",
+        "Support": "bg-emerald-400",
+        "Neutral": "bg-yellow-400",
+        "Oppose": "bg-rose-400",
+        "Strongly Oppose": "bg-red-600"
+      };
+
+      sentimentBreakdownEl.innerHTML = labels.map((label) => {
+        const count = counts[label] || 0;
+        const pct = rows.length ? ((count / rows.length) * 100).toFixed(1) : "0.0";
+
+        return `
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-sm text-slate-700 font-medium">${label}</span>
+              <span class="text-xs text-slate-500">${count} (${pct}%)</span>
+            </div>
+            <div class="bg-gray-200 h-2 rounded-full">
+              <div class="${colors[label]} h-2 rounded-full" style="width:${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateParticipation(rows) {
+      const total = rows.length;
+      const pct = Math.min((total / 50) * 100, 100);
+
+      progressCountEl.textContent = String(total);
+      progressBarEl.style.width = pct + "%";
+    }
+
+    function updateRecommendedAction(rows) {
+      if (!rows.length) {
+        recommendedActionEl.textContent = "Waiting...";
+        return;
+      }
+
+      const total = rows.length;
+      const counts = getSupportCounts(rows);
+      const positive = counts["Strongly Support"] + counts["Support"];
+      const negative = counts["Oppose"] + counts["Strongly Oppose"];
+
+      const positivePct = Math.round((positive / total) * 100);
+      const negativePct = Math.round((negative / total) * 100);
+
+      if (positivePct >= 65 && negativePct < 20) {
+        recommendedActionEl.textContent = "Proceed";
+      } else if (negativePct >= 40) {
+        recommendedActionEl.textContent = "Re-evaluate";
+      } else {
+        recommendedActionEl.textContent = "Proceed with modifications";
+      }
+    }
+
+    function updateInsightCards(rows) {
+      totalVotesCardEl.textContent = rows.length;
+      generalSentimentCardEl.textContent = getGeneralSentimentLabel(rows);
+    }
+
+    function updateRiskSignal(rows) {
+      if (!rows.length) {
+        riskLabelEl.textContent = "Pending";
+        riskLabelEl.className = "text-xs font-semibold px-3 py-1 rounded-full bg-slate-200 text-slate-700";
+        riskBarEl.className = "h-3 rounded-full bg-slate-400";
+        riskBarEl.style.width = "0%";
+        riskSummaryEl.textContent = "No response data available yet.";
+        return;
+      }
+
+      const total = rows.length;
+      const counts = getSupportCounts(rows);
+      const topConcern = getTopConcern(rows);
+
+      const strongOppose = counts["Strongly Oppose"];
+      const oppose = counts["Oppose"];
+      const neutral = counts["Neutral"];
+
+      let riskScore = 0;
+      riskScore += ((strongOppose + oppose) / total) * 70;
+      riskScore += (neutral / total) * 20;
+
+      if (topConcern === "Compliance") riskScore += 10;
+      if (topConcern === "Cost") riskScore += 8;
+      if (topConcern === "Impact") riskScore += 6;
+      if (topConcern === "Timeline") riskScore += 5;
+
+      riskScore = Math.min(Math.round(riskScore), 100);
+
+      let label = "Low";
+      let labelClass = "text-xs font-semibold px-3 py-1 rounded-full bg-green-100 text-green-700";
+      let barClass = "h-3 rounded-full bg-green-500";
+      let summary = "Citizen feedback suggests relatively low execution risk at this stage.";
+
+      if (riskScore >= 65) {
+        label = "High";
+        labelClass = "text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700";
+        barClass = "h-3 rounded-full bg-red-500";
+        summary = "High resistance or uncertainty is emerging. Rework messaging or policy details before proceeding.";
+      } else if (riskScore >= 35) {
+        label = "Medium";
+        labelClass = "text-xs font-semibold px-3 py-1 rounded-full bg-yellow-100 text-yellow-700";
+        barClass = "h-3 rounded-full bg-yellow-500";
+        summary = "Some caution is warranted. Citizens appear mixed, with notable concern around " + topConcern.toLowerCase() + ".";
+      }
+
+      riskLabelEl.textContent = label;
+      riskLabelEl.className = labelClass;
+      riskBarEl.className = barClass;
+      riskBarEl.style.width = riskScore + "%";
+      riskSummaryEl.textContent = `${summary} Current risk score: ${riskScore}%.`;
     }
 
     async function loadData() {
-      const { data } = await supabaseClient.from(TABLE).select("*");
+      const { data, error } = await supabaseClient
+        .from(TABLE)
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Load error:", error);
+        setStatus("Could not load data.", "error");
+        return;
+      }
+
       const rows = data || [];
 
-      document.getElementById("count").textContent = rows.length;
-      document.getElementById("totalVotesCard").textContent = rows.length;
-      document.getElementById("sentiment").textContent = getSentiment(rows);
-      document.getElementById("generalSentimentCard").textContent = getGeneralSentiment(rows);
-      document.getElementById("topConcernText").textContent = getTopConcern(rows);
+      countEl.textContent = String(rows.length);
+      sentimentEl.textContent = getSentiment(rows);
+      topConcernEl.textContent = getTopConcern(rows);
+      updateParticipation(rows);
+      renderCitizenSentiment(rows);
+      updateRecommendedAction(rows);
+      updateInsightCards(rows);
+      updateRiskSignal(rows);
     }
+
+    responseForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        full_name: fullNameInput.value.trim(),
+        email: emailInput.value.trim(),
+        support_level: supportInput.value,
+        top_concern: concernInput.value,
+        recommendation: recommendationInput.value.trim()
+      };
+
+      submitBtn.disabled = true;
+      setStatus("Submitting...");
+
+      const { error } = await supabaseClient.from(TABLE).insert([payload]);
+
+      if (error) {
+        console.error("Insert error:", error);
+        setStatus("Error submitting response.", "error");
+        submitBtn.disabled = false;
+        return;
+      }
+
+      responseForm.reset();
+      setStatus("Submitted successfully.", "success");
+      submitBtn.disabled = false;
+      await loadData();
+    });
 
     loadData();
   </script>
-
 </body>
 </html>
