@@ -1,280 +1,221 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, User } from "@supabase/supabase-js";
 
-type ModerationResponse = {
-  toxicity: number;
-  spam: number;
-  misinformation: number;
-  recommendedAction: "Approve" | "Review" | "Block";
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-);
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
-export default function CreatePostPage() {
+export default function CreateIssuePage() {
   const router = useRouter();
+
+  const [user, setUser] = useState<User | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showOverlay, setShowOverlay] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [moderationResult, setModerationResult] =
-    useState<ModerationResponse | null>(null);
 
-  const handleReview = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-    setModerationResult(null);
+  useEffect(() => {
+    let mounted = true;
 
-    try {
-      const response = await fetch("/api/moderate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ title, description }),
-      });
+    async function loadSession() {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-      const data = await response.json();
+      if (!mounted) return;
 
-      if (!response.ok) {
-        setErrorMessage(data.error || "Moderation failed.");
-        setLoading(false);
+      if (error) {
+        setErrorMessage("Could not verify login status. Please refresh and try again.");
+        setCheckingAuth(false);
         return;
       }
 
-      setModerationResult(data);
-      setShowOverlay(true);
-    } catch (error) {
-      setErrorMessage("Could not run AI moderation.");
+      setUser(session?.user ?? null);
+      setCheckingAuth(false);
     }
 
-    setLoading(false);
-  };
+    loadSession();
 
-  const handleSubmitIssue = async () => {
-    if (!moderationResult) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
-    setLoading(true);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
+
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+
+    if (!trimmedTitle || !trimmedDescription) {
+      setErrorMessage("Please complete both the title and description.");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (userError || !user) {
+      if (sessionError) {
+        setErrorMessage("Could not verify your login session. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const currentUser = session?.user ?? null;
+
+      if (!currentUser) {
         setErrorMessage("You must be logged in to create an issue.");
-        setLoading(false);
+        setIsSubmitting(false);
         return;
       }
 
-      if (moderationResult.recommendedAction === "Block") {
-        setErrorMessage("This issue was blocked by AI moderation.");
-        setLoading(false);
-        return;
-      }
-
-      const status =
-        moderationResult.recommendedAction === "Approve"
-          ? "Open"
-          : "Under Review";
-
-      const { error } = await supabase.from("issues").insert([
+      const { error: insertError } = await supabase.from("issues").insert([
         {
-          user_id: user.id,
-          title,
-          description,
-          status,
-          toxicity_score: moderationResult.toxicity,
-          spam_score: moderationResult.spam,
-          misinformation_score: moderationResult.misinformation,
-          moderation_action: moderationResult.recommendedAction,
+          title: trimmedTitle,
+          description: trimmedDescription,
+          user_id: currentUser.id,
+          status: "open",
         },
       ]);
 
-      if (error) {
-        setErrorMessage(error.message);
-        setLoading(false);
+      if (insertError) {
+        setErrorMessage(insertError.message || "Failed to create issue.");
+        setIsSubmitting(false);
         return;
       }
 
-      setSuccessMessage("Issue submitted successfully.");
-      setShowOverlay(false);
+      setSuccessMessage("Issue created successfully.");
+      setTitle("");
+      setDescription("");
 
       setTimeout(() => {
         router.push("/dashboard");
-        router.refresh();
-      }, 1000);
-    } catch (error) {
-      setErrorMessage("Something went wrong while saving the issue.");
+      }, 1200);
+    } catch {
+      setErrorMessage("Something went wrong while creating the issue.");
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    setLoading(false);
-  };
+  async function handleGoToLogin() {
+    router.push("/login");
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-          Create Civic Issue
-        </h1>
-        <p className="mt-3 text-lg text-slate-600">
-          Submit a concern for your district.
-        </p>
+    <main className="min-h-screen bg-slate-100 px-4 py-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="rounded-[36px] border border-slate-200 bg-white px-8 py-10 shadow-sm md:px-14 md:py-14">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
+            Create Civic Issue
+          </h1>
+          <p className="mt-5 text-xl text-slate-600 md:text-2xl">
+            Submit a concern for your district.
+          </p>
 
-        <form onSubmit={handleReview} className="mt-8 space-y-6">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter issue title"
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the civic issue"
-              rows={7}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-500"
-              required
-            />
-          </div>
-
-          {errorMessage && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {errorMessage}
+          {checkingAuth ? (
+            <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-5 text-slate-600">
+              Checking login status...
             </div>
-          )}
-
-          {successMessage && (
-            <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              {successMessage}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-slate-900 px-4 py-4 text-lg font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {loading ? "Reviewing..." : "Review with AI"}
-          </button>
-        </form>
-      </div>
-
-      {showOverlay && moderationResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-5xl rounded-[28px] bg-white p-6 shadow-2xl sm:p-8">
-            <div className="flex items-start justify-between gap-4">
+          ) : (
+            <form onSubmit={handleSubmit} className="mt-12 space-y-10">
               <div>
-                <h2 className="text-3xl font-bold text-slate-900">
-                  AI Moderation Review
-                </h2>
-                <p className="mt-2 text-xl text-slate-600">
-                  We analyzed this post before submission.
-                </p>
+                <label
+                  htmlFor="title"
+                  className="mb-4 block text-xl font-medium text-slate-700"
+                >
+                  Title
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Waterlogging in District 12"
+                  className="w-full rounded-[28px] border border-slate-300 bg-slate-50 px-7 py-6 text-2xl text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                />
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowOverlay(false)}
-                className="text-xl text-slate-500 hover:text-slate-700"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="mt-8 rounded-3xl border border-slate-200 p-6">
-              <div className="space-y-6 text-xl text-slate-700">
-                <div className="flex items-center justify-between">
-                  <span>Toxicity Score</span>
-                  <span className="font-medium text-slate-900">
-                    {Math.round(moderationResult.toxicity * 100)}%
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span>Spam Risk</span>
-                  <span className="font-medium text-slate-900">
-                    {Math.round(moderationResult.spam * 100)}%
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span>Misinformation Risk</span>
-                  <span className="font-medium text-slate-900">
-                    {Math.round(moderationResult.misinformation * 100)}%
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-slate-200 pt-4">
-                  <span>Recommended action</span>
-                  <span className="font-semibold text-slate-900">
-                    {moderationResult.recommendedAction}
-                  </span>
-                </div>
+              <div>
+                <label
+                  htmlFor="description"
+                  className="mb-4 block text-xl font-medium text-slate-700"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  rows={8}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
+                  className="w-full rounded-[28px] border border-slate-300 bg-slate-50 px-7 py-6 text-2xl leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                />
               </div>
-            </div>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowOverlay(false)}
-                className="rounded-2xl border border-slate-300 px-5 py-3 text-base font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Edit Post
-              </button>
+              {errorMessage && (
+                <div className="rounded-[26px] border border-red-200 bg-red-50 px-7 py-5 text-xl text-red-700">
+                  {errorMessage}
+                </div>
+              )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setShowOverlay(false);
-                  setErrorMessage("Submission cancelled.");
-                }}
-                className="rounded-2xl border border-red-300 px-5 py-3 text-base font-medium text-red-700 hover:bg-red-50"
-              >
-                Cancel
-              </button>
+              {successMessage && (
+                <div className="rounded-[26px] border border-emerald-200 bg-emerald-50 px-7 py-5 text-xl text-emerald-700">
+                  {successMessage}
+                </div>
+              )}
 
-              <button
-                type="button"
-                onClick={handleSubmitIssue}
-                disabled={loading || moderationResult.recommendedAction === "Block"}
-                className="rounded-2xl bg-slate-900 px-5 py-3 text-base font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {moderationResult.recommendedAction === "Block"
-                  ? "Blocked by AI"
-                  : moderationResult.recommendedAction === "Approve"
-                  ? "Submit Issue"
-                  : "Submit Anyway"}
-              </button>
-            </div>
-          </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || checkingAuth}
+                  className="rounded-2xl bg-slate-950 px-7 py-4 text-lg font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSubmitting ? "Submitting..." : "Create Issue"}
+                </button>
+
+                {!user && !checkingAuth && (
+                  <button
+                    type="button"
+                    onClick={handleGoToLogin}
+                    className="rounded-2xl border border-slate-300 bg-white px-7 py-4 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Go to Login
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </main>
   );
 }
