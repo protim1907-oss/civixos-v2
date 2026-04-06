@@ -69,11 +69,11 @@ export default function LoginPage() {
     setGoogleLoading(true);
 
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
+  provider: "google",
+  options: {
+    redirectTo: `${window.location.origin}/auth/callback`,
+  },
+});
 
     if (error) {
       setError(error.message || "Google login could not be started.");
