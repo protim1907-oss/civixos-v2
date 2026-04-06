@@ -20,7 +20,11 @@ type AiReview = {
   category: string;
   suggestedTitle: string;
   summary: string;
-  recommendedAction: string;
+  recommendedAction: "Approve" | "Review" | "Block";
+  toxicityScore: number;
+  spamScore: number;
+  misinformationScore: number;
+  overallScore: number;
 };
 
 export default function CreateIssuePage() {
@@ -40,16 +44,24 @@ export default function CreateIssuePage() {
   const [aiReview, setAiReview] = useState<AiReview | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     async function loadAuth() {
       setCheckingAuth(true);
 
       const {
         data: { session },
+        error,
       } = await supabase.auth.getSession();
 
-      if (!isMounted) return;
+      if (!mounted) return;
+
+      if (error) {
+        console.error("Session load error:", error);
+      }
+
+      console.log("CREATE ISSUE SESSION:", session);
+      console.log("CREATE ISSUE USER:", session?.user ?? null);
 
       setUser(session?.user ?? null);
       setCheckingAuth(false);
@@ -59,14 +71,15 @@ export default function CreateIssuePage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!isMounted) return;
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      console.log("AUTH STATE CHANGED:", _event, session);
       setUser(session?.user ?? null);
       setCheckingAuth(false);
     });
 
     return () => {
-      isMounted = false;
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -74,6 +87,39 @@ export default function CreateIssuePage() {
   const canReview = useMemo(() => {
     return title.trim().length > 0 || description.trim().length > 0;
   }, [title, description]);
+
+  function getSeverityFromOverallScore(score: number): "Low" | "Medium" | "High" {
+    if (score >= 70) return "High";
+    if (score >= 35) return "Medium";
+    return "Low";
+  }
+
+  function getRecommendedActionFromScores(
+    toxicityScore: number,
+    spamScore: number,
+    misinformationScore: number,
+    overallScore: number
+  ): "Approve" | "Review" | "Block" {
+    if (
+      toxicityScore >= 80 ||
+      spamScore >= 80 ||
+      misinformationScore >= 85 ||
+      overallScore >= 85
+    ) {
+      return "Block";
+    }
+
+    if (
+      toxicityScore >= 35 ||
+      spamScore >= 35 ||
+      misinformationScore >= 40 ||
+      overallScore >= 40
+    ) {
+      return "Review";
+    }
+
+    return "Approve";
+  }
 
   function runAiReview() {
     setErrorMessage("");
@@ -89,51 +135,84 @@ export default function CreateIssuePage() {
 
     setIsReviewing(true);
 
-    const text = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
+    const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
 
-    let severity: AiReview["severity"] = "Low";
+    let toxicityScore = 5;
+    let spamScore = 4;
+    let misinformationScore = 6;
     let category = "General civic issue";
-    let recommendedAction = "Route to district operations team for review.";
     let summary =
-      "This issue appears to describe a local civic concern that may require district-level attention.";
+      "This issue appears to describe a civic concern that may require local review and follow-up.";
     let suggestedTitle = trimmedTitle || "Civic issue report";
 
     if (
-      text.includes("drain") ||
-      text.includes("waterlogging") ||
-      text.includes("overflow") ||
-      text.includes("flood")
+      combined.includes("drain") ||
+      combined.includes("overflow") ||
+      combined.includes("waterlogging") ||
+      combined.includes("flood") ||
+      combined.includes("sewage")
     ) {
-      severity = "High";
+      toxicityScore = 4;
+      spamScore = 3;
+      misinformationScore = 8;
       category = "Drainage and flooding";
-      recommendedAction =
-        "Prioritize inspection, sanitation response, and public works follow-up for District 12.";
       summary =
         "The report points to recurring drainage overflow and waterlogging, which may present sanitation and public health risks.";
       if (!trimmedTitle) suggestedTitle = "Overflowing Drains in District 12";
-    } else if (
-      text.includes("garbage") ||
-      text.includes("waste") ||
-      text.includes("trash")
-    ) {
-      severity = "Medium";
-      category = "Sanitation";
-      recommendedAction =
-        "Route to sanitation team for cleanup scheduling and recurrence monitoring.";
-      summary =
-        "The issue suggests sanitation concerns that may affect resident safety and neighborhood conditions.";
-    } else if (
-      text.includes("road") ||
-      text.includes("pothole") ||
-      text.includes("traffic")
-    ) {
-      severity = "Medium";
-      category = "Roads and transport";
-      recommendedAction =
-        "Route to transport or maintenance team for inspection and repair planning.";
-      summary =
-        "The issue appears related to transport safety or road maintenance and should be reviewed by infrastructure teams.";
     }
+
+    if (
+      combined.includes("urgent") ||
+      combined.includes("immediately") ||
+      combined.includes("danger") ||
+      combined.includes("health risk")
+    ) {
+      misinformationScore += 6;
+    }
+
+    if (
+      combined.includes("hate") ||
+      combined.includes("idiot") ||
+      combined.includes("stupid") ||
+      combined.includes("corrupt pigs") ||
+      combined.includes("kill")
+    ) {
+      toxicityScore += 45;
+    }
+
+    if (
+      combined.includes("buy now") ||
+      combined.includes("click here") ||
+      combined.includes("http://") ||
+      combined.includes("https://") ||
+      combined.includes("whatsapp group")
+    ) {
+      spamScore += 55;
+    }
+
+    if (
+      combined.includes("everyone is dying") ||
+      combined.includes("government poisoned") ||
+      combined.includes("100% guaranteed coverup")
+    ) {
+      misinformationScore += 45;
+    }
+
+    toxicityScore = Math.min(toxicityScore, 100);
+    spamScore = Math.min(spamScore, 100);
+    misinformationScore = Math.min(misinformationScore, 100);
+
+    const overallScore = Math.round(
+      toxicityScore * 0.35 + spamScore * 0.25 + misinformationScore * 0.4
+    );
+
+    const severity = getSeverityFromOverallScore(overallScore);
+    const recommendedAction = getRecommendedActionFromScores(
+      toxicityScore,
+      spamScore,
+      misinformationScore,
+      overallScore
+    );
 
     setTimeout(() => {
       setAiReview({
@@ -142,9 +221,13 @@ export default function CreateIssuePage() {
         suggestedTitle,
         summary,
         recommendedAction,
+        toxicityScore,
+        spamScore,
+        misinformationScore,
+        overallScore,
       });
       setIsReviewing(false);
-    }, 500);
+    }, 400);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -168,6 +251,7 @@ export default function CreateIssuePage() {
     } = await supabase.auth.getSession();
 
     if (sessionError) {
+      console.error("Session verify error:", sessionError);
       setErrorMessage("Could not verify your login session. Please refresh and try again.");
       setIsSubmitting(false);
       return;
@@ -186,15 +270,20 @@ export default function CreateIssuePage() {
       description: trimmedDescription,
       user_id: currentUser.id,
       status: "open",
-      category: aiReview?.category ?? null,
-      severity: aiReview?.severity ?? null,
+      category: aiReview?.category ?? "General civic issue",
+      severity: aiReview?.severity ?? "Low",
       ai_summary: aiReview?.summary ?? null,
-      moderation_action: "pending_review",
+      moderation_action: aiReview?.recommendedAction ?? "Review",
+      toxicity_score: aiReview?.toxicityScore ?? 0,
+      spam_score: aiReview?.spamScore ?? 0,
+      misinformation_score: aiReview?.misinformationScore ?? 0,
+      overall_score: aiReview?.overallScore ?? 0,
     };
 
     const { error } = await supabase.from("issues").insert([payload]);
 
     if (error) {
+      console.error("Insert error:", error);
       setErrorMessage(error.message || "Failed to create issue.");
       setIsSubmitting(false);
       return;
@@ -214,7 +303,7 @@ export default function CreateIssuePage() {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto max-w-5xl">
-        <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-6 shadow-sm md:px-8 md:py-8">
+        <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 shadow-sm md:px-8 md:py-8">
           <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
             Create Civic Issue
           </h1>
@@ -236,7 +325,7 @@ export default function CreateIssuePage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Waterlogging in District 12"
-                className="w-full rounded-[22px] border border-slate-300 bg-slate-50 px-5 py-4 text-xl text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-2xl"
+                className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
               />
             </div>
 
@@ -253,7 +342,7 @@ export default function CreateIssuePage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
-                className="w-full rounded-[22px] border border-slate-300 bg-slate-50 px-5 py-4 text-xl leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-2xl"
+                className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
               />
             </div>
 
@@ -301,7 +390,7 @@ export default function CreateIssuePage() {
             )}
 
             {aiReview && (
-              <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-5">
+              <div className="rounded-[20px] border border-blue-200 bg-blue-50 p-5">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                     AI Review
@@ -312,9 +401,42 @@ export default function CreateIssuePage() {
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                     Category: {aiReview.category}
                   </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                    Action: {aiReview.recommendedAction}
+                  </span>
                 </div>
 
-                <div className="space-y-3 text-sm text-slate-700">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500">Toxicity</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {aiReview.toxicityScore}/100
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500">Spam</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {aiReview.spamScore}/100
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500">Misinformation</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {aiReview.misinformationScore}/100
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-500">Overall Score</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {aiReview.overallScore}/100
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3 text-sm text-slate-700">
                   <div>
                     <p className="font-semibold text-slate-900">Suggested title</p>
                     <p>{aiReview.suggestedTitle}</p>
@@ -331,7 +453,7 @@ export default function CreateIssuePage() {
                   </div>
                 </div>
 
-                <div className="mt-4">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -339,7 +461,7 @@ export default function CreateIssuePage() {
                         setTitle(aiReview.suggestedTitle);
                       }
                     }}
-                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50"
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
                     Use suggested title
                   </button>
