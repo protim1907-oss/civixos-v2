@@ -137,49 +137,56 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-100 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-center">
             <div>
               <p className="text-sm text-slate-500">Citizen Access</p>
               <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-900">
                 Log in to CivixOS
               </h1>
               <p className="mt-4 max-w-3xl text-lg text-slate-600">
-                Continue to join district conversations, track community issues,
-                and participate in policy decisions.
+                Access district conversations, report community issues, and stay informed
+                about updates that matter to your neighborhood.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={googleLoading}
-                className="rounded-2xl bg-red-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 disabled:opacity-60"
-              >
-                {googleLoading ? "Redirecting to Google..." : "Continue with Google"}
-              </button>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-900">Choose a sign-in method</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Use your preferred login option to continue.
+              </p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("mobile");
-                  resetStatus();
-                }}
-                className="rounded-2xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Continue with Phone
-              </button>
+              <div className="mt-4 grid gap-3">
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading}
+                  className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {googleLoading ? "Redirecting to Google..." : "Continue with Google"}
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("email");
-                  resetStatus();
-                }}
-                className="rounded-2xl bg-green-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700"
-              >
-                Email Login
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("email");
+                    resetStatus();
+                  }}
+                  className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Continue with Email
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("mobile");
+                    resetStatus();
+                  }}
+                  className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Continue with Phone
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -222,7 +229,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={googleLoading}
-                className="w-full rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 border border-slate-300 transition hover:bg-slate-50 disabled:opacity-60"
+                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
               >
                 {googleLoading ? "Redirecting to Google..." : "Continue with Google"}
               </button>
