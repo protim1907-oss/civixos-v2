@@ -2,18 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient, type User } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type AiReview = {
   severity: "Low" | "Medium" | "High";
@@ -29,6 +19,7 @@ type AiReview = {
 
 export default function CreateIssuePage() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [user, setUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -51,17 +42,9 @@ export default function CreateIssuePage() {
 
       const {
         data: { session },
-        error,
       } = await supabase.auth.getSession();
 
       if (!mounted) return;
-
-      if (error) {
-        console.error("Session load error:", error);
-      }
-
-      console.log("CREATE ISSUE SESSION:", session);
-      console.log("CREATE ISSUE USER:", session?.user ?? null);
 
       setUser(session?.user ?? null);
       setCheckingAuth(false);
@@ -73,7 +56,6 @@ export default function CreateIssuePage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      console.log("AUTH STATE CHANGED:", _event, session);
       setUser(session?.user ?? null);
       setCheckingAuth(false);
     });
@@ -82,7 +64,7 @@ export default function CreateIssuePage() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   const canReview = useMemo(() => {
     return title.trim().length > 0 || description.trim().length > 0;
@@ -154,11 +136,46 @@ export default function CreateIssuePage() {
     ) {
       toxicityScore = 4;
       spamScore = 3;
-      misinformationScore = 8;
+      misinformationScore = 14;
       category = "Drainage and flooding";
       summary =
         "The report points to recurring drainage overflow and waterlogging, which may present sanitation and public health risks.";
-      if (!trimmedTitle) suggestedTitle = "Overflowing Drains in District 12";
+      if (!trimmedTitle) suggestedTitle = "Waterlogging in District 12";
+    } else if (
+      combined.includes("road") ||
+      combined.includes("pothole") ||
+      combined.includes("traffic")
+    ) {
+      toxicityScore = 3;
+      spamScore = 2;
+      misinformationScore = 10;
+      category = "Transportation";
+      summary =
+        "The issue suggests road or traffic conditions that may require inspection and public works follow-up.";
+    } else if (
+      combined.includes("garbage") ||
+      combined.includes("waste") ||
+      combined.includes("trash")
+    ) {
+      toxicityScore = 3;
+      spamScore = 2;
+      misinformationScore = 9;
+      category = "Environment";
+      summary =
+        "The issue appears related to sanitation or waste handling and may require cleanup and district monitoring.";
+    } else if (
+      combined.includes("crime") ||
+      combined.includes("unsafe") ||
+      combined.includes("assault")
+    ) {
+      toxicityScore = 6;
+      spamScore = 2;
+      misinformationScore = 12;
+      category = "Safety";
+      summary =
+        "The issue appears connected to resident safety and may need escalation to the relevant district authority.";
+    } else {
+      category = "Infrastructure";
     }
 
     if (
@@ -171,11 +188,10 @@ export default function CreateIssuePage() {
     }
 
     if (
-      combined.includes("hate") ||
       combined.includes("idiot") ||
       combined.includes("stupid") ||
-      combined.includes("corrupt pigs") ||
-      combined.includes("kill")
+      combined.includes("kill") ||
+      combined.includes("hate")
     ) {
       toxicityScore += 45;
     }
@@ -251,7 +267,6 @@ export default function CreateIssuePage() {
     } = await supabase.auth.getSession();
 
     if (sessionError) {
-      console.error("Session verify error:", sessionError);
       setErrorMessage("Could not verify your login session. Please refresh and try again.");
       setIsSubmitting(false);
       return;
@@ -269,15 +284,12 @@ export default function CreateIssuePage() {
       title: trimmedTitle,
       description: trimmedDescription,
       user_id: currentUser.id,
-      status: "open",
-      category: aiReview?.category ?? "General civic issue",
-      severity: aiReview?.severity ?? "Low",
-      ai_summary: aiReview?.summary ?? null,
-      moderation_action: aiReview?.recommendedAction ?? "Review",
-      toxicity_score: aiReview?.toxicityScore ?? 0,
-      spam_score: aiReview?.spamScore ?? 0,
-      misinformation_score: aiReview?.misinformationScore ?? 0,
-      overall_score: aiReview?.overallScore ?? 0,
+      status: aiReview?.recommendedAction === "Approve" ? "open" : "under_review",
+      category: aiReview?.category ?? "Infrastructure",
+      district:
+        currentUser.user_metadata?.district ||
+        currentUser.user_metadata?.district_name ||
+        "District 12",
     };
 
     const { error } = await supabase.from("issues").insert([payload]);
@@ -371,7 +383,7 @@ export default function CreateIssuePage() {
               </div>
             )}
 
-            {!checkingAuth && !user && (
+            {!checkingAuth && !user && !errorMessage && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
                 You must be logged in to create an issue.
               </div>
@@ -407,28 +419,28 @@ export default function CreateIssuePage() {
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-4">
-                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs font-semibold text-slate-500">Toxicity</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {aiReview.toxicityScore}/100
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs font-semibold text-slate-500">Spam</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {aiReview.spamScore}/100
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs font-semibold text-slate-500">Misinformation</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {aiReview.misinformationScore}/100
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-white p-3 border border-slate-200">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs font-semibold text-slate-500">Overall Score</p>
                     <p className="mt-1 text-lg font-bold text-slate-900">
                       {aiReview.overallScore}/100
