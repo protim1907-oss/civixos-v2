@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient, User } from "@supabase/supabase-js";
+import { createClient, type User } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -11,56 +11,141 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
   },
 });
+
+type AiReview = {
+  severity: "Low" | "Medium" | "High";
+  category: string;
+  suggestedTitle: string;
+  summary: string;
+  recommendedAction: string;
+};
 
 export default function CreateIssuePage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [aiReview, setAiReview] = useState<AiReview | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    async function loadSession() {
+    async function loadAuth() {
+      setCheckingAuth(true);
+
       const {
         data: { session },
-        error,
       } = await supabase.auth.getSession();
 
-      if (!mounted) return;
-
-      if (error) {
-        setErrorMessage("Could not verify login status. Please refresh and try again.");
-        setCheckingAuth(false);
-        return;
-      }
+      if (!isMounted) return;
 
       setUser(session?.user ?? null);
       setCheckingAuth(false);
     }
 
-    loadSession();
+    loadAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
       setUser(session?.user ?? null);
+      setCheckingAuth(false);
     });
 
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
+
+  const canReview = useMemo(() => {
+    return title.trim().length > 0 || description.trim().length > 0;
+  }, [title, description]);
+
+  function runAiReview() {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+
+    if (!trimmedTitle && !trimmedDescription) {
+      setErrorMessage("Please add a title or description before using Review with AI.");
+      return;
+    }
+
+    setIsReviewing(true);
+
+    const text = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
+
+    let severity: AiReview["severity"] = "Low";
+    let category = "General civic issue";
+    let recommendedAction = "Route to district operations team for review.";
+    let summary =
+      "This issue appears to describe a local civic concern that may require district-level attention.";
+    let suggestedTitle = trimmedTitle || "Civic issue report";
+
+    if (
+      text.includes("drain") ||
+      text.includes("waterlogging") ||
+      text.includes("overflow") ||
+      text.includes("flood")
+    ) {
+      severity = "High";
+      category = "Drainage and flooding";
+      recommendedAction =
+        "Prioritize inspection, sanitation response, and public works follow-up for District 12.";
+      summary =
+        "The report points to recurring drainage overflow and waterlogging, which may present sanitation and public health risks.";
+      if (!trimmedTitle) suggestedTitle = "Overflowing Drains in District 12";
+    } else if (
+      text.includes("garbage") ||
+      text.includes("waste") ||
+      text.includes("trash")
+    ) {
+      severity = "Medium";
+      category = "Sanitation";
+      recommendedAction =
+        "Route to sanitation team for cleanup scheduling and recurrence monitoring.";
+      summary =
+        "The issue suggests sanitation concerns that may affect resident safety and neighborhood conditions.";
+    } else if (
+      text.includes("road") ||
+      text.includes("pothole") ||
+      text.includes("traffic")
+    ) {
+      severity = "Medium";
+      category = "Roads and transport";
+      recommendedAction =
+        "Route to transport or maintenance team for inspection and repair planning.";
+      summary =
+        "The issue appears related to transport safety or road maintenance and should be reviewed by infrastructure teams.";
+    }
+
+    setTimeout(() => {
+      setAiReview({
+        severity,
+        category,
+        suggestedTitle,
+        summary,
+        recommendedAction,
+      });
+      setIsReviewing(false);
+    }, 500);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -77,143 +162,191 @@ export default function CreateIssuePage() {
 
     setIsSubmitting(true);
 
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-      if (sessionError) {
-        setErrorMessage("Could not verify your login session. Please try again.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const currentUser = session?.user ?? null;
-
-      if (!currentUser) {
-        setErrorMessage("You must be logged in to create an issue.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const { error: insertError } = await supabase.from("issues").insert([
-        {
-          title: trimmedTitle,
-          description: trimmedDescription,
-          user_id: currentUser.id,
-          status: "open",
-        },
-      ]);
-
-      if (insertError) {
-        setErrorMessage(insertError.message || "Failed to create issue.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      setSuccessMessage("Issue created successfully.");
-      setTitle("");
-      setDescription("");
-
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1200);
-    } catch {
-      setErrorMessage("Something went wrong while creating the issue.");
-    } finally {
+    if (sessionError) {
+      setErrorMessage("Could not verify your login session. Please refresh and try again.");
       setIsSubmitting(false);
+      return;
     }
-  }
 
-  async function handleGoToLogin() {
-    router.push("/login");
+    const currentUser = session?.user ?? null;
+
+    if (!currentUser) {
+      setErrorMessage("You must be logged in to create an issue.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      title: trimmedTitle,
+      description: trimmedDescription,
+      user_id: currentUser.id,
+      status: "open",
+      category: aiReview?.category ?? null,
+      severity: aiReview?.severity ?? null,
+      ai_summary: aiReview?.summary ?? null,
+      moderation_action: "pending_review",
+    };
+
+    const { error } = await supabase.from("issues").insert([payload]);
+
+    if (error) {
+      setErrorMessage(error.message || "Failed to create issue.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    setSuccessMessage("Issue created successfully.");
+    setTitle("");
+    setDescription("");
+    setAiReview(null);
+    setIsSubmitting(false);
+
+    setTimeout(() => {
+      router.push("/dashboard");
+    }, 1000);
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-10">
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-[36px] border border-slate-200 bg-white px-8 py-10 shadow-sm md:px-14 md:py-14">
-          <h1 className="text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-6 shadow-sm md:px-8 md:py-8">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
             Create Civic Issue
           </h1>
-          <p className="mt-5 text-xl text-slate-600 md:text-2xl">
+          <p className="mt-3 text-lg text-slate-600 md:text-2xl">
             Submit a concern for your district.
           </p>
 
-          {checkingAuth ? (
-            <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-5 text-slate-600">
-              Checking login status...
+          <form onSubmit={handleSubmit} className="mt-8 space-y-7">
+            <div>
+              <label
+                htmlFor="title"
+                className="mb-3 block text-lg font-medium text-slate-700"
+              >
+                Title
+              </label>
+              <input
+                id="title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Waterlogging in District 12"
+                className="w-full rounded-[22px] border border-slate-300 bg-slate-50 px-5 py-4 text-xl text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-2xl"
+              />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="mt-12 space-y-10">
-              <div>
-                <label
-                  htmlFor="title"
-                  className="mb-4 block text-xl font-medium text-slate-700"
-                >
-                  Title
-                </label>
-                <input
-                  id="title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Waterlogging in District 12"
-                  className="w-full rounded-[28px] border border-slate-300 bg-slate-50 px-7 py-6 text-2xl text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
-                />
+
+            <div>
+              <label
+                htmlFor="description"
+                className="mb-3 block text-lg font-medium text-slate-700"
+              >
+                Description
+              </label>
+              <textarea
+                id="description"
+                rows={5}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
+                className="w-full rounded-[22px] border border-slate-300 bg-slate-50 px-5 py-4 text-xl leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-2xl"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={runAiReview}
+                disabled={!canReview || isReviewing}
+                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isReviewing ? "Reviewing..." : "Review with AI"}
+              </button>
+
+              <button
+                type="submit"
+                disabled={checkingAuth || isSubmitting}
+                className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? "Submitting..." : "Create Issue"}
+              </button>
+            </div>
+
+            {checkingAuth && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-600">
+                Checking login status...
               </div>
+            )}
 
-              <div>
-                <label
-                  htmlFor="description"
-                  className="mb-4 block text-xl font-medium text-slate-700"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  rows={8}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
-                  className="w-full rounded-[28px] border border-slate-300 bg-slate-50 px-7 py-6 text-2xl leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
-                />
+            {!checkingAuth && !user && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
+                You must be logged in to create an issue.
               </div>
+            )}
 
-              {errorMessage && (
-                <div className="rounded-[26px] border border-red-200 bg-red-50 px-7 py-5 text-xl text-red-700">
-                  {errorMessage}
+            {errorMessage && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
+                {errorMessage}
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-base text-emerald-700">
+                {successMessage}
+              </div>
+            )}
+
+            {aiReview && (
+              <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-5">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                    AI Review
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                    Severity: {aiReview.severity}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                    Category: {aiReview.category}
+                  </span>
                 </div>
-              )}
 
-              {successMessage && (
-                <div className="rounded-[26px] border border-emerald-200 bg-emerald-50 px-7 py-5 text-xl text-emerald-700">
-                  {successMessage}
+                <div className="space-y-3 text-sm text-slate-700">
+                  <div>
+                    <p className="font-semibold text-slate-900">Suggested title</p>
+                    <p>{aiReview.suggestedTitle}</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-slate-900">Summary</p>
+                    <p>{aiReview.summary}</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-slate-900">Recommended action</p>
+                    <p>{aiReview.recommendedAction}</p>
+                  </div>
                 </div>
-              )}
 
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  type="submit"
-                  disabled={isSubmitting || checkingAuth}
-                  className="rounded-2xl bg-slate-950 px-7 py-4 text-lg font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSubmitting ? "Submitting..." : "Create Issue"}
-                </button>
-
-                {!user && !checkingAuth && (
+                <div className="mt-4">
                   <button
                     type="button"
-                    onClick={handleGoToLogin}
-                    className="rounded-2xl border border-slate-300 bg-white px-7 py-4 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
+                    onClick={() => {
+                      if (aiReview.suggestedTitle && !title.trim()) {
+                        setTitle(aiReview.suggestedTitle);
+                      }
+                    }}
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50"
                   >
-                    Go to Login
+                    Use suggested title
                   </button>
-                )}
+                </div>
               </div>
-            </form>
-          )}
+            )}
+          </form>
         </div>
       </div>
     </main>
