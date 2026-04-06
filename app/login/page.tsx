@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -19,11 +19,48 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
 
   const resetStatus = () => {
     setMessage("");
     setError("");
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      if (session?.user) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setCheckingSession(false);
+    }
+
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      if (session?.user) {
+        router.replace("/dashboard");
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +80,7 @@ export default function LoginPage() {
 
     setMessage("Login successful. Redirecting...");
     setLoading(false);
-    router.push("/dashboard");
+    router.replace("/dashboard");
   };
 
   const handleMobileLogin = async () => {
@@ -69,11 +106,11 @@ export default function LoginPage() {
     setGoogleLoading(true);
 
     const { error } = await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: {
-    redirectTo: `${window.location.origin}/auth/callback`,
-  },
-});
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
 
     if (error) {
       setError(error.message || "Google login could not be started.");
@@ -82,9 +119,18 @@ export default function LoginPage() {
     }
   };
 
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f8] px-4">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm text-slate-600 shadow-sm">
+          Checking session...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f6f7f8]">
-      {/* Background pattern */}
       <div className="absolute inset-0 opacity-60">
         <div className="grid h-full grid-cols-4 gap-6 p-6 md:grid-cols-6">
           {Array.from({ length: 24 }).map((_, i) => (
@@ -99,7 +145,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Top brand bar */}
       <div className="relative z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-5">
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-500 text-lg font-bold text-white">
@@ -109,7 +154,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Center card */}
       <div className="relative z-10 flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-10">
         <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white/95 p-8 shadow-xl backdrop-blur">
           <div className="mb-6 text-center">
@@ -120,7 +164,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Color cards */}
           <div className="mb-6 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border-l-4 border-yellow-500 bg-yellow-50 p-4">
               <p className="font-semibold text-slate-900">Quick Access</p>
@@ -140,7 +183,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Auth buttons */}
           <div className="space-y-3">
             <button
               type="button"
@@ -179,14 +221,12 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Divider */}
           <div className="my-6 flex items-center gap-4">
             <div className="h-px flex-1 bg-slate-300" />
             <span className="text-sm font-medium text-slate-500">OR</span>
             <div className="h-px flex-1 bg-slate-300" />
           </div>
 
-          {/* Email mode */}
           {mode === "email" && (
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div>
@@ -236,7 +276,6 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* Mobile mode */}
           {mode === "mobile" && (
             <div className="space-y-4">
               <div>
@@ -267,7 +306,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Status */}
           {message && (
             <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               {message}
