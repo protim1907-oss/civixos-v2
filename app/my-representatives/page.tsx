@@ -20,17 +20,20 @@ const representatives: Representative[] = [
     photo: "https://www.cruz.senate.gov/imo/media/image/cruz_headshot.jpg",
     linkedin: "https://www.linkedin.com/in/cruzted",
     chatHref: "/chat/ted-cruz",
-    emailHref: "/contact/ted-cruz",
+    emailHref:
+      "mailto:casework@cruz.senate.gov?subject=Constituent%20Inquiry&body=Hello%20Senator%20Cruz%2C%0A%0AI%20am%20writing%20regarding...",
   },
   {
     id: "joaquin-castro",
     name: "Joaquín Castro",
     office: "U.S. Representative, Texas 20th District",
     level: "Congress",
-    photo: "https://castro.house.gov/imo/media/image/2023-05-11_NP_0015_re%20%28002%29.jpg",
+    photo:
+      "https://castro.house.gov/imo/media/image/2023-05-11_NP_0015_re%20%28002%29.jpg",
     linkedin: "https://www.linkedin.com/in/joaquin-castro-2626ab51",
     chatHref: "/chat/joaquin-castro",
-    emailHref: "/contact/joaquin-castro",
+    emailHref:
+      "mailto:Jasmine.Rodriguez@mail.house.gov?subject=Constituent%20Inquiry%20for%20Rep.%20Castro&body=Hello%2C%0A%0AI%20am%20writing%20regarding...",
   },
   {
     id: "greg-abbott",
@@ -40,37 +43,44 @@ const representatives: Representative[] = [
     photo: "https://gov.texas.gov/uploads/images/general/2024-GovernorAbbott-Portrait.jpg",
     linkedin: "https://www.linkedin.com/in/gregabbotttx",
     chatHref: "/chat/greg-abbott",
-    emailHref: "/contact/greg-abbott",
+    emailHref:
+      "mailto:greg.abbott@gov.texas.gov?subject=Constituent%20Inquiry&body=Hello%20Governor%20Abbott%2C%0A%0AI%20am%20writing%20regarding...",
   },
   {
     id: "ken-paxton",
     name: "Ken Paxton",
     office: "Attorney General of Texas",
     level: "State",
-    photo: "https://www.texasattorneygeneral.gov/sites/default/files/inline-images/ken_paxton_bio_thumb.jpg",
+    photo:
+      "https://www.texasattorneygeneral.gov/sites/default/files/images/about/Texas-Attorney-General-Ken-Paxton.jpg",
     linkedin: "https://www.linkedin.com/in/ken-paxton-854b2a13",
     chatHref: "/chat/ken-paxton",
-    emailHref: "/contact/ken-paxton",
+    emailHref:
+      "mailto:ken.paxton@oag.texas.gov?subject=Constituent%20Inquiry&body=Hello%20Attorney%20General%20Paxton%2C%0A%0AI%20am%20writing%20regarding...",
   },
   {
     id: "kirk-watson",
     name: "Kirk Watson",
     office: "Mayor of Austin",
     level: "Local",
-    photo: "https://austin.widen.net/content/sy9elcnoc3/web/Austin%20Mayor%20-%20Web_mayor-headshot-optimized.jpg?crop=yes&h=1168&itok=IX0EtxuF&w=1312",
+    photo:
+      "https://www.austintexas.gov/sites/default/files/files/Mayor/Mayor_Watson_Headshot.jpg",
     linkedin: "https://www.linkedin.com/in/kirk-watson-045ab81b",
     chatHref: "/chat/kirk-watson",
-    emailHref: "/contact/kirk-watson",
+    emailHref:
+      "mailto:mayor@austintexas.gov?subject=Constituent%20Inquiry&body=Hello%20Mayor%20Watson%2C%0A%0AI%20am%20writing%20regarding...",
   },
   {
     id: "eric-johnson",
     name: "Eric L. Johnson",
     office: "Mayor of Dallas",
     level: "Local",
-    photo: "https://dallascityhall.com/government/citymayor/PublishingImages/pages/default/NEW%20HEADSHOT.jpg",
+    photo:
+      "https://dallascityhall.com/government/citymayor/PublishingImages/pages/default/Headshot.jpg",
     linkedin: "https://www.linkedin.com/in/johnsonfordallas",
     chatHref: "/chat/eric-johnson",
-    emailHref: "/contact/eric-johnson",
+    emailHref:
+      "mailto:eric.johnson@dallas.gov?subject=Constituent%20Inquiry&body=Hello%20Mayor%20Johnson%2C%0A%0AI%20am%20writing%20regarding...",
   },
 ];
 
@@ -100,7 +110,7 @@ export default function MyRepresentativesPage() {
               My Representatives
             </h1>
             <p className="mt-4 max-w-4xl text-lg text-slate-600">
-              Connect with current Texas officials across federal, state, and local government.
+              Connect with Texas representatives across federal, state, and local government.
             </p>
           </div>
         </div>
@@ -117,6 +127,10 @@ export default function MyRepresentativesPage() {
                 src={rep.photo}
                 alt={rep.name}
                 className="h-32 w-32 rounded-full object-cover ring-4 ring-slate-100"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src =
+                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                }}
               />
 
               <div
@@ -132,7 +146,6 @@ export default function MyRepresentativesPage() {
             </div>
 
             <div className="mt-6 space-y-3">
-              {/* Keep your existing chat behavior here if you already have one */}
               <a
                 href={rep.chatHref}
                 className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
@@ -140,7 +153,6 @@ export default function MyRepresentativesPage() {
                 Chat with Representative
               </a>
 
-              {/* Keep your existing email behavior here if you already have one */}
               <a
                 href={rep.emailHref}
                 className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
