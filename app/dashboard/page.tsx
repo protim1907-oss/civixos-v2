@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [currentDistrict, setCurrentDistrict] = useState("District 12");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -43,6 +44,7 @@ export default function DashboardPage() {
       }
 
       const user = session.user;
+
       const displayName =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
@@ -77,6 +79,20 @@ export default function DashboardPage() {
 
     loadDashboard();
   }, [router, supabase]);
+
+  async function handleLogout() {
+    try {
+      setLoggingOut(true);
+      await supabase.auth.signOut();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+      router.replace("/login");
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   const filteredIssues = useMemo(() => {
     let result = [...issues];
@@ -221,7 +237,7 @@ export default function DashboardPage() {
 
             <Link
               href="/feed"
-              className="rounded-2xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               View District Feed
             </Link>
@@ -232,6 +248,14 @@ export default function DashboardPage() {
             >
               Policy Pulse
             </Link>
+
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="rounded-2xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loggingOut ? "Logging out..." : "Logout"}
+            </button>
           </div>
         </div>
       </section>
@@ -264,7 +288,8 @@ export default function DashboardPage() {
               Insights for {currentDistrict}
             </h2>
             <p className="mt-3 max-w-3xl text-base text-slate-600">
-              Real-time signals based on issue activity, category patterns, and risk indicators in this district.
+              Real-time signals based on issue activity, category patterns, and risk indicators in
+              this district.
             </p>
           </div>
         </div>
@@ -304,24 +329,29 @@ export default function DashboardPage() {
               <p className="text-slate-500">No trending issues yet for this district.</p>
             ) : (
               trendingIssues.map(([title, count], index) => (
-                <div
+                <Link
                   key={title}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4"
+                  href={`/feed?issue=${encodeURIComponent(title)}`}
+                  className="block"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-sm font-bold text-red-600">
-                      {index + 1}
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 transition hover:border-slate-300 hover:bg-slate-50">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-sm font-bold text-red-600">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-slate-900">{title}</p>
+                        <p className="text-sm text-slate-500">
+                          Recurring issue in {currentDistrict}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-base font-semibold text-slate-900">{title}</p>
-                      <p className="text-sm text-slate-500">Recurring issue in {currentDistrict}</p>
-                    </div>
-                  </div>
 
-                  <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                    {count} report{count > 1 ? "s" : ""}
-                  </span>
-                </div>
+                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                      {count} report{count > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </Link>
               ))
             )}
           </div>
