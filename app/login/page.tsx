@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [loginMode, setLoginMode] = useState<"email" | "mobile">("email");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   async function handleEmailLogin(e: FormEvent) {
@@ -65,29 +66,68 @@ export default function LoginPage() {
   }
 
   async function handleGoogleLogin() {
-    setMessage("");
-    setGoogleLoading(true);
+    try {
+      setMessage("");
+      setGoogleLoading(true);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : undefined,
-      },
-    });
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
 
-    if (error) {
-      setMessage(error.message || "Google login failed.");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) {
+        setMessage(error.message || "Google login failed.");
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      setMessage("Google login could not start. Check your Supabase Google OAuth settings.");
       setGoogleLoading(false);
+    } catch (error) {
+      console.error("Google login error:", error);
+      setMessage("Something went wrong while starting Google login.");
+      setGoogleLoading(false);
+    }
+  }
+
+  async function handleGuestLogin() {
+    try {
+      setMessage("");
+      setGuestLoading(true);
+
+      localStorage.setItem(
+        "guest_user",
+        JSON.stringify({
+          name: "Guest Citizen",
+          role: "guest",
+        })
+      );
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      console.error("Guest login error:", error);
+      setMessage("Unable to continue as guest.");
+      setGuestLoading(false);
     }
   }
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 md:px-6">
       <div className="mx-auto grid min-h-[85vh] max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-        {/* Left side */}
         <section className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-blue-50" />
 
@@ -125,9 +165,9 @@ export default function LoginPage() {
 
               <div className="rounded-3xl border border-red-100 bg-red-50 p-5">
                 <p className="text-sm font-semibold text-red-700">Red</p>
-                <h3 className="mt-2 text-xl font-bold text-slate-900">Secure Access</h3>
+                <h3 className="mt-2 text-xl font-bold text-slate-900">Guest Access</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  A bold, clean layout inspired by community-first discussion platforms.
+                  Let users quickly explore the platform without creating an account first.
                 </p>
               </div>
 
@@ -135,7 +175,7 @@ export default function LoginPage() {
                 <p className="text-sm font-semibold text-green-700">Green</p>
                 <h3 className="mt-2 text-xl font-bold text-slate-900">Google Login</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Use Google for a faster sign-in experience when OAuth is enabled.
+                  Use Google for faster sign-in with a clean single-click flow.
                 </p>
               </div>
 
@@ -143,14 +183,13 @@ export default function LoginPage() {
                 <p className="text-sm font-semibold text-yellow-700">Yellow</p>
                 <h3 className="mt-2 text-xl font-bold text-slate-900">Mobile Login</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Let citizens sign in from mobile-friendly flows and stay connected on the go.
+                  Mobile-friendly sign-in flow for citizens accessing the app on the go.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Right side */}
         <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
           <div className="mx-auto max-w-md">
             <div className="mb-6">
@@ -286,9 +325,11 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                className="w-full rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+                onClick={handleGuestLogin}
+                disabled={guestLoading}
+                className="w-full rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Continue as Guest
+                {guestLoading ? "Redirecting..." : "Continue as Guest"}
               </button>
             </div>
 
