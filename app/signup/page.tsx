@@ -31,10 +31,8 @@ export default function SignupPage() {
       },
     });
 
-    // ✅ DEBUG LOG (VERY IMPORTANT)
     console.log("SIGNUP_RESULT:", { data, error });
 
-    // ❌ Case 1: Explicit error (duplicate user etc.)
     if (error) {
       const msg = error.message.toLowerCase();
 
@@ -54,7 +52,6 @@ export default function SignupPage() {
       return;
     }
 
-    // ⚠️ Case 2: No session returned (Supabase hides duplicate users sometimes)
     if (!data.session) {
       setInfo(
         "Account created or already exists. Please check your email or login."
@@ -68,7 +65,6 @@ export default function SignupPage() {
       return;
     }
 
-    // ✅ Case 3: Successful signup
     setLoading(false);
     window.location.href = "/login";
   };
@@ -123,6 +119,8 @@ export default function SignupPage() {
           <option value="">Select District</option>
           <option value="NY-10">New York District 10 (NY-10)</option>
           <option value="CA-12">California District 12 (CA-12)</option>
+          <option value="State of Texas">State of Texas</option>
+          <option value="New Hampshire">New Hampshire</option>
         </select>
       </div>
 
@@ -134,7 +132,6 @@ export default function SignupPage() {
         {loading ? "Creating..." : "Create account"}
       </button>
 
-      {/* ❌ Error message */}
       {error && (
         <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}{" "}
@@ -144,7 +141,6 @@ export default function SignupPage() {
         </div>
       )}
 
-      {/* ℹ️ Info message */}
       {info && (
         <div className="mt-4 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-700">
           {info}{" "}
@@ -154,7 +150,6 @@ export default function SignupPage() {
         </div>
       )}
 
-      {/* Always show login option */}
       <p className="text-sm mt-4 text-gray-500">
         Already have an account?{" "}
         <Link href="/login" className="text-blue-600 underline">
@@ -164,9 +159,3 @@ export default function SignupPage() {
     </div>
   );
 }
-<p className="text-sm text-slate-600 text-center mt-6">
-  Already have an account?{" "}
-  <Link href="/login" className="font-medium text-slate-900 hover:underline">
-    Login
-  </Link>
-</p>
