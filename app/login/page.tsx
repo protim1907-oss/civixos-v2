@@ -154,35 +154,35 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-3xl border-l-4 border-yellow-500 border-t border-r border-b border-slate-200 bg-yellow-50/60 p-6 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900">Quick Policy Testing</h3>
-                <p className="mt-4 text-lg leading-9 text-slate-600">
-                  Run focused surveys to validate public sentiment before policy rollout.
-                </p>
-              </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+  <div className="rounded-3xl border-l-4 border-yellow-500 border border-slate-200 bg-yellow-50/60 p-5 shadow-sm">
+    <h3 className="text-xl font-bold text-slate-900">Quick Policy Testing</h3>
+    <p className="mt-3 text-sm leading-6 text-slate-600">
+      Run focused surveys to validate public sentiment before policy rollout.
+    </p>
+  </div>
 
-              <div className="rounded-3xl border-l-4 border-blue-500 border-t border-r border-b border-slate-200 bg-blue-50/60 p-6 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900">Citizen Sentiment</h3>
-                <p className="mt-4 text-lg leading-9 text-slate-600">
-                  Capture support levels, concerns, and recommendations in one place.
-                </p>
-              </div>
+  <div className="rounded-3xl border-l-4 border-red-500 border border-slate-200 bg-red-50/60 p-5 shadow-sm">
+    <h3 className="text-xl font-bold text-slate-900">Citizen Sentiment</h3>
+    <p className="mt-3 text-sm leading-6 text-slate-600">
+      Capture support levels, concerns, and recommendations in one place.
+    </p>
+  </div>
 
-              <div className="rounded-3xl border-l-4 border-red-500 border-t border-r border-b border-slate-200 bg-red-50/60 p-6 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900">Risk Visibility</h3>
-                <p className="mt-4 text-lg leading-9 text-slate-600">
-                  Surface public concerns early so teams can respond before issues escalate.
-                </p>
-              </div>
+  <div className="rounded-3xl border-l-4 border-blue-500 border border-slate-200 bg-blue-50/60 p-5 shadow-sm">
+    <h3 className="text-xl font-bold text-slate-900">Risk Visibility</h3>
+    <p className="mt-3 text-sm leading-6 text-slate-600">
+      Surface public concerns early so teams can respond before issues escalate.
+    </p>
+  </div>
 
-              <div className="rounded-3xl border-l-4 border-green-500 border-t border-r border-b border-slate-200 bg-green-50/60 p-6 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900">Actionable Insights</h3>
-                <p className="mt-4 text-lg leading-9 text-slate-600">
-                  Turn feedback into decisions, communication plans, and next-step actions.
-                </p>
-              </div>
-            </div>
+  <div className="rounded-3xl border-l-4 border-green-500 border border-slate-200 bg-green-50/60 p-5 shadow-sm">
+    <h3 className="text-xl font-bold text-slate-900">Actionable Insights</h3>
+    <p className="mt-3 text-sm leading-6 text-slate-600">
+      Turn feedback into decisions, communication plans, and next-step actions.
+    </p>
+  </div>
+</div>
           </div>
         </section>
 
