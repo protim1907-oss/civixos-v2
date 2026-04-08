@@ -234,7 +234,7 @@ export default function DashboardPage() {
             </Link>
 
             <Link
-              href="/feed"
+              href="/district-feed"
               className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               View District Feed
@@ -261,28 +261,28 @@ export default function DashboardPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/feed?tab=all"
+            href="/district-feed?tab=all"
             className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 active:scale-[0.98]"
           >
             All Posts
           </Link>
 
           <Link
-            href="/feed?tab=official"
+            href="/official-updates"
             className="rounded-2xl bg-green-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-[0.98]"
           >
             Official Updates
           </Link>
 
           <Link
-            href="/feed?tab=community"
+            href="/district-feed?tab=community"
             className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500 active:scale-[0.98]"
           >
             Community Issues
           </Link>
 
           <Link
-            href="/feed?tab=trending"
+            href="/trending-posts"
             className="rounded-2xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 active:scale-[0.98]"
           >
             Trending Posts
@@ -341,7 +341,7 @@ export default function DashboardPage() {
               trendingIssues.map(([title, count], index) => (
                 <Link
                   key={title}
-                  href={`/feed?issue=${encodeURIComponent(title)}`}
+                  href={`/district-feed?issue=${encodeURIComponent(title)}`}
                   className="block"
                 >
                   <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 transition hover:border-slate-300 hover:bg-slate-50">
@@ -486,7 +486,7 @@ export default function DashboardPage() {
               {filteredIssues.map((issue) => (
                 <Link
                   key={issue.id}
-                  href={`/feed?issue=${encodeURIComponent(issue.title)}`}
+                  href={`/district-feed?issue=${encodeURIComponent(issue.title)}`}
                   className="block"
                 >
                   <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
