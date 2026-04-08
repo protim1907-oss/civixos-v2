@@ -275,11 +275,11 @@ export default function DashboardPage() {
           </Link>
 
           <Link
-            href="/district-feed?tab=community"
-            className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500 active:scale-[0.98]"
-          >
-            Community Issues
-          </Link>
+  href="/feed?tab=community"
+  className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500 active:scale-[0.98]"
+>
+  Community Issues
+</Link>
 
           <Link
             href="/trending-posts"
