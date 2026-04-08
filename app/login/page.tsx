@@ -23,7 +23,7 @@ export default function LoginPage() {
     setMessage("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -34,8 +34,17 @@ export default function LoginPage() {
       return;
     }
 
+    const accountType = data.user?.user_metadata?.account_type;
+
     setMessage("Login successful. Redirecting...");
     setLoading(false);
+
+    if (accountType === "official") {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
     router.push("/dashboard");
     router.refresh();
   }
@@ -155,38 +164,38 @@ export default function LoginPage() {
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-  {/* Yellow */}
-  <div className="rounded-3xl border-2 border-yellow-500 bg-yellow-50/60 p-5 shadow-sm">
-    <h3 className="text-xl font-bold text-slate-900">Quick Policy Testing</h3>
-    <p className="mt-3 text-sm leading-6 text-slate-600">
-      Run focused surveys to validate public sentiment before policy rollout.
-    </p>
-  </div>
+              <div className="rounded-3xl border-2 border-yellow-500 bg-yellow-50/60 p-5 shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900">Quick Policy Testing</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Run focused surveys to validate public sentiment before policy rollout.
+                </p>
+              </div>
 
-  {/* Red */}
-  <div className="rounded-3xl border-2 border-red-500 bg-red-50/60 p-5 shadow-sm">
-    <h3 className="text-xl font-bold text-slate-900">Citizen Sentiment</h3>
-    <p className="mt-3 text-sm leading-6 text-slate-600">
-      Capture support levels, concerns, and recommendations in one place.
-    </p>
-  </div>
+              <div className="rounded-3xl border-2 border-red-500 bg-red-50/60 p-5 shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900">Citizen Sentiment</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Capture support levels, concerns, and recommendations in one place.
+                </p>
+              </div>
 
-  {/* Green */}
-  <div className="rounded-3xl border-2 border-green-500 bg-green-50/60 p-5 shadow-sm">
-    <h3 className="text-xl font-bold text-slate-900">Chat with Representatives</h3>
-    <p className="mt-3 text-sm leading-6 text-slate-600">
-      Connect directly with elected representatives and share your concerns in real time.
-    </p>
-  </div>
+              <div className="rounded-3xl border-2 border-green-500 bg-green-50/60 p-5 shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900">Chat with Representatives</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Connect directly with elected representatives and share your concerns in real
+                  time.
+                </p>
+              </div>
 
-  {/* Blue */}
-  <div className="rounded-3xl border-2 border-blue-500 bg-blue-50/60 p-5 shadow-sm">
-    <h3 className="text-xl font-bold text-slate-900">AI-Powered Actionable Insights</h3>
-    <p className="mt-3 text-sm leading-6 text-slate-600">
-      Turn citizen feedback into data-driven decisions, communication strategies, and next steps.
-    </p>
-  </div>
-</div>
+              <div className="rounded-3xl border-2 border-blue-500 bg-blue-50/60 p-5 shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900">
+                  AI-Powered Actionable Insights
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Turn citizen feedback into data-driven decisions, communication strategies, and
+                  next steps.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -198,9 +207,37 @@ export default function LoginPage() {
               </p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900">Log in to CivixOS</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Choose your preferred login option below. The layout is inspired by modern
-                community platforms, with bright color-coded sign-in actions.
+                Choose your preferred login option below. Citizens can sign in normally, while
+                government and public officials can use the official registration path for role-based
+                access.
               </p>
+            </div>
+
+            <div className="mb-5 rounded-3xl border border-green-200 bg-green-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+                Government & Official Access
+              </p>
+              <h3 className="mt-2 text-lg font-bold text-slate-900">
+                Are you a state, local, or federal official?
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Register using the official onboarding flow to create a government account and
+                unlock official-specific platform features.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  href="/signup-official"
+                  className="rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                >
+                  Register as Official
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Citizen Signup
+                </Link>
+              </div>
             </div>
 
             <div className="mb-6 grid grid-cols-2 gap-3">
@@ -339,14 +376,29 @@ export default function LoginPage() {
               </div>
             ) : null}
 
-            <div className="mt-6 flex items-center justify-between gap-4 text-sm text-slate-600">
-              <Link href="/forgot-password" className="font-medium text-blue-600 hover:underline">
-                Forgot password?
-              </Link>
+            <div className="mt-6 space-y-3 text-sm text-slate-600">
+              <div className="flex items-center justify-between gap-4">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-blue-600 hover:underline"
+                >
+                  Forgot password?
+                </Link>
 
-              <Link href="/signup" className="font-medium text-slate-900 hover:underline">
-                Create account
-              </Link>
+                <Link href="/signup" className="font-medium text-slate-900 hover:underline">
+                  Create citizen account
+                </Link>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-slate-600">Government official? </span>
+                <Link
+                  href="/signup-official"
+                  className="font-medium text-green-700 hover:underline"
+                >
+                  Register here
+                </Link>
+              </div>
             </div>
           </div>
         </section>
