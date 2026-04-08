@@ -127,7 +127,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 md:px-6">
-      <div className="mx-auto grid min-h-[85vh] max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-blue-50" />
 
