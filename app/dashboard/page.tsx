@@ -234,11 +234,11 @@ export default function DashboardPage() {
             </Link>
 
             <Link
-              href="/district-feed"
-              className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-            >
-              View District Feed
-            </Link>
+  href="/feed"
+  className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+>
+  View District Feed
+</Link>
 
             <Link
               href="/policy-pulse"
