@@ -261,7 +261,7 @@ export default function DashboardPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/district-feed?tab=all"
+  href="/district-feed"
             className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 active:scale-[0.98]"
           >
             All Posts
