@@ -15,10 +15,10 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white p-5">
-      <h2 className="text-2xl font-bold mb-8">CivixOS</h2>
+    <aside className="min-h-screen w-[280px] bg-[#04143b] px-10 py-12 text-white">
+      <h2 className="text-5xl font-bold tracking-tight text-white">CivixOS</h2>
 
-      <nav className="space-y-2">
+      <nav className="mt-20 space-y-6">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
 
@@ -26,10 +26,10 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`block rounded-lg px-4 py-3 transition ${
+              className={`block rounded-[20px] px-8 py-7 text-[26px] font-medium transition ${
                 isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-200 hover:bg-slate-800"
+                  ? "bg-[#2563eb] text-white shadow-sm"
+                  : "text-slate-200 hover:bg-white/5"
               }`}
             >
               {item.label}
