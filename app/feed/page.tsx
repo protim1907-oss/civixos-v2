@@ -61,40 +61,70 @@ function getStatusBadge(status: FeedPost["status"]) {
   }
 }
 
-function normalizeStatus(value: string | null | undefined): FeedPost["status"] {
-  const normalized = (value || "").toLowerCase().trim();
+function inferUrgency(title: string, description: string): FeedPost["urgency"] {
+  const text = `${title} ${description}`.toLowerCase();
 
-  if (normalized === "open") return "Open";
-  if (normalized === "under_review" || normalized === "under review") {
-    return "Under Review";
+  if (
+    text.includes("flood") ||
+    text.includes("waterlogging") ||
+    text.includes("danger") ||
+    text.includes("unsafe") ||
+    text.includes("pothole")
+  ) {
+    return "High";
   }
-  if (normalized === "resolved") return "Resolved";
-  if (normalized === "escalated") return "Escalated";
 
-  return "Open";
-}
-
-function inferUrgency(
-  status: string | null | undefined,
-  category: string | null | undefined
-): FeedPost["urgency"] {
-  const normalizedStatus = (status || "").toLowerCase();
-  const normalizedCategory = (category || "").toLowerCase();
-
-  if (normalizedStatus === "escalated") return "High";
-  if (normalizedCategory.includes("safety")) return "High";
-  if (normalizedCategory.includes("infrastructure")) return "Medium";
-  if (normalizedStatus === "under_review") return "Medium";
+  if (
+    text.includes("streetlight") ||
+    text.includes("garbage") ||
+    text.includes("drain") ||
+    text.includes("traffic")
+  ) {
+    return "Medium";
+  }
 
   return "Low";
 }
 
-function normalizeDistrict(value: string | null | undefined) {
-  return (value || "")
-    .toLowerCase()
-    .replace(/california|texas|district|cd|ca|tx|-/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function inferCategory(title: string, description: string) {
+  const text = `${title} ${description}`.toLowerCase();
+
+  if (
+    text.includes("road") ||
+    text.includes("pothole") ||
+    text.includes("drain") ||
+    text.includes("waterlogging") ||
+    text.includes("pipeline")
+  ) {
+    return "Infrastructure";
+  }
+
+  if (
+    text.includes("school") ||
+    text.includes("crime") ||
+    text.includes("police") ||
+    text.includes("safety")
+  ) {
+    return "Public Safety";
+  }
+
+  if (
+    text.includes("bus") ||
+    text.includes("traffic") ||
+    text.includes("crossing")
+  ) {
+    return "Transportation";
+  }
+
+  if (
+    text.includes("garbage") ||
+    text.includes("trash") ||
+    text.includes("waste")
+  ) {
+    return "Sanitation";
+  }
+
+  return "General";
 }
 
 export default function FeedPage() {
@@ -150,73 +180,58 @@ export default function FeedPage() {
 
         setCurrentDistrict(district);
 
+        // Representatives table is named "representatives" in your DB
         const { data: repsData, error: repsError } = await supabase
-          .from("district_representatives")
-          .select("district, representative_name")
+          .from("representatives")
+          .select("*")
           .limit(100);
 
         if (repsError) {
           console.error("Representative load error:", repsError);
         }
 
-        const normalizedUserDistrict = normalizeDistrict(district);
-
-        const matchedRep =
-          repsData?.find(
-            (rep: any) =>
-              normalizeDistrict(rep.district) === normalizedUserDistrict
-          ) || repsData?.[0];
-
         const representativeName =
-          matchedRep?.representative_name || "Representative";
+          repsData?.[0]?.name ||
+          repsData?.[0]?.representative_name ||
+          repsData?.[0]?.full_name ||
+          "Representative";
 
         setCurrentRepresentative(representativeName);
 
+        // Only select columns that are clearly present
         const { data: issuesData, error: issuesError } = await supabase
           .from("issues")
-          .select(
-            "id, title, description, district, category, status, created_at, upvotes_count, comments_count"
-          )
-          .order("created_at", { ascending: false });
+          .select("id, title, description, user_id")
+          .limit(100)
+          .order("id", { ascending: false });
 
         if (issuesError) {
           console.error("Issues load error:", issuesError);
           setFeedPosts([]);
-          setDebugMessage("Could not load issues from the database.");
-          setLoading(false);
+          setDebugMessage(`Could not load issues: ${issuesError.message}`);
           return;
         }
 
-        const allIssues = (issuesData as any[]) || [];
-
-        const districtMatchedIssues = allIssues.filter((issue) => {
-          const issueDistrict = normalizeDistrict(issue.district);
-          return issueDistrict === normalizedUserDistrict;
-        });
-
-        const issuesToUse =
-          districtMatchedIssues.length > 0 ? districtMatchedIssues : allIssues;
-
-        if (districtMatchedIssues.length === 0 && allIssues.length > 0) {
-          setDebugMessage(
-            `No exact district match found for "${district}". Showing available issues instead.`
-          );
-        }
-
-        const mappedPosts: FeedPost[] = issuesToUse.map((issue, index) => ({
-          id: issue.id ?? index,
-          title: issue.title || "Untitled issue",
-          description: issue.description || "No description provided.",
-          district: issue.district || district,
-          category: issue.category || "General",
-          urgency: inferUrgency(issue.status, issue.category),
-          status: normalizeStatus(issue.status),
-          upvotes: Number(issue.upvotes_count ?? 0),
-          comments: Number(issue.comments_count ?? 0),
-          representative: representativeName,
-        }));
+        const mappedPosts: FeedPost[] = ((issuesData as any[]) || []).map(
+          (issue, index) => ({
+            id: issue.id ?? index,
+            title: issue.title || "Untitled issue",
+            description: issue.description || "No description provided.",
+            district: district,
+            category: inferCategory(issue.title || "", issue.description || ""),
+            urgency: inferUrgency(issue.title || "", issue.description || ""),
+            status: "Open",
+            upvotes: 0,
+            comments: 0,
+            representative: representativeName,
+          })
+        );
 
         setFeedPosts(mappedPosts);
+
+        if (mappedPosts.length === 0) {
+          setDebugMessage("Issues table loaded successfully, but no rows were returned.");
+        }
       } catch (error) {
         console.error("Feed load error:", error);
         setFeedPosts([]);
@@ -364,7 +379,7 @@ export default function FeedPage() {
                         </span>
 
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {post.district || currentDistrict}
+                          {currentDistrict}
                         </span>
                       </div>
 
