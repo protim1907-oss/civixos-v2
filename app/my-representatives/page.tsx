@@ -35,7 +35,11 @@ function getDisplayOffice(rep: Representative) {
 }
 
 function getDisplayPhoto(rep: Representative) {
-  return rep.photo || rep.photo_url || "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+  return (
+    rep.photo ||
+    rep.photo_url ||
+    "https://placehold.co/300x300/e2e8f0/334155?text=Profile"
+  );
 }
 
 function getDisplayLinkedin(rep: Representative) {
@@ -52,8 +56,15 @@ function getDisplayDistrict(rep: Representative) {
   return rep.district_id || rep.district || null;
 }
 
-function getDisplayLevel(rep: Representative): "Senate" | "Congress" | "State" | "Local" {
-  if (rep.level === "Senate" || rep.level === "Congress" || rep.level === "State" || rep.level === "Local") {
+function getDisplayLevel(
+  rep: Representative
+): "Senate" | "Congress" | "State" | "Local" {
+  if (
+    rep.level === "Senate" ||
+    rep.level === "Congress" ||
+    rep.level === "State" ||
+    rep.level === "Local"
+  ) {
     return rep.level;
   }
 
@@ -95,21 +106,30 @@ function districtDisplayLabel(districtId: string) {
   }
 }
 
+function normalizeState(value: string | null | undefined) {
+  return (value || "").trim().toLowerCase();
+}
+
+function normalizeDistrict(value: string | null | undefined) {
+  return (value || "").trim().toUpperCase();
+}
+
 function matchesDistrictRepresentative(
   rep: Representative,
   userDistrict: string,
   userState: string
 ) {
-  const repState = (rep.state || "").toLowerCase();
-  const normalizedState = userState.toLowerCase();
+  const repState = normalizeState(rep.state);
+  const normalizedState = normalizeState(userState);
   const level = getDisplayLevel(rep);
-  const repDistrict = getDisplayDistrict(rep);
+  const repDistrict = normalizeDistrict(getDisplayDistrict(rep));
+  const normalizedUserDistrict = normalizeDistrict(userDistrict);
 
   if (repState !== normalizedState) return false;
 
   if (level === "Senate" || level === "State") return true;
-  if (level === "Congress") return repDistrict === userDistrict;
-  if (level === "Local") return repDistrict === userDistrict;
+  if (level === "Congress") return repDistrict === normalizedUserDistrict;
+  if (level === "Local") return repDistrict === normalizedUserDistrict;
 
   return false;
 }
@@ -122,10 +142,13 @@ export default function MyRepresentativesPage() {
   const [userName, setUserName] = useState("Citizen");
   const [loading, setLoading] = useState(true);
   const [representatives, setRepresentatives] = useState<Representative[]>([]);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     async function loadPage() {
       try {
+        setLoadError("");
+
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
 
@@ -175,19 +198,21 @@ export default function MyRepresentativesPage() {
         const { data: repData, error } = await supabase
           .from("representatives")
           .select("*")
-          .eq("state", state)
           .eq("is_active", true)
           .order("is_primary", { ascending: false })
           .order("full_name", { ascending: true });
 
         if (error) {
           console.error("Failed to load representatives:", error);
+          setLoadError(error.message || "Failed to load representatives");
           setRepresentatives([]);
         } else {
+          console.log("Representatives loaded:", repData);
           setRepresentatives((repData as Representative[]) || []);
         }
       } catch (error) {
         console.error("Failed to load representative context:", error);
+        setLoadError("Unexpected error while loading representatives");
       } finally {
         setLoading(false);
       }
@@ -207,13 +232,13 @@ export default function MyRepresentativesPage() {
       visibleRepresentatives.find(
         (rep) =>
           getDisplayLevel(rep) === "Congress" &&
-          getDisplayDistrict(rep) === userDistrict &&
+          normalizeDistrict(getDisplayDistrict(rep)) === normalizeDistrict(userDistrict) &&
           rep.is_primary
       ) ||
       visibleRepresentatives.find(
         (rep) =>
           getDisplayLevel(rep) === "Congress" &&
-          getDisplayDistrict(rep) === userDistrict
+          normalizeDistrict(getDisplayDistrict(rep)) === normalizeDistrict(userDistrict)
       )
     );
   }, [visibleRepresentatives, userDistrict]);
@@ -254,6 +279,17 @@ export default function MyRepresentativesPage() {
           </div>
         </div>
       </section>
+
+      {loadError ? (
+        <section className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-red-700">Representative load error</p>
+          <p className="mt-2 text-sm text-red-700">{loadError}</p>
+          <p className="mt-2 text-sm text-red-600">
+            Most likely cause: your RLS/select policy is blocking reads from the
+            `representatives` table.
+          </p>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.25fr]">
         <div className="space-y-6">
@@ -347,6 +383,9 @@ export default function MyRepresentativesPage() {
                 <p className="mt-3 text-slate-600">
                   We could not find a representative mapping for{" "}
                   {districtDisplayLabel(userDistrict)}.
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Total rows loaded from database: {representatives.length}
                 </p>
               </div>
             ) : null}
