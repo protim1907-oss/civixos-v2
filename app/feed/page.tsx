@@ -165,16 +165,21 @@ export default function FeedPage() {
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [currentDistrict, setCurrentDistrict] = useState("District 12");
-  const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
+  const [currentRepresentative, setCurrentRepresentative] =
+    useState("Representative");
   const [loading, setLoading] = useState(true);
   const [debugMessage, setDebugMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [commentsByIssue, setCommentsByIssue] = useState<CommentMap>({});
-  const [openCommentsFor, setOpenCommentsFor] = useState<Record<string, boolean>>({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<
+    Record<string, boolean>
+  >({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [sharingIssueId, setSharingIssueId] = useState<string | null>(null);
-  const [submittingCommentFor, setSubmittingCommentFor] = useState<string | null>(null);
+  const [submittingCommentFor, setSubmittingCommentFor] = useState<
+    string | null
+  >(null);
   const [togglingVoteFor, setTogglingVoteFor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -254,7 +259,9 @@ export default function FeedPage() {
 
         if (issues.length === 0) {
           setFeedPosts([]);
-          setDebugMessage("Issues table loaded successfully, but no rows were returned.");
+          setDebugMessage(
+            "Issues table loaded successfully, but no rows were returned."
+          );
           return;
         }
 
@@ -264,7 +271,10 @@ export default function FeedPage() {
           { data: votesData, error: votesError },
           { data: commentsData, error: commentsError },
         ] = await Promise.all([
-          supabase.from("issue_votes").select("issue_id, user_id").in("issue_id", issueIds),
+          supabase
+            .from("issue_votes")
+            .select("issue_id, user_id")
+            .in("issue_id", issueIds),
           supabase
             .from("issue_comments")
             .select("id, issue_id, user_id, content, created_at")
@@ -340,8 +350,7 @@ export default function FeedPage() {
         post.representative.toLowerCase().includes(q) ||
         post.category.toLowerCase().includes(q);
 
-      const matchesType =
-        typeFilter === "All" || post.category === typeFilter;
+      const matchesType = typeFilter === "All" || post.category === typeFilter;
 
       const matchesStatus =
         statusFilter === "All" || post.status === statusFilter;
@@ -482,20 +491,20 @@ export default function FeedPage() {
       setSubmittingCommentFor(issueId);
 
       const { data, error } = await supabase
-  .from("issue_comments")
-  .insert({
-  issue_id: issueId,
-  user_id: currentUserId,
-  content: draft,
-})
-  .select("id, issue_id, user_id, comment, created_at")
-  .single();
+        .from("issue_comments")
+        .insert({
+          issue_id: issueId,
+          user_id: currentUserId,
+          content: draft,
+        })
+        .select("id, issue_id, user_id, content, created_at")
+        .single();
 
-if (error) {
-  console.error("Add comment error:", error);
-  alert(`Could not add comment: ${error.message}`);
-  return;
-}
+      if (error) {
+        console.error("Add comment error:", error);
+        alert(`Could not add comment: ${error.message}`);
+        return;
+      }
 
       setCommentDrafts((prev) => ({
         ...prev,
@@ -521,6 +530,7 @@ if (error) {
       }));
     } catch (error) {
       console.error("Submit comment error:", error);
+      alert("Could not add comment due to an unexpected error.");
     } finally {
       setSubmittingCommentFor(null);
     }
@@ -535,8 +545,12 @@ if (error) {
           <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
             <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
             <p className="mt-2 text-slate-600">
-              Browse civic issues, track status, and connect with your representative
-              in <span className="font-semibold text-slate-900">{currentDistrict}</span>.
+              Browse civic issues, track status, and connect with your
+              representative in{" "}
+              <span className="font-semibold text-slate-900">
+                {currentDistrict}
+              </span>
+              .
             </p>
             {debugMessage ? (
               <p className="mt-3 text-sm text-amber-600">{debugMessage}</p>
@@ -695,10 +709,15 @@ if (error) {
                               <button
                                 type="button"
                                 onClick={() => handleSubmitComment(issueId)}
-                                disabled={submittingCommentFor === issueId || !draft.trim()}
+                                disabled={
+                                  submittingCommentFor === issueId ||
+                                  !draft.trim()
+                                }
                                 className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                {submittingCommentFor === issueId ? "Posting..." : "Post"}
+                                {submittingCommentFor === issueId
+                                  ? "Posting..."
+                                  : "Post"}
                               </button>
                             </div>
 
@@ -713,7 +732,12 @@ if (error) {
                                     key={comment.id || `${issueId}-${idx}`}
                                     className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700"
                                   >
-                                    {comment.content || "No comment text"}
+                                    <div>{comment.content || "No comment text"}</div>
+                                    {comment.created_at ? (
+                                      <div className="mt-1 text-xs text-slate-400">
+                                        {new Date(comment.created_at).toLocaleString()}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 ))
                               )}
@@ -779,8 +803,10 @@ if (error) {
             <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm">
               Showing {filteredPosts.length} issue
               {filteredPosts.length === 1 ? "" : "s"} for{" "}
-              <span className="font-semibold text-slate-700">{currentDistrict}</span>.
-              {" "}Primary representative:{" "}
+              <span className="font-semibold text-slate-700">
+                {currentDistrict}
+              </span>
+              . Primary representative:{" "}
               <span className="font-semibold text-slate-700">
                 {currentRepresentative}
               </span>
