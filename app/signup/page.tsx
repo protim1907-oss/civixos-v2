@@ -4,6 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+const texasZipToDistrict: Record<string, string> = {
+  "78207": "TX-20",
+  "78228": "TX-20",
+  "78237": "TX-20",
+  "78201": "TX-20",
+  "78202": "TX-20",
+  "76102": "TX-12",
+  "76107": "TX-12",
+  "76114": "TX-12",
+  "76116": "TX-12",
+  "76135": "TX-12",
+};
+
 export default function SignupPage() {
   const supabase = createClient();
 
@@ -11,21 +24,22 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [state, setState] = useState("");
-  const [district, setDistrict] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const districtOptions =
-    state === "Texas"
-      ? [
-          { value: "TX-20", label: "Texas 20th District (TX-20)" },
-          { value: "TX-12", label: "Texas 12th District (TX-12)" },
-          { value: "TX", label: "State of Texas" },
-        ]
-      : state === "New Hampshire"
-      ? [{ value: "NH", label: "New Hampshire" }]
-      : [];
+  function resolveDistrict(stateValue: string, zipValue: string) {
+    if (stateValue === "Texas") {
+      return texasZipToDistrict[zipValue] || "";
+    }
+
+    if (stateValue === "New Hampshire") {
+      return "NH";
+    }
+
+    return "";
+  }
 
   const handleSignup = async () => {
     setError("");
@@ -51,8 +65,24 @@ export default function SignupPage() {
       return;
     }
 
-    if (!district.trim()) {
-      setError("Please select your district.");
+    if (!zipCode.trim()) {
+      setError("Please enter your ZIP code.");
+      return;
+    }
+
+    const normalizedZip = zipCode.trim();
+
+    if (!/^\d{5}$/.test(normalizedZip)) {
+      setError("Please enter a valid 5-digit ZIP code.");
+      return;
+    }
+
+    const districtId = resolveDistrict(state, normalizedZip);
+
+    if (!districtId) {
+      setError(
+        "We could not map that ZIP code to a district yet. Please try another Texas ZIP code."
+      );
       return;
     }
 
@@ -65,13 +95,14 @@ export default function SignupPage() {
         data: {
           full_name: fullName,
           state: state,
-          district_id: district,
+          zip_code: normalizedZip,
+          district_id: districtId,
           account_type: "citizen",
         },
       },
     });
 
-    console.log("SIGNUP_RESULT:", { data, error });
+    console.log("SIGNUP_RESULT:", { data, error, districtId });
 
     if (error) {
       const msg = error.message.toLowerCase();
@@ -94,7 +125,7 @@ export default function SignupPage() {
 
     if (!data.session) {
       setInfo(
-        "Account created or already exists. Please check your email or login."
+        `Account created or already exists. Your district was identified as ${districtId}. Please check your email or login.`
       );
       setLoading(false);
 
@@ -109,11 +140,16 @@ export default function SignupPage() {
     window.location.href = "/login";
   };
 
+  const resolvedPreviewDistrict =
+    state && zipCode && /^\d{5}$/.test(zipCode.trim())
+      ? resolveDistrict(state, zipCode.trim())
+      : "";
+
   return (
     <div className="max-w-md mx-auto mt-10 p-6 border rounded-2xl shadow bg-white">
       <h1 className="text-3xl font-bold mb-2">CivixOS Onboarding</h1>
       <p className="text-gray-600 mb-6">
-        Create your citizen account and select your state and district.
+        Create your citizen account and identify your district using your state and ZIP code.
       </p>
 
       <div className="mb-4">
@@ -155,7 +191,9 @@ export default function SignupPage() {
           value={state}
           onChange={(e) => {
             setState(e.target.value);
-            setDistrict("");
+            setZipCode("");
+            setError("");
+            setInfo("");
           }}
           className="w-full border rounded-lg px-3 py-2"
         >
@@ -166,24 +204,32 @@ export default function SignupPage() {
       </div>
 
       <div className="mb-4">
-        <label className="block mb-1 text-sm font-medium">District</label>
-        <select
-          value={district}
-          onChange={(e) => setDistrict(e.target.value)}
+        <label className="block mb-1 text-sm font-medium">ZIP code</label>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={5}
+          value={zipCode}
+          onChange={(e) => {
+            const value = e.target.value.replace(/\D/g, "");
+            setZipCode(value);
+            setError("");
+            setInfo("");
+          }}
           className="w-full border rounded-lg px-3 py-2"
+          placeholder={state === "Texas" ? "Enter your Texas ZIP code" : "Enter your ZIP code"}
           disabled={!state}
-        >
-          <option value="">
-            {state ? "Select District" : "Select State first"}
-          </option>
-
-          {districtOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        />
+        <p className="mt-2 text-xs text-gray-500">
+          We’ll automatically identify your district from your ZIP code.
+        </p>
       </div>
+
+      {resolvedPreviewDistrict ? (
+        <div className="mb-4 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          District identified: <span className="font-semibold">{resolvedPreviewDistrict}</span>
+        </div>
+      ) : null}
 
       <button
         onClick={handleSignup}
