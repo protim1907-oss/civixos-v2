@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Sidebar from "@/components/layout/Sidebar";
 
 type Representative = {
   id: string;
@@ -256,349 +257,355 @@ export default function MyRepresentativesPage() {
   }, [visibleRepresentatives]);
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm text-slate-500">Citizen Dashboard</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-900">
-              My Representatives
-            </h1>
-            <p className="mt-4 max-w-4xl text-lg text-slate-600">
-              View and connect with representatives assigned to{" "}
-              <span className="font-semibold text-slate-900">
-                {districtDisplayLabel(userDistrict)}
-              </span>{" "}
-              in <span className="font-semibold text-slate-900">{userState}</span>.
-            </p>
-          </div>
+    <div className="flex min-h-screen bg-slate-100">
+      <Sidebar />
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-            <p className="text-sm text-slate-500">Signed in as</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{userName}</p>
-          </div>
-        </div>
-      </section>
-
-      {loadError ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">Representative load error</p>
-          <p className="mt-2 text-sm text-red-700">{loadError}</p>
-          <p className="mt-2 text-sm text-red-600">
-            Most likely cause: your RLS/select policy is blocking reads from the
-            `representatives` table.
-          </p>
-        </section>
-      ) : null}
-
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.25fr]">
-        <div className="space-y-6">
-          <section className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-            <p className="text-sm font-medium text-blue-700">Primary District Representative</p>
-            <h2 className="mt-3 text-3xl font-bold text-slate-900">
-              {loading
-                ? "Loading representative..."
-                : primaryRepresentative
-                ? getDisplayName(primaryRepresentative)
-                : "Representative not assigned yet"}
-            </h2>
-            <p className="mt-2 text-lg text-slate-700">
-              {loading
-                ? "Loading office details..."
-                : primaryRepresentative
-                ? getDisplayOffice(primaryRepresentative)
-                : `We are preparing representative information for ${districtDisplayLabel(
-                    userDistrict
-                  )}.`}
-            </p>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              Chat directly with the office serving your district, send a formal email, and monitor
-              official communication relevant to your community.
-            </p>
-
-            {primaryRepresentative ? (
-              <div className="mt-6 grid gap-3">
-                <a
-                  href={primaryRepresentative.chat_href || "#"}
-                  className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                  Chat with Representative
-                </a>
-
-                <a
-                  href={getDisplayEmailHref(primaryRepresentative)}
-                  className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                >
-                  Send Email
-                </a>
-              </div>
-            ) : (
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">
-                Representative details unavailable.
-              </div>
-            )}
-          </section>
-
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-1">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">District</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {districtDisplayLabel(userDistrict)}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Primary Office</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {primaryRepresentative ? getDisplayName(primaryRepresentative) : "Pending"}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Visible Representatives</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {loading ? "..." : visibleRepresentatives.length}
-              </p>
-            </div>
-          </section>
-        </div>
-
-        <div className="space-y-6">
+      <main className="flex-1 p-4 md:p-8">
+        <div className="space-y-8">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div>
-              <p className="text-sm text-slate-500">District Delegation</p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                Representatives for {districtDisplayLabel(userDistrict)}
-              </h2>
-              <p className="mt-3 max-w-4xl text-base text-slate-600">
-                Federal, state, and statewide leaders relevant to your district are shown below.
-                The page prioritizes your district representative first, followed by statewide
-                contacts.
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Citizen Dashboard</p>
+                <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-900">
+                  My Representatives
+                </h1>
+                <p className="mt-4 max-w-4xl text-lg text-slate-600">
+                  View and connect with representatives assigned to{" "}
+                  <span className="font-semibold text-slate-900">
+                    {districtDisplayLabel(userDistrict)}
+                  </span>{" "}
+                  in <span className="font-semibold text-slate-900">{userState}</span>.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p className="text-sm text-slate-500">Signed in as</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{userName}</p>
+              </div>
+            </div>
+          </section>
+
+          {loadError ? (
+            <section className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-red-700">Representative load error</p>
+              <p className="mt-2 text-sm text-red-700">{loadError}</p>
+              <p className="mt-2 text-sm text-red-600">
+                Most likely cause: your RLS/select policy is blocking reads from the
+                `representatives` table.
               </p>
+            </section>
+          ) : null}
+
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.25fr]">
+            <div className="space-y-6">
+              <section className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+                <p className="text-sm font-medium text-blue-700">Primary District Representative</p>
+                <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                  {loading
+                    ? "Loading representative..."
+                    : primaryRepresentative
+                    ? getDisplayName(primaryRepresentative)
+                    : "Representative not assigned yet"}
+                </h2>
+                <p className="mt-2 text-lg text-slate-700">
+                  {loading
+                    ? "Loading office details..."
+                    : primaryRepresentative
+                    ? getDisplayOffice(primaryRepresentative)
+                    : `We are preparing representative information for ${districtDisplayLabel(
+                        userDistrict
+                      )}.`}
+                </p>
+                <p className="mt-4 text-base leading-8 text-slate-600">
+                  Chat directly with the office serving your district, send a formal email, and monitor
+                  official communication relevant to your community.
+                </p>
+
+                {primaryRepresentative ? (
+                  <div className="mt-6 grid gap-3">
+                    <a
+                      href={primaryRepresentative.chat_href || "#"}
+                      className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      Chat with Representative
+                    </a>
+
+                    <a
+                      href={getDisplayEmailHref(primaryRepresentative)}
+                      className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                    >
+                      Send Email
+                    </a>
+                  </div>
+                ) : (
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">
+                    Representative details unavailable.
+                  </div>
+                )}
+              </section>
+
+              <section className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-1">
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm text-slate-500">District</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {districtDisplayLabel(userDistrict)}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm text-slate-500">Primary Office</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {primaryRepresentative ? getDisplayName(primaryRepresentative) : "Pending"}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm text-slate-500">Visible Representatives</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {loading ? "..." : visibleRepresentatives.length}
+                  </p>
+                </div>
+              </section>
             </div>
 
-            {!loading && visibleRepresentatives.length === 0 ? (
-              <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
-                <h3 className="text-2xl font-bold text-slate-900">No representatives found</h3>
-                <p className="mt-3 text-slate-600">
-                  We could not find a representative mapping for{" "}
-                  {districtDisplayLabel(userDistrict)}.
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Total rows loaded from database: {representatives.length}
-                </p>
-              </div>
-            ) : null}
-
-            {districtRepresentatives.length > 0 ? (
-              <div className="mt-8">
-                <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Congressional Representative
-                </p>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {districtRepresentatives.map((rep) => {
-                    const level = getDisplayLevel(rep);
-                    return (
-                      <article
-                        key={rep.id}
-                        className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm transition hover:shadow-md"
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          <img
-                            src={getDisplayPhoto(rep)}
-                            alt={getDisplayName(rep)}
-                            className="h-28 w-28 rounded-full object-cover ring-4 ring-white"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                            }}
-                          />
-
-                          <div
-                            className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                              level
-                            )}`}
-                          >
-                            {level}
-                          </div>
-
-                          <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                            {getDisplayName(rep)}
-                          </h2>
-                          <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
-                        </div>
-
-                        <div className="mt-6 space-y-3">
-                          <a
-                            href={rep.chat_href || "#"}
-                            className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                          >
-                            Chat with Representative
-                          </a>
-
-                          <a
-                            href={getDisplayEmailHref(rep)}
-                            className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
-                          >
-                            Send Email
-                          </a>
-
-                          <a
-                            href={getDisplayLinkedin(rep)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
-                          >
-                            View LinkedIn Profile
-                          </a>
-                        </div>
-                      </article>
-                    );
-                  })}
+            <div className="space-y-6">
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div>
+                  <p className="text-sm text-slate-500">District Delegation</p>
+                  <h2 className="mt-2 text-3xl font-bold text-slate-900">
+                    Representatives for {districtDisplayLabel(userDistrict)}
+                  </h2>
+                  <p className="mt-3 max-w-4xl text-base text-slate-600">
+                    Federal, state, and statewide leaders relevant to your district are shown below.
+                    The page prioritizes your district representative first, followed by statewide
+                    contacts.
+                  </p>
                 </div>
-              </div>
-            ) : null}
 
-            {senateRepresentatives.length > 0 ? (
-              <div className="mt-8">
-                <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Senate Representation
-                </p>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {senateRepresentatives.map((rep) => {
-                    const level = getDisplayLevel(rep);
-                    return (
-                      <article
-                        key={rep.id}
-                        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          <img
-                            src={getDisplayPhoto(rep)}
-                            alt={getDisplayName(rep)}
-                            className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                            }}
-                          />
+                {!loading && visibleRepresentatives.length === 0 ? (
+                  <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+                    <h3 className="text-2xl font-bold text-slate-900">No representatives found</h3>
+                    <p className="mt-3 text-slate-600">
+                      We could not find a representative mapping for{" "}
+                      {districtDisplayLabel(userDistrict)}.
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Total rows loaded from database: {representatives.length}
+                    </p>
+                  </div>
+                ) : null}
 
-                          <div
-                            className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                              level
-                            )}`}
+                {districtRepresentatives.length > 0 ? (
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Congressional Representative
+                    </p>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {districtRepresentatives.map((rep) => {
+                        const level = getDisplayLevel(rep);
+                        return (
+                          <article
+                            key={rep.id}
+                            className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm transition hover:shadow-md"
                           >
-                            {level}
-                          </div>
+                            <div className="flex flex-col items-center text-center">
+                              <img
+                                src={getDisplayPhoto(rep)}
+                                alt={getDisplayName(rep)}
+                                className="h-28 w-28 rounded-full object-cover ring-4 ring-white"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src =
+                                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                                }}
+                              />
 
-                          <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                            {getDisplayName(rep)}
-                          </h2>
-                          <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
-                        </div>
+                              <div
+                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
+                                  level
+                                )}`}
+                              >
+                                {level}
+                              </div>
 
-                        <div className="mt-6 space-y-3">
-                          <a
-                            href={rep.chat_href || "#"}
-                            className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                              <h2 className="mt-4 text-2xl font-bold text-slate-900">
+                                {getDisplayName(rep)}
+                              </h2>
+                              <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
+                            </div>
+
+                            <div className="mt-6 space-y-3">
+                              <a
+                                href={rep.chat_href || "#"}
+                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                              >
+                                Chat with Representative
+                              </a>
+
+                              <a
+                                href={getDisplayEmailHref(rep)}
+                                className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
+                              >
+                                Send Email
+                              </a>
+
+                              <a
+                                href={getDisplayLinkedin(rep)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
+                              >
+                                View LinkedIn Profile
+                              </a>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {senateRepresentatives.length > 0 ? (
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Senate Representation
+                    </p>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {senateRepresentatives.map((rep) => {
+                        const level = getDisplayLevel(rep);
+                        return (
+                          <article
+                            key={rep.id}
+                            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
                           >
-                            Chat with Representative
-                          </a>
+                            <div className="flex flex-col items-center text-center">
+                              <img
+                                src={getDisplayPhoto(rep)}
+                                alt={getDisplayName(rep)}
+                                className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src =
+                                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                                }}
+                              />
 
-                          <a
-                            href={getDisplayEmailHref(rep)}
-                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                              <div
+                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
+                                  level
+                                )}`}
+                              >
+                                {level}
+                              </div>
+
+                              <h2 className="mt-4 text-2xl font-bold text-slate-900">
+                                {getDisplayName(rep)}
+                              </h2>
+                              <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
+                            </div>
+
+                            <div className="mt-6 space-y-3">
+                              <a
+                                href={rep.chat_href || "#"}
+                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                              >
+                                Chat with Representative
+                              </a>
+
+                              <a
+                                href={getDisplayEmailHref(rep)}
+                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                              >
+                                Send Email
+                              </a>
+
+                              <a
+                                href={getDisplayLinkedin(rep)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                              >
+                                View LinkedIn Profile
+                              </a>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {stateRepresentatives.length > 0 ? (
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Statewide Offices
+                    </p>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {stateRepresentatives.map((rep) => {
+                        const level = getDisplayLevel(rep);
+                        return (
+                          <article
+                            key={rep.id}
+                            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
                           >
-                            Send Email
-                          </a>
+                            <div className="flex flex-col items-center text-center">
+                              <img
+                                src={getDisplayPhoto(rep)}
+                                alt={getDisplayName(rep)}
+                                className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src =
+                                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                                }}
+                              />
 
-                          <a
-                            href={getDisplayLinkedin(rep)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                          >
-                            View LinkedIn Profile
-                          </a>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+                              <div
+                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
+                                  level
+                                )}`}
+                              >
+                                {level}
+                              </div>
 
-            {stateRepresentatives.length > 0 ? (
-              <div className="mt-8">
-                <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Statewide Offices
-                </p>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {stateRepresentatives.map((rep) => {
-                    const level = getDisplayLevel(rep);
-                    return (
-                      <article
-                        key={rep.id}
-                        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          <img
-                            src={getDisplayPhoto(rep)}
-                            alt={getDisplayName(rep)}
-                            className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                            }}
-                          />
+                              <h2 className="mt-4 text-2xl font-bold text-slate-900">
+                                {getDisplayName(rep)}
+                              </h2>
+                              <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
+                            </div>
 
-                          <div
-                            className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                              level
-                            )}`}
-                          >
-                            {level}
-                          </div>
+                            <div className="mt-6 space-y-3">
+                              <a
+                                href={rep.chat_href || "#"}
+                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                              >
+                                Chat with Representative
+                              </a>
 
-                          <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                            {getDisplayName(rep)}
-                          </h2>
-                          <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
-                        </div>
+                              <a
+                                href={getDisplayEmailHref(rep)}
+                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                              >
+                                Send Email
+                              </a>
 
-                        <div className="mt-6 space-y-3">
-                          <a
-                            href={rep.chat_href || "#"}
-                            className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                          >
-                            Chat with Representative
-                          </a>
-
-                          <a
-                            href={getDisplayEmailHref(rep)}
-                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                          >
-                            Send Email
-                          </a>
-
-                          <a
-                            href={getDisplayLinkedin(rep)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                          >
-                            View LinkedIn Profile
-                          </a>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+                              <a
+                                href={getDisplayLinkedin(rep)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                              >
+                                View LinkedIn Profile
+                              </a>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            </div>
           </section>
         </div>
-      </section>
+      </main>
     </div>
   );
 }
