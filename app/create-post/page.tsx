@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import Sidebar from "@/components/layout/Sidebar";
 
 type AiReview = {
   severity: "Low" | "Medium" | "High";
@@ -40,9 +41,8 @@ export default function CreateIssuePage() {
     async function loadAuth() {
       setCheckingAuth(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
 
       if (!mounted) return;
 
@@ -261,10 +261,8 @@ export default function CreateIssuePage() {
 
     setIsSubmitting(true);
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    const { data, error: sessionError } = await supabase.auth.getSession();
+    const session = data?.session;
 
     if (sessionError) {
       setErrorMessage("Could not verify your login session. Please refresh and try again.");
@@ -287,6 +285,7 @@ export default function CreateIssuePage() {
       status: aiReview?.recommendedAction === "Approve" ? "open" : "under_review",
       category: aiReview?.category ?? "Infrastructure",
       district:
+        currentUser.user_metadata?.district_id ||
         currentUser.user_metadata?.district ||
         currentUser.user_metadata?.district_name ||
         "District 12",
@@ -313,176 +312,189 @@ export default function CreateIssuePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 shadow-sm md:px-8 md:py-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
-            Create Civic Issue
-          </h1>
-          <p className="mt-3 text-lg text-slate-600 md:text-2xl">
-            Submit a concern for your district.
-          </p>
+    <div className="flex min-h-screen bg-slate-100">
+      <Sidebar />
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-7">
-            <div>
-              <label
-                htmlFor="title"
-                className="mb-3 block text-lg font-medium text-slate-700"
-              >
-                Title
-              </label>
-              <input
-                id="title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Waterlogging in District 12"
-                className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
-              />
+      <main className="flex-1 p-4 md:p-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 shadow-sm md:px-8 md:py-8">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Citizen Dashboard</p>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
+                  Create Civic Issue
+                </h1>
+                <p className="mt-3 text-lg text-slate-600 md:text-2xl">
+                  Submit a concern for your district.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                AI moderation and civic issue intake
+              </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="description"
-                className="mb-3 block text-lg font-medium text-slate-700"
-              >
-                Description
-              </label>
-              <textarea
-                id="description"
-                rows={5}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
-                className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={runAiReview}
-                disabled={!canReview || isReviewing}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isReviewing ? "Reviewing..." : "Review with AI"}
-              </button>
-
-              <button
-                type="submit"
-                disabled={checkingAuth || isSubmitting}
-                className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting ? "Submitting..." : "Create Issue"}
-              </button>
-            </div>
-
-            {checkingAuth && (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-600">
-                Checking login status...
+            <form onSubmit={handleSubmit} className="mt-8 space-y-7">
+              <div>
+                <label
+                  htmlFor="title"
+                  className="mb-3 block text-lg font-medium text-slate-700"
+                >
+                  Title
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Waterlogging in District 12"
+                  className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
+                />
               </div>
-            )}
 
-            {!checkingAuth && !user && !errorMessage && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
-                You must be logged in to create an issue.
+              <div>
+                <label
+                  htmlFor="description"
+                  className="mb-3 block text-lg font-medium text-slate-700"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
+                  className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
+                />
               </div>
-            )}
 
-            {errorMessage && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
-                {errorMessage}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={runAiReview}
+                  disabled={!canReview || isReviewing}
+                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isReviewing ? "Reviewing..." : "Review with AI"}
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={checkingAuth || isSubmitting}
+                  className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSubmitting ? "Submitting..." : "Create Issue"}
+                </button>
               </div>
-            )}
 
-            {successMessage && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-base text-emerald-700">
-                {successMessage}
-              </div>
-            )}
-
-            {aiReview && (
-              <div className="rounded-[20px] border border-blue-200 bg-blue-50 p-5">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                    AI Review
-                  </span>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                    Severity: {aiReview.severity}
-                  </span>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                    Category: {aiReview.category}
-                  </span>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                    Action: {aiReview.recommendedAction}
-                  </span>
+              {checkingAuth && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-600">
+                  Checking login status...
                 </div>
+              )}
 
-                <div className="grid gap-3 md:grid-cols-4">
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-500">Toxicity</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900">
-                      {aiReview.toxicityScore}/100
-                    </p>
+              {!checkingAuth && !user && !errorMessage && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
+                  You must be logged in to create an issue.
+                </div>
+              )}
+
+              {errorMessage && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
+                  {errorMessage}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-base text-emerald-700">
+                  {successMessage}
+                </div>
+              )}
+
+              {aiReview && (
+                <div className="rounded-[20px] border border-blue-200 bg-blue-50 p-5">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                      AI Review
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                      Severity: {aiReview.severity}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                      Category: {aiReview.category}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                      Action: {aiReview.recommendedAction}
+                    </span>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-500">Spam</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900">
-                      {aiReview.spamScore}/100
-                    </p>
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-xs font-semibold text-slate-500">Toxicity</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {aiReview.toxicityScore}/100
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-xs font-semibold text-slate-500">Spam</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {aiReview.spamScore}/100
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-xs font-semibold text-slate-500">Misinformation</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {aiReview.misinformationScore}/100
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-xs font-semibold text-slate-500">Overall Score</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {aiReview.overallScore}/100
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-500">Misinformation</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900">
-                      {aiReview.misinformationScore}/100
-                    </p>
+                  <div className="mt-4 space-y-3 text-sm text-slate-700">
+                    <div>
+                      <p className="font-semibold text-slate-900">Suggested title</p>
+                      <p>{aiReview.suggestedTitle}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-900">Summary</p>
+                      <p>{aiReview.summary}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-900">Recommended action</p>
+                      <p>{aiReview.recommendedAction}</p>
+                    </div>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-500">Overall Score</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900">
-                      {aiReview.overallScore}/100
-                    </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (aiReview.suggestedTitle && !title.trim()) {
+                          setTitle(aiReview.suggestedTitle);
+                        }
+                      }}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Use suggested title
+                    </button>
                   </div>
                 </div>
-
-                <div className="mt-4 space-y-3 text-sm text-slate-700">
-                  <div>
-                    <p className="font-semibold text-slate-900">Suggested title</p>
-                    <p>{aiReview.suggestedTitle}</p>
-                  </div>
-
-                  <div>
-                    <p className="font-semibold text-slate-900">Summary</p>
-                    <p>{aiReview.summary}</p>
-                  </div>
-
-                  <div>
-                    <p className="font-semibold text-slate-900">Recommended action</p>
-                    <p>{aiReview.recommendedAction}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (aiReview.suggestedTitle && !title.trim()) {
-                        setTitle(aiReview.suggestedTitle);
-                      }
-                    }}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Use suggested title
-                  </button>
-                </div>
-              </div>
-            )}
-          </form>
+              )}
+            </form>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
