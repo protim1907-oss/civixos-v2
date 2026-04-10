@@ -6,7 +6,7 @@ import Sidebar from "../../components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
 
 type FeedPost = {
-  id: string | number;
+  id: string;
   title: string;
   description: string;
   district: string;
@@ -16,7 +16,30 @@ type FeedPost = {
   upvotes: number;
   comments: number;
   representative: string;
+  hasUpvoted: boolean;
 };
+
+type IssueRow = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  user_id: string | null;
+};
+
+type VoteRow = {
+  issue_id: string | null;
+  user_id?: string | null;
+};
+
+type CommentRow = {
+  id?: string;
+  issue_id: string | null;
+  user_id?: string | null;
+  comment?: string | null;
+  created_at?: string | null;
+};
+
+type CommentMap = Record<string, CommentRow[]>;
 
 function getStatusStyles(status: FeedPost["status"]) {
   switch (status) {
@@ -131,21 +154,6 @@ function inferCategory(title: string, description: string) {
   return "General";
 }
 
-type IssueRow = {
-  id: string;
-  title: string | null;
-  description: string | null;
-  user_id: string | null;
-};
-
-type VoteRow = {
-  issue_id: string | null;
-};
-
-type CommentRow = {
-  issue_id: string | null;
-};
-
 export default function FeedPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -160,6 +168,14 @@ export default function FeedPage() {
   const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
   const [loading, setLoading] = useState(true);
   const [debugMessage, setDebugMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const [commentsByIssue, setCommentsByIssue] = useState<CommentMap>({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<Record<string, boolean>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [sharingIssueId, setSharingIssueId] = useState<string | null>(null);
+  const [submittingCommentFor, setSubmittingCommentFor] = useState<string | null>(null);
+  const [togglingVoteFor, setTogglingVoteFor] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadFeed() {
@@ -176,6 +192,7 @@ export default function FeedPage() {
             : null;
 
         let district = "District 12";
+        let signedInUserId: string | null = null;
 
         if (!session?.user && guestUser) {
           try {
@@ -190,6 +207,7 @@ export default function FeedPage() {
         }
 
         if (session?.user) {
+          signedInUserId = session.user.id;
           district =
             session.user.user_metadata?.district ||
             session.user.user_metadata?.district_name ||
@@ -197,9 +215,9 @@ export default function FeedPage() {
             "District 12";
         }
 
+        setCurrentUserId(signedInUserId);
         setCurrentDistrict(district);
 
-        // Representatives table from your DB
         const { data: repsData, error: repsError } = await supabase
           .from("representatives")
           .select("*")
@@ -217,7 +235,6 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
-        // Load issues using only confirmed columns
         const { data: issuesData, error: issuesError } = await supabase
           .from("issues")
           .select("id, title, description, user_id")
@@ -243,18 +260,17 @@ export default function FeedPage() {
 
         const issueIds = issues.map((issue) => issue.id);
 
-        // Optimized: fetch all votes and comments for these issues in two queries
-        const [{ data: votesData, error: votesError }, { data: commentsData, error: commentsError }] =
-          await Promise.all([
-            supabase
-              .from("issue_votes")
-              .select("issue_id")
-              .in("issue_id", issueIds),
-            supabase
-              .from("issue_comments")
-              .select("issue_id")
-              .in("issue_id", issueIds),
-          ]);
+        const [
+          { data: votesData, error: votesError },
+          { data: commentsData, error: commentsError },
+        ] = await Promise.all([
+          supabase.from("issue_votes").select("issue_id, user_id").in("issue_id", issueIds),
+          supabase
+            .from("issue_comments")
+            .select("id, issue_id, user_id, comment, created_at")
+            .in("issue_id", issueIds)
+            .order("created_at", { ascending: false }),
+        ]);
 
         if (votesError) {
           console.error("Votes load error:", votesError);
@@ -265,19 +281,28 @@ export default function FeedPage() {
         }
 
         const voteCounts: Record<string, number> = {};
+        const userVoteMap: Record<string, boolean> = {};
+
         ((votesData as VoteRow[]) || []).forEach((row) => {
           if (!row.issue_id) return;
           voteCounts[row.issue_id] = (voteCounts[row.issue_id] || 0) + 1;
+
+          if (signedInUserId && row.user_id === signedInUserId) {
+            userVoteMap[row.issue_id] = true;
+          }
         });
 
-        const commentCounts: Record<string, number> = {};
+        const groupedComments: CommentMap = {};
         ((commentsData as CommentRow[]) || []).forEach((row) => {
           if (!row.issue_id) return;
-          commentCounts[row.issue_id] = (commentCounts[row.issue_id] || 0) + 1;
+          if (!groupedComments[row.issue_id]) groupedComments[row.issue_id] = [];
+          groupedComments[row.issue_id].push(row);
         });
 
+        setCommentsByIssue(groupedComments);
+
         const mappedPosts: FeedPost[] = issues.map((issue, index) => ({
-          id: issue.id ?? index,
+          id: issue.id ?? String(index),
           title: issue.title || "Untitled issue",
           description: issue.description || "No description provided.",
           district,
@@ -285,8 +310,9 @@ export default function FeedPage() {
           urgency: inferUrgency(issue.title || "", issue.description || ""),
           status: "Open",
           upvotes: voteCounts[issue.id] || 0,
-          comments: commentCounts[issue.id] || 0,
+          comments: groupedComments[issue.id]?.length || 0,
           representative: representativeName,
+          hasUpvoted: !!userVoteMap[issue.id],
         }));
 
         setFeedPosts(mappedPosts);
@@ -335,27 +361,168 @@ export default function FeedPage() {
   }, [feedPosts]);
 
   async function handleShare(post: FeedPost) {
+    const issueUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/feed?issue=${encodeURIComponent(post.id)}`
+        : "";
+
     const shareText = `${post.title}\n\n${post.description}\n\nDistrict: ${post.district}\nRepresentative: ${post.representative}`;
 
     try {
+      setSharingIssueId(post.id);
+
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({
           title: post.title,
           text: shareText,
-          url: typeof window !== "undefined" ? window.location.href : undefined,
+          url: issueUrl,
         });
         return;
       }
 
       if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(shareText);
-        alert("Issue copied to clipboard.");
+        await navigator.clipboard.writeText(issueUrl || shareText);
+        alert("Issue link copied to clipboard.");
         return;
       }
 
       alert("Sharing is not supported on this device.");
     } catch (error) {
       console.error("Share error:", error);
+    } finally {
+      setSharingIssueId(null);
+    }
+  }
+
+  async function handleToggleUpvote(issueId: string) {
+    if (!currentUserId) {
+      alert("Please sign in to upvote issues.");
+      return;
+    }
+
+    try {
+      setTogglingVoteFor(issueId);
+
+      const targetPost = feedPosts.find((post) => post.id === issueId);
+      if (!targetPost) return;
+
+      if (targetPost.hasUpvoted) {
+        const { error } = await supabase
+          .from("issue_votes")
+          .delete()
+          .eq("issue_id", issueId)
+          .eq("user_id", currentUserId);
+
+        if (error) {
+          console.error("Remove vote error:", error);
+          alert("Could not remove upvote.");
+          return;
+        }
+
+        setFeedPosts((prev) =>
+          prev.map((post) =>
+            post.id === issueId
+              ? {
+                  ...post,
+                  hasUpvoted: false,
+                  upvotes: Math.max(0, post.upvotes - 1),
+                }
+              : post
+          )
+        );
+      } else {
+        const { error } = await supabase.from("issue_votes").insert({
+          issue_id: issueId,
+          user_id: currentUserId,
+        });
+
+        if (error) {
+          console.error("Add vote error:", error);
+          alert("Could not add upvote.");
+          return;
+        }
+
+        setFeedPosts((prev) =>
+          prev.map((post) =>
+            post.id === issueId
+              ? {
+                  ...post,
+                  hasUpvoted: true,
+                  upvotes: post.upvotes + 1,
+                }
+              : post
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Toggle vote error:", error);
+    } finally {
+      setTogglingVoteFor(null);
+    }
+  }
+
+  function handleToggleComments(issueId: string) {
+    setOpenCommentsFor((prev) => ({
+      ...prev,
+      [issueId]: !prev[issueId],
+    }));
+  }
+
+  async function handleSubmitComment(issueId: string) {
+    const draft = (commentDrafts[issueId] || "").trim();
+
+    if (!draft) return;
+
+    if (!currentUserId) {
+      alert("Please sign in to comment.");
+      return;
+    }
+
+    try {
+      setSubmittingCommentFor(issueId);
+
+      const { data, error } = await supabase
+        .from("issue_comments")
+        .insert({
+          issue_id: issueId,
+          user_id: currentUserId,
+          comment: draft,
+        })
+        .select("id, issue_id, user_id, comment, created_at")
+        .single();
+
+      if (error) {
+        console.error("Add comment error:", error);
+        alert("Could not add comment.");
+        return;
+      }
+
+      setCommentDrafts((prev) => ({
+        ...prev,
+        [issueId]: "",
+      }));
+
+      setCommentsByIssue((prev) => ({
+        ...prev,
+        [issueId]: [data as CommentRow, ...(prev[issueId] || [])],
+      }));
+
+      setFeedPosts((prev) =>
+        prev.map((post) =>
+          post.id === issueId
+            ? { ...post, comments: post.comments + 1 }
+            : post
+        )
+      );
+
+      setOpenCommentsFor((prev) => ({
+        ...prev,
+        [issueId]: true,
+      }));
+    } catch (error) {
+      console.error("Submit comment error:", error);
+    } finally {
+      setSubmittingCommentFor(null);
     }
   }
 
@@ -431,87 +598,180 @@ export default function FeedPage() {
                 <p className="text-slate-600">No issues matched your filters.</p>
               </div>
             ) : (
-              filteredPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className={`rounded-2xl bg-white p-6 shadow-sm ${getStatusStyles(
-                    post.status
-                  )}`}
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex-1">
-                      <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getUrgencyBadge(
-                            post.urgency
-                          )}`}
-                        >
-                          {post.urgency} Urgency
-                        </span>
+              filteredPosts.map((post) => {
+                const issueId = String(post.id);
+                const issueComments = commentsByIssue[issueId] || [];
+                const commentsOpen = !!openCommentsFor[issueId];
+                const draft = commentDrafts[issueId] || "";
 
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(
-                            post.status
-                          )}`}
-                        >
-                          {post.status}
-                        </span>
+                return (
+                  <div
+                    key={post.id}
+                    className={`rounded-2xl bg-white p-6 shadow-sm ${getStatusStyles(
+                      post.status
+                    )}`}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex-1">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${getUrgencyBadge(
+                              post.urgency
+                            )}`}
+                          >
+                            {post.urgency} Urgency
+                          </span>
 
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {post.category}
-                        </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(
+                              post.status
+                            )}`}
+                          >
+                            {post.status}
+                          </span>
 
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {currentDistrict}
-                        </span>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                            {post.category}
+                          </span>
+
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                            {currentDistrict}
+                          </span>
+                        </div>
+
+                        <h2 className="text-xl font-bold text-slate-900">
+                          {post.title}
+                        </h2>
+
+                        <p className="mt-3 text-slate-600">{post.description}</p>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleUpvote(issueId)}
+                            disabled={togglingVoteFor === issueId}
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-2 transition ${
+                              post.hasUpvoted
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            } disabled:opacity-60`}
+                          >
+                            <span className="text-base">⬆</span>
+                            <span>{post.upvotes} upvotes</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleComments(issueId)}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200"
+                          >
+                            <span className="text-base">💬</span>
+                            <span>{post.comments} comments</span>
+                          </button>
+
+                          <span>Representative: {post.representative}</span>
+                        </div>
+
+                        {commentsOpen && (
+                          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <h3 className="text-sm font-semibold text-slate-900">
+                              Comments
+                            </h3>
+
+                            <div className="mt-3 flex gap-3">
+                              <input
+                                type="text"
+                                value={draft}
+                                onChange={(e) =>
+                                  setCommentDrafts((prev) => ({
+                                    ...prev,
+                                    [issueId]: e.target.value,
+                                  }))
+                                }
+                                placeholder="Write a comment..."
+                                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() => handleSubmitComment(issueId)}
+                                disabled={submittingCommentFor === issueId || !draft.trim()}
+                                className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {submittingCommentFor === issueId ? "Posting..." : "Post"}
+                              </button>
+                            </div>
+
+                            <div className="mt-4 space-y-3">
+                              {issueComments.length === 0 ? (
+                                <p className="text-sm text-slate-500">
+                                  No comments yet.
+                                </p>
+                              ) : (
+                                issueComments.map((comment, idx) => (
+                                  <div
+                                    key={comment.id || `${issueId}-${idx}`}
+                                    className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700"
+                                  >
+                                    {comment.comment || "No comment text"}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      <h2 className="text-xl font-bold text-slate-900">
-                        {post.title}
-                      </h2>
+                      <div className="flex w-full flex-col gap-3 lg:w-64">
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/chat/${encodeURIComponent(post.representative)}`
+                            )
+                          }
+                          className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
+                        >
+                          Chat with my representative
+                        </button>
 
-                      <p className="mt-3 text-slate-600">{post.description}</p>
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/chat/${encodeURIComponent(post.representative)}`
+                            )
+                          }
+                          className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          View representative thread
+                        </button>
 
-                      <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                        <span>⬆ {post.upvotes} upvotes</span>
-                        <span>💬 {post.comments} comments</span>
-                        <span>Representative: {post.representative}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleShare(post)}
+                          disabled={sharingIssueId === issueId}
+                          className="flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                          aria-label="Share issue"
+                          title="Share issue"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-6 w-6"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M7 17V7a2 2 0 0 1 2-2h4" />
+                            <path d="M14 3l7 7-7 7" />
+                            <path d="M21 10H9a2 2 0 0 0-2 2v9" />
+                          </svg>
+                        </button>
                       </div>
-                    </div>
-
-                    <div className="flex w-full flex-col gap-3 lg:w-64">
-                      <button
-                        onClick={() =>
-                          router.push(
-                            `/chat/${encodeURIComponent(post.representative)}`
-                          )
-                        }
-                        className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
-                      >
-                        Chat with my representative
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          router.push(
-                            `/chat/${encodeURIComponent(post.representative)}`
-                          )
-                        }
-                        className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        View representative thread
-                      </button>
-
-                      <button
-                        onClick={() => handleShare(post)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Share issue
-                      </button>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
