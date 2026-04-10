@@ -89,6 +89,14 @@ function inferUrgency(
   return "Low";
 }
 
+function normalizeDistrict(value: string | null | undefined) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/california|texas|district|cd|ca|tx|-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function FeedPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -102,11 +110,13 @@ export default function FeedPage() {
   const [currentDistrict, setCurrentDistrict] = useState("District 12");
   const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
   const [loading, setLoading] = useState(true);
+  const [debugMessage, setDebugMessage] = useState("");
 
   useEffect(() => {
     async function loadFeed() {
       try {
         setLoading(true);
+        setDebugMessage("");
 
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
@@ -142,16 +152,23 @@ export default function FeedPage() {
 
         const { data: repsData, error: repsError } = await supabase
           .from("district_representatives")
-          .select("representative_name")
-          .eq("district", district)
-          .limit(1);
+          .select("district, representative_name")
+          .limit(100);
 
         if (repsError) {
           console.error("Representative load error:", repsError);
         }
 
+        const normalizedUserDistrict = normalizeDistrict(district);
+
+        const matchedRep =
+          repsData?.find(
+            (rep: any) =>
+              normalizeDistrict(rep.district) === normalizedUserDistrict
+          ) || repsData?.[0];
+
         const representativeName =
-          repsData?.[0]?.representative_name || "Representative";
+          matchedRep?.representative_name || "Representative";
 
         setCurrentRepresentative(representativeName);
 
@@ -160,35 +177,50 @@ export default function FeedPage() {
           .select(
             "id, title, description, district, category, status, created_at, upvotes_count, comments_count"
           )
-          .eq("district", district)
           .order("created_at", { ascending: false });
 
         if (issuesError) {
           console.error("Issues load error:", issuesError);
           setFeedPosts([]);
+          setDebugMessage("Could not load issues from the database.");
           setLoading(false);
           return;
         }
 
-        const mappedPosts: FeedPost[] = ((issuesData as any[]) || []).map(
-          (issue, index) => ({
-            id: issue.id ?? index,
-            title: issue.title || "Untitled issue",
-            description: issue.description || "No description provided.",
-            district: issue.district || district,
-            category: issue.category || "General",
-            urgency: inferUrgency(issue.status, issue.category),
-            status: normalizeStatus(issue.status),
-            upvotes: Number(issue.upvotes_count ?? 0),
-            comments: Number(issue.comments_count ?? 0),
-            representative: representativeName,
-          })
-        );
+        const allIssues = (issuesData as any[]) || [];
+
+        const districtMatchedIssues = allIssues.filter((issue) => {
+          const issueDistrict = normalizeDistrict(issue.district);
+          return issueDistrict === normalizedUserDistrict;
+        });
+
+        const issuesToUse =
+          districtMatchedIssues.length > 0 ? districtMatchedIssues : allIssues;
+
+        if (districtMatchedIssues.length === 0 && allIssues.length > 0) {
+          setDebugMessage(
+            `No exact district match found for "${district}". Showing available issues instead.`
+          );
+        }
+
+        const mappedPosts: FeedPost[] = issuesToUse.map((issue, index) => ({
+          id: issue.id ?? index,
+          title: issue.title || "Untitled issue",
+          description: issue.description || "No description provided.",
+          district: issue.district || district,
+          category: issue.category || "General",
+          urgency: inferUrgency(issue.status, issue.category),
+          status: normalizeStatus(issue.status),
+          upvotes: Number(issue.upvotes_count ?? 0),
+          comments: Number(issue.comments_count ?? 0),
+          representative: representativeName,
+        }));
 
         setFeedPosts(mappedPosts);
       } catch (error) {
         console.error("Feed load error:", error);
         setFeedPosts([]);
+        setDebugMessage("Something went wrong while loading the feed.");
       } finally {
         setLoading(false);
       }
@@ -199,11 +231,15 @@ export default function FeedPage() {
 
   const filteredPosts = useMemo(() => {
     return feedPosts.filter((post) => {
+      const q = search.toLowerCase().trim();
+
       const matchesSearch =
-        post.title.toLowerCase().includes(search.toLowerCase()) ||
-        post.description.toLowerCase().includes(search.toLowerCase()) ||
-        post.district.toLowerCase().includes(search.toLowerCase()) ||
-        post.representative.toLowerCase().includes(search.toLowerCase());
+        !q ||
+        post.title.toLowerCase().includes(q) ||
+        post.description.toLowerCase().includes(q) ||
+        post.district.toLowerCase().includes(q) ||
+        post.representative.toLowerCase().includes(q) ||
+        post.category.toLowerCase().includes(q);
 
       const matchesType =
         typeFilter === "All" || post.category === typeFilter;
@@ -237,6 +273,9 @@ export default function FeedPage() {
               Browse civic issues, track status, and connect with your representative
               in <span className="font-semibold text-slate-900">{currentDistrict}</span>.
             </p>
+            {debugMessage ? (
+              <p className="mt-3 text-sm text-amber-600">{debugMessage}</p>
+            ) : null}
           </div>
 
           <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
@@ -325,7 +364,7 @@ export default function FeedPage() {
                         </span>
 
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {currentDistrict}
+                          {post.district || currentDistrict}
                         </span>
                       </div>
 
