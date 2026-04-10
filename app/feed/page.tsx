@@ -267,7 +267,7 @@ export default function FeedPage() {
           supabase.from("issue_votes").select("issue_id, user_id").in("issue_id", issueIds),
           supabase
             .from("issue_comments")
-            .select("id, issue_id, user_id, comment, created_at")
+            .select("id, issue_id, user_id, content, created_at")
             .in("issue_id", issueIds)
             .order("created_at", { ascending: false }),
         ]);
