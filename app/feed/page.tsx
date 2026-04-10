@@ -484,10 +484,10 @@ export default function FeedPage() {
       const { data, error } = await supabase
   .from("issue_comments")
   .insert({
-    issue_id: issueId,
-    user_id: currentUserId,
-    comment: draft,
-  })
+  issue_id: issueId,
+  user_id: currentUserId,
+  content: draft,
+})
   .select("id, issue_id, user_id, comment, created_at")
   .single();
 
