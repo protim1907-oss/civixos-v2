@@ -10,14 +10,52 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [state, setState] = useState("");
   const [district, setDistrict] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const districtOptions =
+    state === "Texas"
+      ? [
+          { value: "TX-20", label: "Texas 20th District (TX-20)" },
+          { value: "TX-12", label: "Texas 12th District (TX-12)" },
+          { value: "TX", label: "State of Texas" },
+        ]
+      : state === "New Hampshire"
+      ? [{ value: "NH", label: "New Hampshire" }]
+      : [];
+
   const handleSignup = async () => {
     setError("");
     setInfo("");
+
+    if (!fullName.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Please enter your email.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    if (!state.trim()) {
+      setError("Please select your state.");
+      return;
+    }
+
+    if (!district.trim()) {
+      setError("Please select your district.");
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase.auth.signUp({
@@ -26,7 +64,9 @@ export default function SignupPage() {
       options: {
         data: {
           full_name: fullName,
+          state: state,
           district_id: district,
+          account_type: "citizen",
         },
       },
     });
@@ -73,7 +113,7 @@ export default function SignupPage() {
     <div className="max-w-md mx-auto mt-10 p-6 border rounded-2xl shadow bg-white">
       <h1 className="text-3xl font-bold mb-2">CivixOS Onboarding</h1>
       <p className="text-gray-600 mb-6">
-        Create your citizen account and select your district.
+        Create your citizen account and select your state and district.
       </p>
 
       <div className="mb-4">
@@ -110,17 +150,38 @@ export default function SignupPage() {
       </div>
 
       <div className="mb-4">
+        <label className="block mb-1 text-sm font-medium">State</label>
+        <select
+          value={state}
+          onChange={(e) => {
+            setState(e.target.value);
+            setDistrict("");
+          }}
+          className="w-full border rounded-lg px-3 py-2"
+        >
+          <option value="">Select State</option>
+          <option value="Texas">Texas</option>
+          <option value="New Hampshire">New Hampshire</option>
+        </select>
+      </div>
+
+      <div className="mb-4">
         <label className="block mb-1 text-sm font-medium">District</label>
         <select
           value={district}
           onChange={(e) => setDistrict(e.target.value)}
           className="w-full border rounded-lg px-3 py-2"
+          disabled={!state}
         >
-          <option value="">Select District</option>
-          <option value="NY-10">New York District 10 (NY-10)</option>
-          <option value="CA-12">California District 12 (CA-12)</option>
-          <option value="State of Texas">State of Texas</option>
-          <option value="New Hampshire">New Hampshire</option>
+          <option value="">
+            {state ? "Select District" : "Select State first"}
+          </option>
+
+          {districtOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -154,6 +215,13 @@ export default function SignupPage() {
         Already have an account?{" "}
         <Link href="/login" className="text-blue-600 underline">
           Login
+        </Link>
+      </p>
+
+      <p className="text-sm mt-2 text-gray-500">
+        Are you a government official?{" "}
+        <Link href="/signup-official" className="text-green-600 underline">
+          Register here
         </Link>
       </p>
     </div>
