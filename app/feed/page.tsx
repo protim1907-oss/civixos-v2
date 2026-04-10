@@ -713,7 +713,7 @@ if (error) {
                                     key={comment.id || `${issueId}-${idx}`}
                                     className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700"
                                   >
-                                    {comment.comment || "No comment text"}
+                                    {comment.content || "No comment text"}
                                   </div>
                                 ))
                               )}
