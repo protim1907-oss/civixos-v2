@@ -482,20 +482,20 @@ export default function FeedPage() {
       setSubmittingCommentFor(issueId);
 
       const { data, error } = await supabase
-        .from("issue_comments")
-        .insert({
-          issue_id: issueId,
-          user_id: currentUserId,
-          comment: draft,
-        })
-        .select("id, issue_id, user_id, comment, created_at")
-        .single();
+  .from("issue_comments")
+  .insert({
+    issue_id: issueId,
+    user_id: currentUserId,
+    comment: draft,
+  })
+  .select("id, issue_id, user_id, comment, created_at")
+  .single();
 
-      if (error) {
-        console.error("Add comment error:", error);
-        alert("Could not add comment.");
-        return;
-      }
+if (error) {
+  console.error("Add comment error:", error);
+  alert(`Could not add comment: ${error.message}`);
+  return;
+}
 
       setCommentDrafts((prev) => ({
         ...prev,
