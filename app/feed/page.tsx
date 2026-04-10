@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
+import { createClient } from "@/lib/supabase/client";
 
 type FeedPost = {
-  id: number;
+  id: string | number;
   title: string;
   description: string;
   district: string;
@@ -16,87 +17,6 @@ type FeedPost = {
   comments: number;
   representative: string;
 };
-
-const feedPosts: FeedPost[] = [
-  {
-    id: 1,
-    title: "Potholes causing traffic delays on Main Street",
-    description:
-      "Residents have reported multiple potholes creating unsafe driving conditions and slowing down traffic during peak hours.",
-    district: "California District 12",
-    category: "Infrastructure",
-    urgency: "High",
-    status: "Open",
-    upvotes: 42,
-    comments: 18,
-    representative: "Nancy Pelosi",
-  },
-  {
-    id: 2,
-    title: "Need improved street lighting near school zone",
-    description:
-      "Poor lighting near the school entrance is creating safety concerns for students and parents during early morning hours.",
-    district: "California District 12",
-    category: "Public Safety",
-    urgency: "Medium",
-    status: "Under Review",
-    upvotes: 31,
-    comments: 9,
-    representative: "Nancy Pelosi",
-  },
-  {
-    id: 3,
-    title: "Overflowing trash bins in public park",
-    description:
-      "Waste bins in the neighborhood park are not being cleared regularly, affecting cleanliness and public health.",
-    district: "California District 12",
-    category: "Sanitation",
-    urgency: "Low",
-    status: "Resolved",
-    upvotes: 19,
-    comments: 6,
-    representative: "Nancy Pelosi",
-  },
-  {
-    id: 4,
-    title: "Broken pedestrian crossing signal",
-    description:
-      "The crossing signal at a busy intersection is not functioning, making it dangerous for elderly residents and children.",
-    district: "California District 12",
-    category: "Transportation",
-    urgency: "High",
-    status: "Escalated",
-    upvotes: 54,
-    comments: 21,
-    representative: "Nancy Pelosi",
-  },
-  {
-    id: 5,
-    title: "Request for more community policing presence",
-    description:
-      "Residents are asking for increased patrol visibility after a rise in petty theft complaints in the area.",
-    district: "California District 12",
-    category: "Public Safety",
-    urgency: "Medium",
-    status: "Under Review",
-    upvotes: 27,
-    comments: 12,
-    representative: "Nancy Pelosi",
-  },
-  {
-    id: 6,
-    title: "Bus stop shelter damaged after storm",
-    description:
-      "The shelter roof is partially broken, leaving commuters exposed to rain and heat while waiting.",
-    district: "California District 12",
-    category: "Transportation",
-    urgency: "Medium",
-    status: "Open",
-    upvotes: 23,
-    comments: 7,
-    representative: "Nancy Pelosi",
-  },
-];
 
 function getStatusStyles(status: FeedPost["status"]) {
   switch (status) {
@@ -141,20 +61,149 @@ function getStatusBadge(status: FeedPost["status"]) {
   }
 }
 
+function normalizeStatus(value: string | null | undefined): FeedPost["status"] {
+  const normalized = (value || "").toLowerCase().trim();
+
+  if (normalized === "open") return "Open";
+  if (normalized === "under_review" || normalized === "under review") {
+    return "Under Review";
+  }
+  if (normalized === "resolved") return "Resolved";
+  if (normalized === "escalated") return "Escalated";
+
+  return "Open";
+}
+
+function inferUrgency(
+  status: string | null | undefined,
+  category: string | null | undefined
+): FeedPost["urgency"] {
+  const normalizedStatus = (status || "").toLowerCase();
+  const normalizedCategory = (category || "").toLowerCase();
+
+  if (normalizedStatus === "escalated") return "High";
+  if (normalizedCategory.includes("safety")) return "High";
+  if (normalizedCategory.includes("infrastructure")) return "Medium";
+  if (normalizedStatus === "under_review") return "Medium";
+
+  return "Low";
+}
+
 export default function FeedPage() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [urgencyFilter, setUrgencyFilter] = useState("All");
 
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+  const [currentDistrict, setCurrentDistrict] = useState("District 12");
+  const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadFeed() {
+      try {
+        setLoading(true);
+
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
+
+        const guestUser =
+          typeof window !== "undefined"
+            ? localStorage.getItem("guest_user")
+            : null;
+
+        let district = "District 12";
+
+        if (!session?.user && guestUser) {
+          try {
+            const parsedGuest = JSON.parse(guestUser);
+            district =
+              parsedGuest?.district ||
+              parsedGuest?.district_name ||
+              "District 12";
+          } catch (error) {
+            console.error("Guest parse error:", error);
+          }
+        }
+
+        if (session?.user) {
+          district =
+            session.user.user_metadata?.district ||
+            session.user.user_metadata?.district_name ||
+            session.user.user_metadata?.district_id ||
+            "District 12";
+        }
+
+        setCurrentDistrict(district);
+
+        const { data: repsData, error: repsError } = await supabase
+          .from("district_representatives")
+          .select("representative_name")
+          .eq("district", district)
+          .limit(1);
+
+        if (repsError) {
+          console.error("Representative load error:", repsError);
+        }
+
+        const representativeName =
+          repsData?.[0]?.representative_name || "Representative";
+
+        setCurrentRepresentative(representativeName);
+
+        const { data: issuesData, error: issuesError } = await supabase
+          .from("issues")
+          .select(
+            "id, title, description, district, category, status, created_at, upvotes_count, comments_count"
+          )
+          .eq("district", district)
+          .order("created_at", { ascending: false });
+
+        if (issuesError) {
+          console.error("Issues load error:", issuesError);
+          setFeedPosts([]);
+          setLoading(false);
+          return;
+        }
+
+        const mappedPosts: FeedPost[] = ((issuesData as any[]) || []).map(
+          (issue, index) => ({
+            id: issue.id ?? index,
+            title: issue.title || "Untitled issue",
+            description: issue.description || "No description provided.",
+            district: issue.district || district,
+            category: issue.category || "General",
+            urgency: inferUrgency(issue.status, issue.category),
+            status: normalizeStatus(issue.status),
+            upvotes: Number(issue.upvotes_count ?? 0),
+            comments: Number(issue.comments_count ?? 0),
+            representative: representativeName,
+          })
+        );
+
+        setFeedPosts(mappedPosts);
+      } catch (error) {
+        console.error("Feed load error:", error);
+        setFeedPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFeed();
+  }, [supabase]);
+
   const filteredPosts = useMemo(() => {
     return feedPosts.filter((post) => {
       const matchesSearch =
         post.title.toLowerCase().includes(search.toLowerCase()) ||
         post.description.toLowerCase().includes(search.toLowerCase()) ||
-        post.district.toLowerCase().includes(search.toLowerCase());
+        post.district.toLowerCase().includes(search.toLowerCase()) ||
+        post.representative.toLowerCase().includes(search.toLowerCase());
 
       const matchesType =
         typeFilter === "All" || post.category === typeFilter;
@@ -167,18 +216,26 @@ export default function FeedPage() {
 
       return matchesSearch && matchesType && matchesStatus && matchesUrgency;
     });
-  }, [search, typeFilter, statusFilter, urgencyFilter]);
+  }, [feedPosts, search, typeFilter, statusFilter, urgencyFilter]);
+
+  const availableCategories = useMemo(() => {
+    const categories = Array.from(
+      new Set(feedPosts.map((post) => post.category).filter(Boolean))
+    );
+    return ["All", ...categories];
+  }, [feedPosts]);
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 lg:flex">
       <Sidebar />
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 md:p-6">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-6">
+          <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
             <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
             <p className="mt-2 text-slate-600">
-              Browse civic issues, track status, and connect with your representative.
+              Browse civic issues, track status, and connect with your representative
+              in <span className="font-semibold text-slate-900">{currentDistrict}</span>.
             </p>
           </div>
 
@@ -197,11 +254,9 @@ export default function FeedPage() {
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
               >
-                <option>All</option>
-                <option>Infrastructure</option>
-                <option>Public Safety</option>
-                <option>Sanitation</option>
-                <option>Transportation</option>
+                {availableCategories.map((category) => (
+                  <option key={category}>{category}</option>
+                ))}
               </select>
 
               <select
@@ -230,7 +285,11 @@ export default function FeedPage() {
           </div>
 
           <div className="space-y-5">
-            {filteredPosts.length === 0 ? (
+            {loading ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+                <p className="text-slate-600">Loading district feed...</p>
+              </div>
+            ) : filteredPosts.length === 0 ? (
               <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
                 <p className="text-slate-600">No issues matched your filters.</p>
               </div>
@@ -252,6 +311,7 @@ export default function FeedPage() {
                         >
                           {post.urgency} Urgency
                         </span>
+
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(
                             post.status
@@ -259,11 +319,13 @@ export default function FeedPage() {
                         >
                           {post.status}
                         </span>
+
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                           {post.category}
                         </span>
+
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {post.district}
+                          {currentDistrict}
                         </span>
                       </div>
 
@@ -308,6 +370,19 @@ export default function FeedPage() {
               ))
             )}
           </div>
+
+          {!loading && filteredPosts.length > 0 && (
+            <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm">
+              Showing {filteredPosts.length} issue
+              {filteredPosts.length === 1 ? "" : "s"} for{" "}
+              <span className="font-semibold text-slate-700">{currentDistrict}</span>.
+              {" "}Primary representative:{" "}
+              <span className="font-semibold text-slate-700">
+                {currentRepresentative}
+              </span>
+              .
+            </div>
+          )}
         </div>
       </main>
     </div>
