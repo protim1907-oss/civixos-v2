@@ -69,7 +69,9 @@ function inferUrgency(title: string, description: string): FeedPost["urgency"] {
     text.includes("waterlogging") ||
     text.includes("danger") ||
     text.includes("unsafe") ||
-    text.includes("pothole")
+    text.includes("pothole") ||
+    text.includes("overflow") ||
+    text.includes("manhole")
   ) {
     return "High";
   }
@@ -78,7 +80,8 @@ function inferUrgency(title: string, description: string): FeedPost["urgency"] {
     text.includes("streetlight") ||
     text.includes("garbage") ||
     text.includes("drain") ||
-    text.includes("traffic")
+    text.includes("traffic") ||
+    text.includes("bus")
   ) {
     return "Medium";
   }
@@ -94,7 +97,8 @@ function inferCategory(title: string, description: string) {
     text.includes("pothole") ||
     text.includes("drain") ||
     text.includes("waterlogging") ||
-    text.includes("pipeline")
+    text.includes("pipeline") ||
+    text.includes("manhole")
   ) {
     return "Infrastructure";
   }
@@ -126,6 +130,21 @@ function inferCategory(title: string, description: string) {
 
   return "General";
 }
+
+type IssueRow = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  user_id: string | null;
+};
+
+type VoteRow = {
+  issue_id: string | null;
+};
+
+type CommentRow = {
+  issue_id: string | null;
+};
 
 export default function FeedPage() {
   const router = useRouter();
@@ -180,7 +199,7 @@ export default function FeedPage() {
 
         setCurrentDistrict(district);
 
-        // Representatives table is named "representatives" in your DB
+        // Representatives table from your DB
         const { data: repsData, error: repsError } = await supabase
           .from("representatives")
           .select("*")
@@ -198,7 +217,7 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
-        // Only select columns that are clearly present
+        // Load issues using only confirmed columns
         const { data: issuesData, error: issuesError } = await supabase
           .from("issues")
           .select("id, title, description, user_id")
@@ -212,26 +231,65 @@ export default function FeedPage() {
           return;
         }
 
-        const mappedPosts: FeedPost[] = ((issuesData as any[]) || []).map(
-          (issue, index) => ({
-            id: issue.id ?? index,
-            title: issue.title || "Untitled issue",
-            description: issue.description || "No description provided.",
-            district: district,
-            category: inferCategory(issue.title || "", issue.description || ""),
-            urgency: inferUrgency(issue.title || "", issue.description || ""),
-            status: "Open",
-            upvotes: 0,
-            comments: 0,
-            representative: representativeName,
-          })
+        const issues = ((issuesData as IssueRow[]) || []).filter(
+          (issue) => issue?.id
         );
 
-        setFeedPosts(mappedPosts);
-
-        if (mappedPosts.length === 0) {
+        if (issues.length === 0) {
+          setFeedPosts([]);
           setDebugMessage("Issues table loaded successfully, but no rows were returned.");
+          return;
         }
+
+        const issueIds = issues.map((issue) => issue.id);
+
+        // Optimized: fetch all votes and comments for these issues in two queries
+        const [{ data: votesData, error: votesError }, { data: commentsData, error: commentsError }] =
+          await Promise.all([
+            supabase
+              .from("issue_votes")
+              .select("issue_id")
+              .in("issue_id", issueIds),
+            supabase
+              .from("issue_comments")
+              .select("issue_id")
+              .in("issue_id", issueIds),
+          ]);
+
+        if (votesError) {
+          console.error("Votes load error:", votesError);
+        }
+
+        if (commentsError) {
+          console.error("Comments load error:", commentsError);
+        }
+
+        const voteCounts: Record<string, number> = {};
+        ((votesData as VoteRow[]) || []).forEach((row) => {
+          if (!row.issue_id) return;
+          voteCounts[row.issue_id] = (voteCounts[row.issue_id] || 0) + 1;
+        });
+
+        const commentCounts: Record<string, number> = {};
+        ((commentsData as CommentRow[]) || []).forEach((row) => {
+          if (!row.issue_id) return;
+          commentCounts[row.issue_id] = (commentCounts[row.issue_id] || 0) + 1;
+        });
+
+        const mappedPosts: FeedPost[] = issues.map((issue, index) => ({
+          id: issue.id ?? index,
+          title: issue.title || "Untitled issue",
+          description: issue.description || "No description provided.",
+          district,
+          category: inferCategory(issue.title || "", issue.description || ""),
+          urgency: inferUrgency(issue.title || "", issue.description || ""),
+          status: "Open",
+          upvotes: voteCounts[issue.id] || 0,
+          comments: commentCounts[issue.id] || 0,
+          representative: representativeName,
+        }));
+
+        setFeedPosts(mappedPosts);
       } catch (error) {
         console.error("Feed load error:", error);
         setFeedPosts([]);
@@ -275,6 +333,31 @@ export default function FeedPage() {
     );
     return ["All", ...categories];
   }, [feedPosts]);
+
+  async function handleShare(post: FeedPost) {
+    const shareText = `${post.title}\n\n${post.description}\n\nDistrict: ${post.district}\nRepresentative: ${post.representative}`;
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({
+          title: post.title,
+          text: shareText,
+          url: typeof window !== "undefined" ? window.location.href : undefined,
+        });
+        return;
+      }
+
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareText);
+        alert("Issue copied to clipboard.");
+        return;
+      }
+
+      alert("Sharing is not supported on this device.");
+    } catch (error) {
+      console.error("Share error:", error);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 lg:flex">
@@ -417,6 +500,13 @@ export default function FeedPage() {
                         className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
                       >
                         View representative thread
+                      </button>
+
+                      <button
+                        onClick={() => handleShare(post)}
+                        className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Share issue
                       </button>
                     </div>
                   </div>
