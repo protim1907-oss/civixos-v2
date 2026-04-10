@@ -35,7 +35,7 @@ type CommentRow = {
   id?: string;
   issue_id: string | null;
   user_id?: string | null;
-  comment?: string | null;
+  content?: string | null;
   created_at?: string | null;
 };
 
