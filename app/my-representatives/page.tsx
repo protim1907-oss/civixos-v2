@@ -5,103 +5,67 @@ import { createClient } from "@/lib/supabase/client";
 
 type Representative = {
   id: string;
-  name: string;
-  office: string;
-  level: "Senate" | "Congress" | "State" | "Local";
-  photo: string;
-  linkedin: string;
-  chatHref: string;
-  emailHref: string;
-  districtId?: string;
-  state?: string;
-  isPrimary?: boolean;
+  full_name: string;
+  office_title: string;
+  state: string;
+  district: string | null;
+  party: string | null;
+  photo_url: string | null;
+  email: string | null;
+  linkedin_url: string | null;
+  created_at?: string;
+  name: string | null;
+  office: string | null;
+  level: "Senate" | "Congress" | "State" | "Local" | null;
+  photo: string | null;
+  linkedin: string | null;
+  chat_href: string | null;
+  email_href: string | null;
+  district_id: string | null;
+  is_primary: boolean | null;
+  is_active: boolean | null;
 };
 
-const representatives: Representative[] = [
-  {
-    id: "ted-cruz",
-    name: "Ted Cruz",
-    office: "U.S. Senator, Texas",
-    level: "Senate",
-    photo: "https://www.cruz.senate.gov/imo/media/image/cruz_headshot.jpg",
-    linkedin: "https://www.linkedin.com/in/cruzted",
-    chatHref: "/chat/ted-cruz",
-    emailHref:
-      "mailto:casework@cruz.senate.gov?subject=Constituent%20Inquiry&body=Hello%20Senator%20Cruz%2C%0A%0AI%20am%20writing%20regarding...",
-    state: "Texas",
-  },
-  {
-    id: "joaquin-castro",
-    name: "Joaquín Castro",
-    office: "U.S. Representative, Texas 20th District",
-    level: "Congress",
-    photo:
-      "https://castro.house.gov/imo/media/image/2023-05-11_NP_0015_re%20%28002%29.jpg",
-    linkedin: "https://www.linkedin.com/in/joaquin-castro-2626ab51",
-    chatHref: "/chat/joaquin-castro",
-    emailHref:
-      "mailto:Jasmine.Rodriguez@mail.house.gov?subject=Constituent%20Inquiry%20for%20Rep.%20Castro&body=Hello%2C%0A%0AI%20am%20writing%20regarding...",
-    districtId: "TX-20",
-    state: "Texas",
-    isPrimary: true,
-  },
-  {
-    id: "greg-abbott",
-    name: "Greg Abbott",
-    office: "Governor of Texas",
-    level: "State",
-    photo:
-      "https://gov.texas.gov/uploads/images/general/2024-GovernorAbbott-Portrait.jpg",
-    linkedin: "https://www.linkedin.com/in/gregabbotttx",
-    chatHref: "/chat/greg-abbott",
-    emailHref:
-      "mailto:greg.abbott@gov.texas.gov?subject=Constituent%20Inquiry&body=Hello%20Governor%20Abbott%2C%0A%0AI%20am%20writing%20regarding...",
-    state: "Texas",
-  },
-  {
-    id: "ken-paxton",
-    name: "Ken Paxton",
-    office: "Attorney General of Texas",
-    level: "State",
-    photo:
-      "https://www.texasattorneygeneral.gov/sites/default/files/images/about/Texas-Attorney-General-Ken-Paxton.jpg",
-    linkedin: "https://www.linkedin.com/in/ken-paxton-854b2a13",
-    chatHref: "/chat/ken-paxton",
-    emailHref:
-      "mailto:ken.paxton@oag.texas.gov?subject=Constituent%20Inquiry&body=Hello%20Attorney%20General%20Paxton%2C%0A%0AI%20am%20writing%20regarding...",
-    state: "Texas",
-  },
-  {
-    id: "kirk-watson",
-    name: "Kirk Watson",
-    office: "Mayor of Austin",
-    level: "Local",
-    photo:
-      "https://www.austintexas.gov/sites/default/files/files/Mayor/Mayor_Watson_Headshot.jpg",
-    linkedin: "https://www.linkedin.com/in/kirk-watson-045ab81b",
-    chatHref: "/chat/kirk-watson",
-    emailHref:
-      "mailto:mayor@austintexas.gov?subject=Constituent%20Inquiry&body=Hello%20Mayor%20Watson%2C%0A%0AI%20am%20writing%20regarding...",
-    districtId: "TX-AUSTIN",
-    state: "Texas",
-  },
-  {
-    id: "eric-johnson",
-    name: "Eric L. Johnson",
-    office: "Mayor of Dallas",
-    level: "Local",
-    photo:
-      "https://dallascityhall.com/government/citymayor/PublishingImages/pages/default/Headshot.jpg",
-    linkedin: "https://www.linkedin.com/in/johnsonfordallas",
-    chatHref: "/chat/eric-johnson",
-    emailHref:
-      "mailto:eric.johnson@dallas.gov?subject=Constituent%20Inquiry&body=Hello%20Mayor%20Johnson%2C%0A%0AI%20am%20writing%20regarding...",
-    districtId: "TX-DALLAS",
-    state: "Texas",
-  },
-];
+function getDisplayName(rep: Representative) {
+  return rep.name || rep.full_name;
+}
 
-function levelClasses(level: Representative["level"]) {
+function getDisplayOffice(rep: Representative) {
+  return rep.office || rep.office_title;
+}
+
+function getDisplayPhoto(rep: Representative) {
+  return rep.photo || rep.photo_url || "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+}
+
+function getDisplayLinkedin(rep: Representative) {
+  return rep.linkedin || rep.linkedin_url || "#";
+}
+
+function getDisplayEmailHref(rep: Representative) {
+  if (rep.email_href) return rep.email_href;
+  if (rep.email) return `mailto:${rep.email}`;
+  return "#";
+}
+
+function getDisplayDistrict(rep: Representative) {
+  return rep.district_id || rep.district || null;
+}
+
+function getDisplayLevel(rep: Representative): "Senate" | "Congress" | "State" | "Local" {
+  if (rep.level === "Senate" || rep.level === "Congress" || rep.level === "State" || rep.level === "Local") {
+    return rep.level;
+  }
+
+  const office = getDisplayOffice(rep).toLowerCase();
+
+  if (office.includes("senator")) return "Senate";
+  if (office.includes("representative")) return "Congress";
+  if (office.includes("governor") || office.includes("attorney general")) return "State";
+  return "Local";
+}
+
+function levelClasses(level: "Senate" | "Congress" | "State" | "Local") {
   switch (level) {
     case "Senate":
       return "bg-red-50 text-red-700 border-red-200";
@@ -136,22 +100,16 @@ function matchesDistrictRepresentative(
   userDistrict: string,
   userState: string
 ) {
+  const repState = (rep.state || "").toLowerCase();
   const normalizedState = userState.toLowerCase();
+  const level = getDisplayLevel(rep);
+  const repDistrict = getDisplayDistrict(rep);
 
-  if (normalizedState === "texas") {
-    if (rep.level === "Senate" || rep.level === "State") return rep.state === "Texas";
-    if (rep.level === "Congress") return rep.districtId === userDistrict;
-    if (rep.level === "Local") return false;
-    return false;
-  }
+  if (repState !== normalizedState) return false;
 
-  if (rep.level === "Senate" || rep.level === "State") {
-    return rep.state?.toLowerCase() === normalizedState;
-  }
-
-  if (rep.level === "Congress") {
-    return rep.districtId === userDistrict;
-  }
+  if (level === "Senate" || level === "State") return true;
+  if (level === "Congress") return repDistrict === userDistrict;
+  if (level === "Local") return repDistrict === userDistrict;
 
   return false;
 }
@@ -163,9 +121,10 @@ export default function MyRepresentativesPage() {
   const [userState, setUserState] = useState("Texas");
   const [userName, setUserName] = useState("Citizen");
   const [loading, setLoading] = useState(true);
+  const [representatives, setRepresentatives] = useState<Representative[]>([]);
 
   useEffect(() => {
-    async function loadUserContext() {
+    async function loadPage() {
       try {
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
@@ -175,42 +134,57 @@ export default function MyRepresentativesPage() {
             ? localStorage.getItem("guest_user")
             : null;
 
+        let district = "TX-20";
+        let state = "Texas";
+        let name = "Citizen";
+
         if (session?.user) {
           const user = session.user;
 
-          const displayName =
+          name =
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
             user.email?.split("@")[0] ||
             "Citizen";
 
-          const district =
+          district =
             user.user_metadata?.district_id ||
             user.user_metadata?.district ||
             "TX-20";
 
-          const state =
+          state =
             user.user_metadata?.state ||
             (String(district).startsWith("TX") ? "Texas" : "Texas");
-
-          setUserName(displayName);
-          setUserDistrict(district);
-          setUserState(state);
-          setLoading(false);
-          return;
-        }
-
-        if (guestUser) {
+        } else if (guestUser) {
           try {
             const parsedGuest = JSON.parse(guestUser);
-            setUserName(parsedGuest?.name || "Guest Citizen");
-            setUserDistrict(parsedGuest?.district_id || "TX-20");
-            setUserState(parsedGuest?.state || "Texas");
+            name = parsedGuest?.name || "Guest Citizen";
+            district = parsedGuest?.district_id || "TX-20";
+            state = parsedGuest?.state || "Texas";
           } catch {
-            setUserName("Guest Citizen");
-            setUserDistrict("TX-20");
-            setUserState("Texas");
+            name = "Guest Citizen";
+            district = "TX-20";
+            state = "Texas";
           }
+        }
+
+        setUserName(name);
+        setUserDistrict(district);
+        setUserState(state);
+
+        const { data: repData, error } = await supabase
+          .from("representatives")
+          .select("*")
+          .eq("state", state)
+          .eq("is_active", true)
+          .order("is_primary", { ascending: false })
+          .order("full_name", { ascending: true });
+
+        if (error) {
+          console.error("Failed to load representatives:", error);
+          setRepresentatives([]);
+        } else {
+          setRepresentatives((repData as Representative[]) || []);
         }
       } catch (error) {
         console.error("Failed to load representative context:", error);
@@ -219,31 +193,41 @@ export default function MyRepresentativesPage() {
       }
     }
 
-    loadUserContext();
+    loadPage();
   }, [supabase]);
 
   const visibleRepresentatives = useMemo(() => {
     return representatives.filter((rep) =>
       matchesDistrictRepresentative(rep, userDistrict, userState)
     );
-  }, [userDistrict, userState]);
+  }, [representatives, userDistrict, userState]);
 
   const primaryRepresentative = useMemo(() => {
-    return visibleRepresentatives.find(
-      (rep) => rep.level === "Congress" && rep.districtId === userDistrict
+    return (
+      visibleRepresentatives.find(
+        (rep) =>
+          getDisplayLevel(rep) === "Congress" &&
+          getDisplayDistrict(rep) === userDistrict &&
+          rep.is_primary
+      ) ||
+      visibleRepresentatives.find(
+        (rep) =>
+          getDisplayLevel(rep) === "Congress" &&
+          getDisplayDistrict(rep) === userDistrict
+      )
     );
   }, [visibleRepresentatives, userDistrict]);
 
   const senateRepresentatives = useMemo(() => {
-    return visibleRepresentatives.filter((rep) => rep.level === "Senate");
+    return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "Senate");
   }, [visibleRepresentatives]);
 
   const stateRepresentatives = useMemo(() => {
-    return visibleRepresentatives.filter((rep) => rep.level === "State");
+    return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "State");
   }, [visibleRepresentatives]);
 
   const districtRepresentatives = useMemo(() => {
-    return visibleRepresentatives.filter((rep) => rep.level === "Congress");
+    return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "Congress");
   }, [visibleRepresentatives]);
 
   return (
@@ -278,13 +262,16 @@ export default function MyRepresentativesPage() {
             <h2 className="mt-3 text-3xl font-bold text-slate-900">
               {loading
                 ? "Loading representative..."
-                : primaryRepresentative?.name || "Representative not assigned yet"}
+                : primaryRepresentative
+                ? getDisplayName(primaryRepresentative)
+                : "Representative not assigned yet"}
             </h2>
             <p className="mt-2 text-lg text-slate-700">
               {loading
                 ? "Loading office details..."
-                : primaryRepresentative?.office ||
-                  `We are preparing representative information for ${districtDisplayLabel(
+                : primaryRepresentative
+                ? getDisplayOffice(primaryRepresentative)
+                : `We are preparing representative information for ${districtDisplayLabel(
                     userDistrict
                   )}.`}
             </p>
@@ -296,14 +283,14 @@ export default function MyRepresentativesPage() {
             {primaryRepresentative ? (
               <div className="mt-6 grid gap-3">
                 <a
-                  href={primaryRepresentative.chatHref}
+                  href={primaryRepresentative.chat_href || "#"}
                   className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
                   Chat with Representative
                 </a>
 
                 <a
-                  href={primaryRepresentative.emailHref}
+                  href={getDisplayEmailHref(primaryRepresentative)}
                   className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
                 >
                   Send Email
@@ -327,7 +314,7 @@ export default function MyRepresentativesPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-500">Primary Office</p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                {primaryRepresentative?.name || "Pending"}
+                {primaryRepresentative ? getDisplayName(primaryRepresentative) : "Pending"}
               </p>
             </div>
 
@@ -370,60 +357,65 @@ export default function MyRepresentativesPage() {
                   Congressional Representative
                 </p>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {districtRepresentatives.map((rep) => (
-                    <article
-                      key={rep.id}
-                      className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex flex-col items-center text-center">
-                        <img
-                          src={rep.photo}
-                          alt={rep.name}
-                          className="h-28 w-28 rounded-full object-cover ring-4 ring-white"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src =
-                              "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                          }}
-                        />
+                  {districtRepresentatives.map((rep) => {
+                    const level = getDisplayLevel(rep);
+                    return (
+                      <article
+                        key={rep.id}
+                        className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <img
+                            src={getDisplayPhoto(rep)}
+                            alt={getDisplayName(rep)}
+                            className="h-28 w-28 rounded-full object-cover ring-4 ring-white"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                            }}
+                          />
 
-                        <div
-                          className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                            rep.level
-                          )}`}
-                        >
-                          {rep.level}
+                          <div
+                            className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
+                              level
+                            )}`}
+                          >
+                            {level}
+                          </div>
+
+                          <h2 className="mt-4 text-2xl font-bold text-slate-900">
+                            {getDisplayName(rep)}
+                          </h2>
+                          <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
                         </div>
 
-                        <h2 className="mt-4 text-2xl font-bold text-slate-900">{rep.name}</h2>
-                        <p className="mt-2 text-sm text-slate-600">{rep.office}</p>
-                      </div>
+                        <div className="mt-6 space-y-3">
+                          <a
+                            href={rep.chat_href || "#"}
+                            className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                          >
+                            Chat with Representative
+                          </a>
 
-                      <div className="mt-6 space-y-3">
-                        <a
-                          href={rep.chatHref}
-                          className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                        >
-                          Chat with Representative
-                        </a>
+                          <a
+                            href={getDisplayEmailHref(rep)}
+                            className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
+                          >
+                            Send Email
+                          </a>
 
-                        <a
-                          href={rep.emailHref}
-                          className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
-                        >
-                          Send Email
-                        </a>
-
-                        <a
-                          href={rep.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
-                        >
-                          View LinkedIn Profile
-                        </a>
-                      </div>
-                    </article>
-                  ))}
+                          <a
+                            href={getDisplayLinkedin(rep)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
+                          >
+                            View LinkedIn Profile
+                          </a>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -434,60 +426,65 @@ export default function MyRepresentativesPage() {
                   Senate Representation
                 </p>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {senateRepresentatives.map((rep) => (
-                    <article
-                      key={rep.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex flex-col items-center text-center">
-                        <img
-                          src={rep.photo}
-                          alt={rep.name}
-                          className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src =
-                              "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                          }}
-                        />
+                  {senateRepresentatives.map((rep) => {
+                    const level = getDisplayLevel(rep);
+                    return (
+                      <article
+                        key={rep.id}
+                        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <img
+                            src={getDisplayPhoto(rep)}
+                            alt={getDisplayName(rep)}
+                            className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                            }}
+                          />
 
-                        <div
-                          className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                            rep.level
-                          )}`}
-                        >
-                          {rep.level}
+                          <div
+                            className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
+                              level
+                            )}`}
+                          >
+                            {level}
+                          </div>
+
+                          <h2 className="mt-4 text-2xl font-bold text-slate-900">
+                            {getDisplayName(rep)}
+                          </h2>
+                          <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
                         </div>
 
-                        <h2 className="mt-4 text-2xl font-bold text-slate-900">{rep.name}</h2>
-                        <p className="mt-2 text-sm text-slate-600">{rep.office}</p>
-                      </div>
+                        <div className="mt-6 space-y-3">
+                          <a
+                            href={rep.chat_href || "#"}
+                            className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                          >
+                            Chat with Representative
+                          </a>
 
-                      <div className="mt-6 space-y-3">
-                        <a
-                          href={rep.chatHref}
-                          className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                        >
-                          Chat with Representative
-                        </a>
+                          <a
+                            href={getDisplayEmailHref(rep)}
+                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                          >
+                            Send Email
+                          </a>
 
-                        <a
-                          href={rep.emailHref}
-                          className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                        >
-                          Send Email
-                        </a>
-
-                        <a
-                          href={rep.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                        >
-                          View LinkedIn Profile
-                        </a>
-                      </div>
-                    </article>
-                  ))}
+                          <a
+                            href={getDisplayLinkedin(rep)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                          >
+                            View LinkedIn Profile
+                          </a>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -498,60 +495,65 @@ export default function MyRepresentativesPage() {
                   Statewide Offices
                 </p>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {stateRepresentatives.map((rep) => (
-                    <article
-                      key={rep.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex flex-col items-center text-center">
-                        <img
-                          src={rep.photo}
-                          alt={rep.name}
-                          className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src =
-                              "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                          }}
-                        />
+                  {stateRepresentatives.map((rep) => {
+                    const level = getDisplayLevel(rep);
+                    return (
+                      <article
+                        key={rep.id}
+                        className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <img
+                            src={getDisplayPhoto(rep)}
+                            alt={getDisplayName(rep)}
+                            className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
+                            }}
+                          />
 
-                        <div
-                          className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                            rep.level
-                          )}`}
-                        >
-                          {rep.level}
+                          <div
+                            className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
+                              level
+                            )}`}
+                          >
+                            {level}
+                          </div>
+
+                          <h2 className="mt-4 text-2xl font-bold text-slate-900">
+                            {getDisplayName(rep)}
+                          </h2>
+                          <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
                         </div>
 
-                        <h2 className="mt-4 text-2xl font-bold text-slate-900">{rep.name}</h2>
-                        <p className="mt-2 text-sm text-slate-600">{rep.office}</p>
-                      </div>
+                        <div className="mt-6 space-y-3">
+                          <a
+                            href={rep.chat_href || "#"}
+                            className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                          >
+                            Chat with Representative
+                          </a>
 
-                      <div className="mt-6 space-y-3">
-                        <a
-                          href={rep.chatHref}
-                          className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                        >
-                          Chat with Representative
-                        </a>
+                          <a
+                            href={getDisplayEmailHref(rep)}
+                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                          >
+                            Send Email
+                          </a>
 
-                        <a
-                          href={rep.emailHref}
-                          className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                        >
-                          Send Email
-                        </a>
-
-                        <a
-                          href={rep.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                        >
-                          View LinkedIn Profile
-                        </a>
-                      </div>
-                    </article>
-                  ))}
+                          <a
+                            href={getDisplayLinkedin(rep)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+                          >
+                            View LinkedIn Profile
+                          </a>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
