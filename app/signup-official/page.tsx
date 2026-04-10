@@ -1,8 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+
+type DistrictOption = {
+  value: string;
+  label: string;
+};
+
+const texasZipCityToDistricts: Record<string, DistrictOption[]> = {
+  "San Antonio|78207": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "San Antonio|78228": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "San Antonio|78237": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "San Antonio|78201": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "San Antonio|78202": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+
+  "Austin|78701": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78702": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78703": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78704": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78705": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78721": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78722": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78723": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78724": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78725": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78741": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78742": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78744": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78745": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78747": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78748": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78749": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "Austin|78751": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+
+  "Fort Worth|76102": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "Fort Worth|76107": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "Fort Worth|76114": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "Fort Worth|76116": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "Fort Worth|76135": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+};
+
+const newHampshireZipCityToDistricts: Record<string, DistrictOption[]> = {
+  "Manchester|03101": [{ value: "NH", label: "New Hampshire" }],
+  "Concord|03301": [{ value: "NH", label: "New Hampshire" }],
+  "Nashua|03060": [{ value: "NH", label: "New Hampshire" }],
+};
+
+function toTitleCase(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function resolveDistrictOptions(state: string, city: string, zipCode: string): DistrictOption[] {
+  const normalizedCity = toTitleCase(city);
+  const normalizedZip = zipCode.trim();
+  const key = `${normalizedCity}|${normalizedZip}`;
+
+  if (state === "Texas") {
+    return texasZipCityToDistricts[key] || [];
+  }
+
+  if (state === "New Hampshire") {
+    return newHampshireZipCityToDistricts[key] || [];
+  }
+
+  return [];
+}
 
 export default function SignupOfficialPage() {
   const supabase = createClient();
@@ -13,10 +83,36 @@ export default function SignupOfficialPage() {
   const [officialLevel, setOfficialLevel] = useState("");
   const [officeName, setOfficeName] = useState("");
   const [designation, setDesignation] = useState("");
-  const [jurisdiction, setJurisdiction] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const districtOptions = useMemo(() => {
+    if (!state || !city || !zipCode || !/^\d{5}$/.test(zipCode.trim())) {
+      return [];
+    }
+
+    if (officialLevel === "state" || officialLevel === "federal") {
+      if (state === "Texas") {
+        return [{ value: "TX", label: "State of Texas" }];
+      }
+      if (state === "New Hampshire") {
+        return [{ value: "NH", label: "New Hampshire" }];
+      }
+    }
+
+    return resolveDistrictOptions(state, city, zipCode);
+  }, [state, city, zipCode, officialLevel]);
+
+  const showDistrictConfirmation =
+    Boolean(state) &&
+    Boolean(city.trim()) &&
+    /^\d{5}$/.test(zipCode.trim()) &&
+    Boolean(officialLevel);
 
   const handleOfficialSignup = async () => {
     setError("");
@@ -29,9 +125,30 @@ export default function SignupOfficialPage() {
       !officialLevel.trim() ||
       !officeName.trim() ||
       !designation.trim() ||
-      !jurisdiction.trim()
+      !state.trim() ||
+      !city.trim() ||
+      !zipCode.trim()
     ) {
       setError("Please complete all fields.");
+      return;
+    }
+
+    const normalizedZip = zipCode.trim();
+
+    if (!/^\d{5}$/.test(normalizedZip)) {
+      setError("Please enter a valid 5-digit ZIP code.");
+      return;
+    }
+
+    if (districtOptions.length === 0) {
+      setError(
+        "We could not estimate a district or jurisdiction from this city and ZIP code yet. Please review your details."
+      );
+      return;
+    }
+
+    if (!selectedDistrict) {
+      setError("Please confirm your district or jurisdiction before creating the account.");
       return;
     }
 
@@ -47,13 +164,17 @@ export default function SignupOfficialPage() {
           official_level: officialLevel,
           office_name: officeName,
           designation: designation,
-          jurisdiction: jurisdiction,
+          state: state,
+          city: toTitleCase(city),
+          zip_code: normalizedZip,
+          district_id: selectedDistrict,
+          jurisdiction: selectedDistrict,
           verified: false,
         },
       },
     });
 
-    console.log("OFFICIAL_SIGNUP_RESULT:", { data, error });
+    console.log("OFFICIAL_SIGNUP_RESULT:", { data, error, selectedDistrict });
 
     if (error) {
       const msg = error.message.toLowerCase();
@@ -76,7 +197,7 @@ export default function SignupOfficialPage() {
 
     if (!data.session) {
       setInfo(
-        "Official account created or already exists. Please check your email or login."
+        `Official account created or already exists. Jurisdiction confirmed as ${selectedDistrict}. Please check your email or login.`
       );
       setLoading(false);
 
@@ -102,8 +223,8 @@ export default function SignupOfficialPage() {
             Government & Official Registration
           </h1>
           <p className="mt-3 text-lg leading-8 text-slate-600">
-            Create an official CivixOS account to publish updates, engage with
-            constituents, and monitor district sentiment.
+            Create an official CivixOS account to publish updates, engage with constituents,
+            and monitor district sentiment.
           </p>
         </div>
 
@@ -133,8 +254,7 @@ export default function SignupOfficialPage() {
               placeholder="Enter your government or official email"
             />
             <p className="mt-2 text-xs text-slate-500">
-              Use your official government or organization email for faster
-              verification.
+              Use your official government or organization email for faster verification.
             </p>
           </div>
 
@@ -157,7 +277,12 @@ export default function SignupOfficialPage() {
             </label>
             <select
               value={officialLevel}
-              onChange={(e) => setOfficialLevel(e.target.value)}
+              onChange={(e) => {
+                setOfficialLevel(e.target.value);
+                setSelectedDistrict("");
+                setError("");
+                setInfo("");
+              }}
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-green-600"
             >
               <option value="">Select level</option>
@@ -193,22 +318,98 @@ export default function SignupOfficialPage() {
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Jurisdiction
+              State
             </label>
             <select
-              value={jurisdiction}
-              onChange={(e) => setJurisdiction(e.target.value)}
+              value={state}
+              onChange={(e) => {
+                setState(e.target.value);
+                setCity("");
+                setZipCode("");
+                setSelectedDistrict("");
+                setError("");
+                setInfo("");
+              }}
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-green-600"
             >
-              <option value="">Select jurisdiction</option>
-              <option value="District 12">District 12</option>
-              <option value="State of Texas">State of Texas</option>
+              <option value="">Select state</option>
+              <option value="Texas">Texas</option>
               <option value="New Hampshire">New Hampshire</option>
-              <option value="United States Federal">United States Federal</option>
             </select>
           </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              City
+            </label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => {
+                setCity(e.target.value);
+                setSelectedDistrict("");
+                setError("");
+                setInfo("");
+              }}
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-green-600"
+              placeholder={state ? "Enter your city" : "Select state first"}
+              disabled={!state}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              ZIP code
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={5}
+              value={zipCode}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                setZipCode(value);
+                setSelectedDistrict("");
+                setError("");
+                setInfo("");
+              }}
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-green-600"
+              placeholder={state ? "Enter your ZIP code" : "Select state first"}
+              disabled={!state}
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              We’ll estimate the relevant district or jurisdiction from your state, city, and ZIP code.
+            </p>
+          </div>
+
+          {showDistrictConfirmation ? (
+            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Confirm district / jurisdiction
+              </label>
+
+              {districtOptions.length > 0 ? (
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-green-600"
+                >
+                  <option value="">Select district / jurisdiction</option>
+                  {districtOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                  We could not estimate a district or jurisdiction from this city and ZIP code yet.
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <button
