@@ -39,7 +39,15 @@ type CommentRow = {
   created_at?: string | null;
 };
 
+type ProfileRow = {
+  id: string;
+  full_name?: string | null;
+  name?: string | null;
+  email?: string | null;
+};
+
 type CommentMap = Record<string, CommentRow[]>;
+type ProfileNameMap = Record<string, string>;
 
 function getStatusStyles(status: FeedPost["status"]) {
   switch (status) {
@@ -154,6 +162,14 @@ function inferCategory(title: string, description: string) {
   return "General";
 }
 
+function getProfileDisplayName(profile?: ProfileRow | null) {
+  if (!profile) return "Citizen";
+  if (profile.full_name?.trim()) return profile.full_name.trim();
+  if (profile.name?.trim()) return profile.name.trim();
+  if (profile.email?.trim()) return profile.email.split("@")[0];
+  return "Citizen";
+}
+
 export default function FeedPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -172,6 +188,7 @@ export default function FeedPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [commentsByIssue, setCommentsByIssue] = useState<CommentMap>({});
+  const [commenterNames, setCommenterNames] = useState<ProfileNameMap>({});
   const [openCommentsFor, setOpenCommentsFor] = useState<
     Record<string, boolean>
   >({});
@@ -311,6 +328,33 @@ export default function FeedPage() {
 
         setCommentsByIssue(groupedComments);
 
+        const commentUserIds = Array.from(
+          new Set(
+            ((commentsData as CommentRow[]) || [])
+              .map((row) => row.user_id)
+              .filter(Boolean) as string[]
+          )
+        );
+
+        if (commentUserIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, full_name, name, email")
+            .in("id", commentUserIds);
+
+          if (profilesError) {
+            console.error("Profiles load error:", profilesError);
+          }
+
+          const nameMap: ProfileNameMap = {};
+          ((profilesData as ProfileRow[]) || []).forEach((profile) => {
+            nameMap[profile.id] = getProfileDisplayName(profile);
+          });
+          setCommenterNames(nameMap);
+        } else {
+          setCommenterNames({});
+        }
+
         const mappedPosts: FeedPost[] = issues.map((issue, index) => ({
           id: issue.id ?? String(index),
           title: issue.title || "Untitled issue",
@@ -351,10 +395,8 @@ export default function FeedPage() {
         post.category.toLowerCase().includes(q);
 
       const matchesType = typeFilter === "All" || post.category === typeFilter;
-
       const matchesStatus =
         statusFilter === "All" || post.status === statusFilter;
-
       const matchesUrgency =
         urgencyFilter === "All" || post.urgency === urgencyFilter;
 
@@ -506,6 +548,27 @@ export default function FeedPage() {
         return;
       }
 
+      const newComment = data as CommentRow;
+
+      let newCommenterName = "You";
+
+      if (currentUserId) {
+        const { data: currentProfile } = await supabase
+          .from("profiles")
+          .select("id, full_name, name, email")
+          .eq("id", currentUserId)
+          .maybeSingle();
+
+        if (currentProfile) {
+          newCommenterName = getProfileDisplayName(currentProfile as ProfileRow);
+        }
+      }
+
+      setCommenterNames((prev) => ({
+        ...prev,
+        ...(currentUserId ? { [currentUserId]: newCommenterName } : {}),
+      }));
+
       setCommentDrafts((prev) => ({
         ...prev,
         [issueId]: "",
@@ -513,7 +576,7 @@ export default function FeedPage() {
 
       setCommentsByIssue((prev) => ({
         ...prev,
-        [issueId]: [data as CommentRow, ...(prev[issueId] || [])],
+        [issueId]: [newComment, ...(prev[issueId] || [])],
       }));
 
       setFeedPosts((prev) =>
@@ -727,19 +790,33 @@ export default function FeedPage() {
                                   No comments yet.
                                 </p>
                               ) : (
-                                issueComments.map((comment, idx) => (
-                                  <div
-                                    key={comment.id || `${issueId}-${idx}`}
-                                    className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700"
-                                  >
-                                    <div>{comment.content || "No comment text"}</div>
-                                    {comment.created_at ? (
-                                      <div className="mt-1 text-xs text-slate-400">
-                                        {new Date(comment.created_at).toLocaleString()}
+                                issueComments.map((comment, idx) => {
+                                  const commenterName =
+                                    (comment.user_id &&
+                                      commenterNames[comment.user_id]) ||
+                                    "Citizen";
+
+                                  return (
+                                    <div
+                                      key={comment.id || `${issueId}-${idx}`}
+                                      className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700"
+                                    >
+                                      <div className="font-semibold text-slate-900">
+                                        {commenterName}
                                       </div>
-                                    ) : null}
-                                  </div>
-                                ))
+                                      <div className="mt-1">
+                                        {comment.content || "No comment text"}
+                                      </div>
+                                      {comment.created_at ? (
+                                        <div className="mt-1 text-xs text-slate-400">
+                                          {new Date(
+                                            comment.created_at
+                                          ).toLocaleString()}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })
                               )}
                             </div>
                           </div>
