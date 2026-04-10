@@ -18,6 +18,13 @@ export default function LoginPage() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  function getRedirectPath(accountType?: string | null) {
+    if (accountType === "official") {
+      return "/official-dashboard";
+    }
+    return "/dashboard";
+  }
+
   async function handleEmailLogin(e: FormEvent) {
     e.preventDefault();
     setMessage("");
@@ -35,17 +42,11 @@ export default function LoginPage() {
     }
 
     const accountType = data.user?.user_metadata?.account_type;
+    const redirectPath = getRedirectPath(accountType);
 
     setMessage("Login successful. Redirecting...");
     setLoading(false);
-
-    if (accountType === "official") {
-      router.push("/dashboard");
-      router.refresh();
-      return;
-    }
-
-    router.push("/dashboard");
+    router.push(redirectPath);
     router.refresh();
   }
 
@@ -122,6 +123,9 @@ export default function LoginPage() {
         JSON.stringify({
           name: "Guest Citizen",
           role: "guest",
+          account_type: "citizen",
+          state: "Texas",
+          district_id: "TX-20",
         })
       );
 
