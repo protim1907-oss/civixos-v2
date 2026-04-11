@@ -27,6 +27,14 @@ type Representative = {
   is_active: boolean | null;
 };
 
+const LOCAL_HEADSHOTS: Record<string, string> = {
+  "kelly ayotte": "/officials/kelly-ayotte.jpg",
+  "jeanne shaheen": "/officials/jeanne-shaheen.jpg",
+  "maggie hassan": "/officials/maggie-hassan.jpg",
+  "chris pappas": "/officials/chris-pappas.jpg",
+  "maggie goodlander": "/officials/maggie-goodlander.jpg",
+};
+
 function getDisplayName(rep: Representative) {
   return rep.name || rep.full_name;
 }
@@ -36,7 +44,10 @@ function getDisplayOffice(rep: Representative) {
 }
 
 function getDisplayPhoto(rep: Representative) {
+  const key = getDisplayName(rep).trim().toLowerCase();
+
   return (
+    LOCAL_HEADSHOTS[key] ||
     rep.photo ||
     rep.photo_url ||
     "https://placehold.co/300x300/e2e8f0/334155?text=Profile"
@@ -140,14 +151,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH",
       party: "Republican",
-      photo_url: "https://placehold.co/300x300/e2e8f0/334155?text=Kelly+Ayotte",
+      photo_url: "/officials/kelly-ayotte.jpg",
       email: null,
       linkedin_url: "https://www.governor.nh.gov/",
       created_at: new Date().toISOString(),
       name: "Kelly Ayotte",
       office: "Governor of New Hampshire",
       level: "State",
-      photo: "https://placehold.co/300x300/e2e8f0/334155?text=Kelly+Ayotte",
+      photo: "/officials/kelly-ayotte.jpg",
       linkedin: "https://www.governor.nh.gov/",
       chat_href: "#",
       email_href: "https://www.governor.nh.gov/contact-governor-ayotte",
@@ -162,14 +173,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH",
       party: "Democratic",
-      photo_url: "https://placehold.co/300x300/e2e8f0/334155?text=Jeanne+Shaheen",
+      photo_url: "/officials/jeanne-shaheen.jpg",
       email: null,
       linkedin_url: "https://www.shaheen.senate.gov/",
       created_at: new Date().toISOString(),
       name: "Jeanne Shaheen",
       office: "United States Senator",
       level: "Senate",
-      photo: "https://placehold.co/300x300/e2e8f0/334155?text=Jeanne+Shaheen",
+      photo: "/officials/jeanne-shaheen.jpg",
       linkedin: "https://www.shaheen.senate.gov/",
       chat_href: "#",
       email_href: "https://www.shaheen.senate.gov/contact/contact-jeanne",
@@ -184,14 +195,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH",
       party: "Democratic",
-      photo_url: "https://placehold.co/300x300/e2e8f0/334155?text=Maggie+Hassan",
+      photo_url: "/officials/maggie-hassan.jpg",
       email: null,
       linkedin_url: "https://www.hassan.senate.gov/",
       created_at: new Date().toISOString(),
       name: "Maggie Hassan",
       office: "United States Senator",
       level: "Senate",
-      photo: "https://placehold.co/300x300/e2e8f0/334155?text=Maggie+Hassan",
+      photo: "/officials/maggie-hassan.jpg",
       linkedin: "https://www.hassan.senate.gov/",
       chat_href: "#",
       email_href: "https://www.hassan.senate.gov/contact/email",
@@ -206,14 +217,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH-01",
       party: "Democratic",
-      photo_url: "https://placehold.co/300x300/e2e8f0/334155?text=Chris+Pappas",
+      photo_url: "/officials/chris-pappas.jpg",
       email: null,
       linkedin_url: "https://pappas.house.gov/",
       created_at: new Date().toISOString(),
       name: "Chris Pappas",
       office: "U.S. Representative for New Hampshire's 1st District",
       level: "Congress",
-      photo: "https://placehold.co/300x300/e2e8f0/334155?text=Chris+Pappas",
+      photo: "/officials/chris-pappas.jpg",
       linkedin: "https://pappas.house.gov/",
       chat_href: "#",
       email_href: "https://pappas.house.gov/contact",
@@ -228,14 +239,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH-02",
       party: "Democratic",
-      photo_url: "https://placehold.co/300x300/e2e8f0/334155?text=Maggie+Goodlander",
+      photo_url: "/officials/maggie-goodlander.jpg",
       email: null,
       linkedin_url: "https://goodlander.house.gov/",
       created_at: new Date().toISOString(),
       name: "Maggie Goodlander",
       office: "U.S. Representative for New Hampshire's 2nd District",
       level: "Congress",
-      photo: "https://placehold.co/300x300/e2e8f0/334155?text=Maggie+Goodlander",
+      photo: "/officials/maggie-goodlander.jpg",
       linkedin: "https://goodlander.house.gov/",
       chat_href: "#",
       email_href: "https://goodlander.house.gov/contact",
@@ -287,7 +298,6 @@ function matchesDistrictRepresentative(
       if (normalizedUserDistrict === "NH") {
         return repDistrict === "NH-01" || repDistrict === "NH-02";
       }
-
       return repDistrict === normalizedUserDistrict;
     }
 
@@ -300,6 +310,20 @@ function matchesDistrictRepresentative(
   if (level === "Local") return repDistrict === normalizedUserDistrict;
 
   return false;
+}
+
+function sortStatewideLeadership(reps: Representative[]) {
+  const order: Record<string, number> = {
+    "jeanne shaheen": 1,
+    "maggie hassan": 2,
+    "kelly ayotte": 3,
+  };
+
+  return [...reps].sort((a, b) => {
+    const aKey = getDisplayName(a).trim().toLowerCase();
+    const bKey = getDisplayName(b).trim().toLowerCase();
+    return (order[aKey] ?? 99) - (order[bKey] ?? 99);
+  });
 }
 
 export default function MyRepresentativesPage() {
@@ -394,7 +418,6 @@ export default function MyRepresentativesPage() {
             district
           );
 
-          console.log("Representatives loaded:", merged);
           setRepresentatives(merged);
         }
       } catch (error) {
@@ -453,6 +476,10 @@ export default function MyRepresentativesPage() {
   const districtRepresentatives = useMemo(() => {
     return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "Congress");
   }, [visibleRepresentatives]);
+
+  const statewideLeadership = useMemo(() => {
+    return sortStatewideLeadership([...senateRepresentatives, ...stateRepresentatives]);
+  }, [senateRepresentatives, stateRepresentatives]);
 
   const primaryCardTitle = useMemo(() => {
     if (normalizeDistrict(userDistrict) === "NH") {
@@ -515,7 +542,7 @@ export default function MyRepresentativesPage() {
               <p className="mt-2 text-sm text-red-700">{loadError}</p>
               <p className="mt-2 text-sm text-red-600">
                 Most likely cause: your RLS/select policy is blocking reads from the
-                `representatives` table.
+                representatives table.
               </p>
             </section>
           ) : null}
@@ -595,8 +622,6 @@ export default function MyRepresentativesPage() {
                   </h2>
                   <p className="mt-3 max-w-4xl text-base text-slate-600">
                     Federal, state, and statewide leaders relevant to your district are shown below.
-                    The page prioritizes your district representative first, followed by statewide
-                    contacts.
                   </p>
                 </div>
 
@@ -638,9 +663,7 @@ export default function MyRepresentativesPage() {
                               />
 
                               <div
-                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                                  level
-                                )}`}
+                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(level)}`}
                               >
                                 {level}
                               </div>
@@ -687,13 +710,13 @@ export default function MyRepresentativesPage() {
                   </div>
                 ) : null}
 
-                {senateRepresentatives.length > 0 ? (
+                {statewideLeadership.length > 0 ? (
                   <div className="mt-8">
                     <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Senate Representation
+                      Statewide Leadership
                     </p>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      {senateRepresentatives.map((rep) => {
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                      {statewideLeadership.map((rep) => {
                         const level = getDisplayLevel(rep);
                         return (
                           <article
@@ -712,80 +735,7 @@ export default function MyRepresentativesPage() {
                               />
 
                               <div
-                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                                  level
-                                )}`}
-                              >
-                                {level}
-                              </div>
-
-                              <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                                {getDisplayName(rep)}
-                              </h2>
-                              <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
-                            </div>
-
-                            <div className="mt-6 space-y-3">
-                              <a
-                                href={rep.chat_href || "#"}
-                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                              >
-                                Chat with Representative
-                              </a>
-
-                              <a
-                                href={getDisplayEmailHref(rep)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                              >
-                                Send Email
-                              </a>
-
-                              <a
-                                href={getDisplayWebsite(rep)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                              >
-                                Official Website
-                              </a>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-
-                {stateRepresentatives.length > 0 ? (
-                  <div className="mt-8">
-                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Statewide Offices
-                    </p>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      {stateRepresentatives.map((rep) => {
-                        const level = getDisplayLevel(rep);
-                        return (
-                          <article
-                            key={rep.id}
-                            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                          >
-                            <div className="flex flex-col items-center text-center">
-                              <img
-                                src={getDisplayPhoto(rep)}
-                                alt={getDisplayName(rep)}
-                                className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src =
-                                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                                }}
-                              />
-
-                              <div
-                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(
-                                  level
-                                )}`}
+                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(level)}`}
                               >
                                 {level}
                               </div>
