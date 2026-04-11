@@ -63,29 +63,31 @@ export default function LoginPage() {
   }
 
   async function handleEmailLogin(e: FormEvent) {
-    e.preventDefault();
-    setMessage("");
-    setLoading(true);
+  e.preventDefault();
+  setMessage("");
+  setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) {
-      setMessage(error.message || "Invalid login credentials");
-      setLoading(false);
-      return;
-    }
-
-    const accountType = data.user?.user_metadata?.account_type;
-    const redirectPath = getRedirectPath(accountType);
-
-    setMessage("Login successful. Redirecting...");
+  if (error) {
+    setMessage(error.message || "Invalid login credentials");
     setLoading(false);
-    router.push(redirectPath);
-    router.refresh();
+    return;
   }
+
+  const accountType = data.user?.user_metadata?.account_type;
+  const redirectPath = getRedirectPath(accountType);
+
+  setMessage("Login successful. Redirecting...");
+
+  // ✅ CRITICAL FIX
+  setTimeout(() => {
+    window.location.href = redirectPath;
+  }, 200);
+}
 
   async function handleMobileLogin(e: FormEvent) {
     e.preventDefault();
