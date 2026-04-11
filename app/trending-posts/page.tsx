@@ -9,6 +9,7 @@ import {
   Activity,
   ExternalLink,
 } from "lucide-react";
+import TrendingNewsActions from "@/components/trending/TrendingNewsActions";
 
 type FeedItem = {
   title: string;
@@ -64,6 +65,15 @@ function inferRegionFromUserMetadata(
     };
   }
 
+  if (value.includes("florida") || value === "fl" || value.startsWith("fl-")) {
+    return {
+      stateName: "Florida",
+      districtLabel: String(rawDistrict),
+      feedLabel: "Florida News",
+      query: "Florida",
+    };
+  }
+
   return {
     stateName: "Your State",
     districtLabel: String(rawDistrict),
@@ -100,7 +110,11 @@ function buildGoogleNewsRssUrl(query: string) {
 
 function stripHtml(value?: string) {
   if (!value) return "";
-  return value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function getStateNews(region: RegionInfo): Promise<FeedItem[]> {
@@ -221,17 +235,9 @@ function extractTrendingTopics(news: FeedItem[]) {
 
   const matched = topicBank.filter((topic) => text.includes(topic.toLowerCase()));
 
-  if (matched.length >= 3) {
-    return matched.slice(0, 3);
-  }
-
-  if (matched.length === 2) {
-    return [...matched, "community"];
-  }
-
-  if (matched.length === 1) {
-    return [matched[0], "community", "local updates"];
-  }
+  if (matched.length >= 3) return matched.slice(0, 3);
+  if (matched.length === 2) return [...matched, "community"];
+  if (matched.length === 1) return [matched[0], "community", "local updates"];
 
   return ["community", "policy", "local updates"];
 }
@@ -272,8 +278,8 @@ function getCitizenPulse(news: FeedItem[]) {
     label: "General local activity",
     description:
       "The feed reflects a mix of local updates and community interest topics across the region.",
-    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  };
+      tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    };
 }
 
 export default async function TrendingPostsPage() {
@@ -290,7 +296,6 @@ export default async function TrendingPostsPage() {
     <main className="min-h-screen bg-slate-100">
       <div className="w-full p-4 md:p-6 xl:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
-          {/* HEADER */}
           <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-6 md:px-8">
               <p className="text-sm font-medium text-blue-100/80">Trending Posts</p>
@@ -328,59 +333,58 @@ export default async function TrendingPostsPage() {
             </div>
           </section>
 
-          {/* CONTENT + SIDEBAR */}
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            {/* NEWS LIST */}
             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
               <div className="space-y-4">
                 {news.map((item, index) => (
-                  <a
+                  <div
                     key={`${item.link}-${index}`}
-                    href={item.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block"
+                    className="rounded-3xl border border-slate-300 p-6 transition hover:bg-slate-50"
                   >
-                    <div className="rounded-3xl border border-slate-300 p-6 transition hover:bg-slate-50">
-                      <div className="flex gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 font-bold text-red-600">
-                          {index + 1}
+                    <div className="flex gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 font-bold text-red-600">
+                        {index + 1}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
+
+                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                          {item.description}
+                        </p>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                            <Clock3 className="h-4 w-4" />
+                            {formatDate(item.pubDate)}
+                          </span>
+
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                            <Newspaper className="h-4 w-4" />
+                            {item.source || "News Source"}
+                          </span>
                         </div>
 
-                        <div className="min-w-0">
-                          <h3 className="text-xl font-bold text-slate-900">
-                            {item.title}
-                          </h3>
-
-                          <p className="mt-2 text-sm leading-6 text-gray-600">
-                            {item.description}
-                          </p>
-
-                          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                              <Clock3 className="h-4 w-4" />
-                              {formatDate(item.pubDate)}
-                            </span>
-
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-                              <Newspaper className="h-4 w-4" />
-                              {item.source || "News Source"}
-                            </span>
-                          </div>
-
-                          <p className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600">
+                        <div className="mt-4">
+                          <a
+                            href={item.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600"
+                          >
                             Read full story
                             <ExternalLink className="h-4 w-4" />
-                          </p>
+                          </a>
                         </div>
+
+                        <TrendingNewsActions title={item.title} link={item.link} />
                       </div>
                     </div>
-                  </a>
+                  </div>
                 ))}
               </div>
             </div>
 
-            {/* SMART SIDEBAR */}
             <aside className="space-y-4">
               <div className="sticky top-6 space-y-4">
                 <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
