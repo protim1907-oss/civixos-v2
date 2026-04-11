@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { XMLParser } from "fast-xml-parser";
+import { createClient } from "@/lib/supabase/server";
 
 type FeedItem = {
   title: string;
@@ -9,10 +10,93 @@ type FeedItem = {
   source?: string;
 };
 
-async function getTexasNews(): Promise<FeedItem[]> {
+type RegionInfo = {
+  stateName: string;
+  districtLabel: string;
+  feedLabel: string;
+  query: string;
+};
+
+function inferRegionFromUserMetadata(userMetadata: Record<string, any> | undefined): RegionInfo {
+  const rawDistrict =
+    userMetadata?.district ||
+    userMetadata?.district_name ||
+    userMetadata?.district_id ||
+    userMetadata?.state ||
+    "District 12";
+
+  const value = String(rawDistrict).toLowerCase();
+
+  if (value.includes("new hampshire") || value === "nh" || value.startsWith("nh-")) {
+    return {
+      stateName: "New Hampshire",
+      districtLabel: String(rawDistrict),
+      feedLabel: "NH News",
+      query: "New Hampshire",
+    };
+  }
+
+  if (value.includes("texas") || value === "tx" || value.startsWith("tx-")) {
+    return {
+      stateName: "Texas",
+      districtLabel: String(rawDistrict),
+      feedLabel: "Texas News",
+      query: "Texas",
+    };
+  }
+
+  if (value.includes("california") || value === "ca" || value.startsWith("ca-")) {
+    return {
+      stateName: "California",
+      districtLabel: String(rawDistrict),
+      feedLabel: "California News",
+      query: "California",
+    };
+  }
+
+  return {
+    stateName: "Your State",
+    districtLabel: String(rawDistrict),
+    feedLabel: "State News",
+    query: String(rawDistrict),
+  };
+}
+
+async function getUserRegion(): Promise<RegionInfo> {
   try {
-    const res = await fetch("https://feeds.texastribune.org/feeds/main/", {
-      next: { revalidate: 1800 }, // refresh every 30 minutes
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    return inferRegionFromUserMetadata(user?.user_metadata);
+  } catch (error) {
+    console.error("Could not determine user region:", error);
+    return {
+      stateName: "Your State",
+      districtLabel: "District 12",
+      feedLabel: "State News",
+      query: "United States state news",
+    };
+  }
+}
+
+function buildGoogleNewsRssUrl(query: string) {
+  const rssQuery = `${query} when:7d`;
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(
+    rssQuery
+  )}&hl=en-US&gl=US&ceid=US:en`;
+}
+
+function stripHtml(value?: string) {
+  if (!value) return "";
+  return value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+async function getStateNews(region: RegionInfo): Promise<FeedItem[]> {
+  try {
+    const res = await fetch(buildGoogleNewsRssUrl(region.query), {
+      next: { revalidate: 1800 },
       headers: {
         "User-Agent": "Mozilla/5.0",
       },
@@ -32,7 +116,6 @@ async function getTexasNews(): Promise<FeedItem[]> {
 
     const parsed = parser.parse(xml);
     const rawItems = parsed?.rss?.channel?.item ?? [];
-
     const items = Array.isArray(rawItems) ? rawItems : [rawItems];
 
     return items
@@ -43,17 +126,19 @@ async function getTexasNews(): Promise<FeedItem[]> {
         link: item.link,
         pubDate: item.pubDate,
         description:
-          typeof item.description === "string"
-            ? item.description.replace(/<[^>]+>/g, "").trim()
-            : "Latest Texas news update.",
-        source: "The Texas Tribune",
+          stripHtml(item.description) ||
+          `Latest news update for ${region.stateName}.`,
+        source:
+          item?.source?.["#text"] ||
+          item?.source ||
+          "Google News",
       }));
   } catch (error) {
-    console.error("Texas news fetch error:", error);
+    console.error(`${region.stateName} news fetch error:`, error);
 
     return [
       {
-        title: "Unable to load live Texas news right now",
+        title: `Unable to load live ${region.stateName} news right now`,
         link: "/dashboard",
         description:
           "The live feed is temporarily unavailable. Please try again shortly.",
@@ -75,18 +160,28 @@ function formatDate(dateString?: string) {
 }
 
 export default async function TrendingPostsPage() {
-  const news = await getTexasNews();
+  const region = await getUserRegion();
+  const news = await getStateNews(region);
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8">
       <div className="mx-auto max-w-7xl space-y-8">
         <section className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Texas News Desk</p>
+          <p className="text-sm font-medium text-slate-500">
+            {region.stateName} News Desk
+          </p>
+
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
-            Top 5 News in the State of Texas
+            Top 5 News in {region.stateName}
           </h1>
+
           <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600">
-            Live stories auto-loaded from a Texas news feed.
+            Live stories auto-loaded for {region.stateName}. Current district:
+            {" "}
+            <span className="font-semibold text-slate-900">
+              {region.districtLabel}
+            </span>
+            .
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -120,7 +215,7 @@ export default async function TrendingPostsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                        Texas News
+                        {region.feedLabel}
                       </span>
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                         {item.source || "Source"}
@@ -135,7 +230,7 @@ export default async function TrendingPostsPage() {
                     </h2>
 
                     <p className="mt-3 text-base leading-7 text-slate-600">
-                      {item.description || "Read the latest Texas news story."}
+                      {item.description || `Read the latest ${region.stateName} news story.`}
                     </p>
 
                     <p className="mt-4 text-sm font-medium text-blue-600">
@@ -151,21 +246,21 @@ export default async function TrendingPostsPage() {
             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-medium text-slate-500">How this works</p>
               <h3 className="mt-2 text-2xl font-bold text-slate-900">
-                Live Texas feed
+                Live {region.stateName} feed
               </h3>
 
               <div className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
                 <p>
-                  This page fetches the latest stories from a Texas news RSS feed
-                  each time the cache refreshes.
+                  This page fetches the latest stories for {region.stateName}
+                  {" "}each time the cache refreshes.
                 </p>
                 <p>
                   Stories are refreshed every 30 minutes using Next.js server-side
                   revalidation.
                 </p>
                 <p>
-                  You can later swap this feed for a paid news API if you want
-                  broader multi-source coverage.
+                  The feed adapts to the logged-in user’s district or state
+                  instead of showing Texas for every user.
                 </p>
               </div>
             </div>
