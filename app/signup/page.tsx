@@ -33,7 +33,6 @@ const texasZipToDistricts: Record<string, DistrictOption[]> = {
   "78748": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
   "78749": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
   "78751": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
-  "78681": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
   "76102": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
   "76107": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
   "76114": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
