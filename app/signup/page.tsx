@@ -9,127 +9,54 @@ type DistrictOption = {
   label: string;
 };
 
-const texasZipCityToDistricts: Record<string, DistrictOption[]> = {
-  "San Antonio|78207": [
-    { value: "TX-20", label: "Texas 20th District (TX-20)" },
-  ],
-  "San Antonio|78228": [
-    { value: "TX-20", label: "Texas 20th District (TX-20)" },
-  ],
-  "San Antonio|78237": [
-    { value: "TX-20", label: "Texas 20th District (TX-20)" },
-  ],
-  "San Antonio|78201": [
-    { value: "TX-20", label: "Texas 20th District (TX-20)" },
-  ],
-  "San Antonio|78202": [
-    { value: "TX-20", label: "Texas 20th District (TX-20)" },
-  ],
-  "Austin|78701": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78702": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78703": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78704": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78705": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78721": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78722": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78723": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78724": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78725": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78741": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78742": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78744": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78745": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78747": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78748": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78749": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Austin|78751": [
-    { value: "TX-35", label: "Texas 35th District (TX-35)" },
-  ],
-  "Fort Worth|76102": [
-    { value: "TX-12", label: "Texas 12th District (TX-12)" },
-  ],
-  "Fort Worth|76107": [
-    { value: "TX-12", label: "Texas 12th District (TX-12)" },
-  ],
-  "Fort Worth|76114": [
-    { value: "TX-12", label: "Texas 12th District (TX-12)" },
-  ],
-  "Fort Worth|76116": [
-    { value: "TX-12", label: "Texas 12th District (TX-12)" },
-  ],
-  "Fort Worth|76135": [
-    { value: "TX-12", label: "Texas 12th District (TX-12)" },
-  ],
+const texasZipToDistricts: Record<string, DistrictOption[]> = {
+  "78207": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "78228": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "78237": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "78201": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "78202": [{ value: "TX-20", label: "Texas 20th District (TX-20)" }],
+  "78701": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78702": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78703": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78704": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78705": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78721": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78722": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78723": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78724": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78725": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78741": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78742": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78744": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78745": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78747": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78748": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78749": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78751": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "78681": [{ value: "TX-35", label: "Texas 35th District (TX-35)" }],
+  "76102": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "76107": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "76114": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "76116": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
+  "76135": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
 };
 
-const newHampshireZipCityToDistricts: Record<string, DistrictOption[]> = {
-  "Manchester|03101": [{ value: "NH", label: "New Hampshire" }],
-  "Concord|03301": [{ value: "NH", label: "New Hampshire" }],
-  "Nashua|03060": [{ value: "NH", label: "New Hampshire" }],
+const newHampshireZipToDistricts: Record<string, DistrictOption[]> = {
+  "03101": [{ value: "NH", label: "New Hampshire" }],
+  "03301": [{ value: "NH", label: "New Hampshire" }],
+  "03060": [{ value: "NH", label: "New Hampshire" }],
 };
 
-const californiaZipCityToDistricts: Record<string, DistrictOption[]> = {
-  "San Francisco|94102": [
-    { value: "CA-11", label: "California 11th District (CA-11)" },
-  ],
-  "San Francisco|94103": [
-    { value: "CA-11", label: "California 11th District (CA-11)" },
-  ],
-  "San Francisco|94107": [
-    { value: "CA-11", label: "California 11th District (CA-11)" },
-  ],
-  "Los Angeles|90012": [
-    { value: "CA-34", label: "California 34th District (CA-34)" },
-  ],
-  "Los Angeles|90013": [
-    { value: "CA-34", label: "California 34th District (CA-34)" },
-  ],
-  "Los Angeles|90017": [
-    { value: "CA-34", label: "California 34th District (CA-34)" },
-  ],
-  "San Diego|92101": [
-    { value: "CA-51", label: "California 51st District (CA-51)" },
-  ],
-  "San Diego|92102": [
-    { value: "CA-51", label: "California 51st District (CA-51)" },
-  ],
-  "San Diego|92113": [
-    { value: "CA-51", label: "California 51st District (CA-51)" },
-  ],
+const californiaZipToDistricts: Record<string, DistrictOption[]> = {
+  "94102": [{ value: "CA-11", label: "California 11th District (CA-11)" }],
+  "94103": [{ value: "CA-11", label: "California 11th District (CA-11)" }],
+  "94107": [{ value: "CA-11", label: "California 11th District (CA-11)" }],
+  "90012": [{ value: "CA-34", label: "California 34th District (CA-34)" }],
+  "90013": [{ value: "CA-34", label: "California 34th District (CA-34)" }],
+  "90017": [{ value: "CA-34", label: "California 34th District (CA-34)" }],
+  "92101": [{ value: "CA-51", label: "California 51st District (CA-51)" }],
+  "92102": [{ value: "CA-51", label: "California 51st District (CA-51)" }],
+  "92113": [{ value: "CA-51", label: "California 51st District (CA-51)" }],
 };
 
 function toTitleCase(value: string) {
@@ -142,21 +69,19 @@ function toTitleCase(value: string) {
     .join(" ");
 }
 
-function resolveDistrictOptions(state: string, city: string, zipCode: string): DistrictOption[] {
-  const normalizedCity = toTitleCase(city);
+function resolveDistrictOptions(state: string, zipCode: string): DistrictOption[] {
   const normalizedZip = zipCode.trim();
-  const key = `${normalizedCity}|${normalizedZip}`;
 
   if (state === "Texas") {
-    return texasZipCityToDistricts[key] || [];
+    return texasZipToDistricts[normalizedZip] || [];
   }
 
   if (state === "New Hampshire") {
-    return newHampshireZipCityToDistricts[key] || [];
+    return newHampshireZipToDistricts[normalizedZip] || [];
   }
 
   if (state === "California") {
-    return californiaZipCityToDistricts[key] || [];
+    return californiaZipToDistricts[normalizedZip] || [];
   }
 
   return [];
@@ -177,14 +102,14 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   const districtOptions = useMemo(() => {
-    if (!state || !city || !zipCode || !/^\d{5}$/.test(zipCode.trim())) {
+    if (!state || !zipCode || !/^\d{5}$/.test(zipCode.trim())) {
       return [];
     }
-    return resolveDistrictOptions(state, city, zipCode);
-  }, [state, city, zipCode]);
+    return resolveDistrictOptions(state, zipCode);
+  }, [state, zipCode]);
 
   const showDistrictConfirmation =
-    Boolean(state) && Boolean(city.trim()) && /^\d{5}$/.test(zipCode.trim());
+    Boolean(state) && /^\d{5}$/.test(zipCode.trim());
 
   const handleSignup = async () => {
     setError("");
@@ -229,7 +154,7 @@ export default function SignupPage() {
 
     if (districtOptions.length === 0) {
       setError(
-        "We could not estimate your district from that city and ZIP code yet. Please review your entry or try another location."
+        "We could not estimate your district from that ZIP code yet. Please review your entry or try another ZIP."
       );
       return;
     }
@@ -247,7 +172,7 @@ export default function SignupPage() {
       options: {
         data: {
           full_name: fullName,
-          state: state,
+          state,
           city: toTitleCase(city),
           zip_code: normalizedZip,
           district_id: selectedDistrict,
@@ -298,7 +223,7 @@ export default function SignupPage() {
     <div className="max-w-md mx-auto mt-10 p-6 border rounded-2xl shadow bg-white">
       <h1 className="text-3xl font-bold mb-2">CivixOS Onboarding</h1>
       <p className="text-gray-600 mb-6">
-        Create your citizen account and confirm your district using your state, city, and ZIP code.
+        Create your citizen account and confirm your district using your state and ZIP code.
       </p>
 
       <div className="mb-4">
@@ -340,7 +265,6 @@ export default function SignupPage() {
           value={state}
           onChange={(e) => {
             setState(e.target.value);
-            setCity("");
             setZipCode("");
             setSelectedDistrict("");
             setError("");
@@ -362,7 +286,6 @@ export default function SignupPage() {
           value={city}
           onChange={(e) => {
             setCity(e.target.value);
-            setSelectedDistrict("");
             setError("");
             setInfo("");
           }}
@@ -391,7 +314,7 @@ export default function SignupPage() {
           disabled={!state}
         />
         <p className="mt-2 text-xs text-gray-500">
-          We’ll estimate your district from your state, city, and ZIP code, and you’ll confirm it before signup.
+          We’ll estimate your district from your state and ZIP code, and you’ll confirm it before signup.
         </p>
       </div>
 
@@ -414,7 +337,7 @@ export default function SignupPage() {
             </select>
           ) : (
             <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              We could not estimate a district from this city and ZIP code yet.
+              We could not estimate a district from this ZIP code yet.
             </div>
           )}
         </div>
