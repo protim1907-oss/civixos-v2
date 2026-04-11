@@ -92,42 +92,33 @@ export default function LoginPage() {
 }
 
   async function handleGoogleLogin() {
-    try {
-      setMessage("");
-      setGoogleLoading(true);
+  try {
+    setMessage("");
+    setGoogleLoading(true);
 
-      const redirectTo =
-  typeof window !== "undefined"
-    ? `${window.location.origin}/auth/callback?next=/dashboard`
-    : undefined;
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/auth/callback?next=/dashboard`
+        : undefined;
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: false,
-        },
-      });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+      },
+    });
 
-      if (error) {
-        setMessage(error.message || "Google login failed.");
-        setGoogleLoading(false);
-        return;
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      setMessage("Google login could not start. Check your Supabase Google OAuth settings.");
-      setGoogleLoading(false);
-    } catch (error) {
-      console.error("Google login error:", error);
-      setMessage("Something went wrong while starting Google login.");
-      setGoogleLoading(false);
+    if (error) {
+      console.error("Google login error:", error.message);
+      setMessage("Google login failed. Please try again.");
     }
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    setMessage("Something went wrong.");
+  } finally {
+    setGoogleLoading(false);
   }
+}
 
   async function handleGuestLogin() {
     try {
