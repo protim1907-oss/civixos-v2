@@ -3,61 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
-function DynamicRepresentativePhoto({
-  name,
-  alt,
-  className,
-}: {
-  name: string;
-  alt: string;
-  className?: string;
-}) {
-  const [src, setSrc] = useState(
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      name
-    )}&background=e2e8f0&color=334155&size=300`
-  );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadImage() {
-      try {
-        const res = await fetch(
-          `/api/representative-photo?name=${encodeURIComponent(name)}`
-        );
-        if (!res.ok) return;
-
-        const data = await res.json();
-        if (!cancelled && data?.imageUrl) {
-          setSrc(data.imageUrl);
-        }
-      } catch {
-        // keep fallback avatar
-      }
-    }
-
-    loadImage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [name]);
-
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).src =
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            name
-          )}&background=e2e8f0&color=334155&size=300`;
-      }}
-    />
-  );
-}
 type Representative = {
   id: string;
   full_name: string;
@@ -81,31 +27,12 @@ type Representative = {
   is_active: boolean | null;
 };
 
-const LOCAL_HEADSHOTS: Record<string, string> = {
-  "chris pappas": "https://upload.wikimedia.org/wikipedia/commons/9/94/Chris_Pappas%2C_official_portrait%2C_116th_Congress.jpg",
-  "maggie goodlander": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Maggie_Goodlander_official_photo.jpg",
-  "jeanne shaheen": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Jeanne_Shaheen%2C_official_portrait%2C_116th_Congress.jpg",
-  "maggie hassan": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Maggie_Hassan%2C_official_portrait%2C_116th_Congress.jpg",
-  "kelly ayotte": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Kelly_Ayotte_official_portrait.jpg",
-};
-
 function getDisplayName(rep: Representative) {
   return rep.name || rep.full_name;
 }
 
 function getDisplayOffice(rep: Representative) {
   return rep.office || rep.office_title;
-}
-
-function getDisplayPhoto(rep: Representative) {
-  const key = getDisplayName(rep).trim().toLowerCase();
-
-  return (
-    LOCAL_HEADSHOTS[key] ||
-    rep.photo ||
-    rep.photo_url ||
-    "https://placehold.co/300x300/e2e8f0/334155?text=Profile"
-  );
 }
 
 function getDisplayWebsite(rep: Representative) {
@@ -205,14 +132,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH",
       party: "Republican",
-      photo_url: "/officials/kelly-ayotte.jpg",
+      photo_url: null,
       email: null,
       linkedin_url: "https://www.governor.nh.gov/",
       created_at: new Date().toISOString(),
       name: "Kelly Ayotte",
       office: "Governor of New Hampshire",
       level: "State",
-      photo: "/officials/kelly-ayotte.jpg",
+      photo: null,
       linkedin: "https://www.governor.nh.gov/",
       chat_href: "#",
       email_href: "https://www.governor.nh.gov/contact-governor-ayotte",
@@ -227,14 +154,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH",
       party: "Democratic",
-      photo_url: "/officials/jeanne-shaheen.jpg",
+      photo_url: null,
       email: null,
       linkedin_url: "https://www.shaheen.senate.gov/",
       created_at: new Date().toISOString(),
       name: "Jeanne Shaheen",
       office: "United States Senator",
       level: "Senate",
-      photo: "/officials/jeanne-shaheen.jpg",
+      photo: null,
       linkedin: "https://www.shaheen.senate.gov/",
       chat_href: "#",
       email_href: "https://www.shaheen.senate.gov/contact/contact-jeanne",
@@ -249,14 +176,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH",
       party: "Democratic",
-      photo_url: "/officials/maggie-hassan.jpg",
+      photo_url: null,
       email: null,
       linkedin_url: "https://www.hassan.senate.gov/",
       created_at: new Date().toISOString(),
       name: "Maggie Hassan",
       office: "United States Senator",
       level: "Senate",
-      photo: "/officials/maggie-hassan.jpg",
+      photo: null,
       linkedin: "https://www.hassan.senate.gov/",
       chat_href: "#",
       email_href: "https://www.hassan.senate.gov/contact/email",
@@ -271,14 +198,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH-01",
       party: "Democratic",
-      photo_url: "/officials/chris-pappas.jpg",
+      photo_url: null,
       email: null,
       linkedin_url: "https://pappas.house.gov/",
       created_at: new Date().toISOString(),
       name: "Chris Pappas",
       office: "U.S. Representative for New Hampshire's 1st District",
       level: "Congress",
-      photo: "/officials/chris-pappas.jpg",
+      photo: null,
       linkedin: "https://pappas.house.gov/",
       chat_href: "#",
       email_href: "https://pappas.house.gov/contact",
@@ -293,14 +220,14 @@ function buildFallbackRepresentativesForNewHampshire(): Representative[] {
       state: "New Hampshire",
       district: "NH-02",
       party: "Democratic",
-      photo_url: "/officials/maggie-goodlander.jpg",
+      photo_url: null,
       email: null,
       linkedin_url: "https://goodlander.house.gov/",
       created_at: new Date().toISOString(),
       name: "Maggie Goodlander",
       office: "U.S. Representative for New Hampshire's 2nd District",
       level: "Congress",
-      photo: "/officials/maggie-goodlander.jpg",
+      photo: null,
       linkedin: "https://goodlander.house.gov/",
       chat_href: "#",
       email_href: "https://goodlander.house.gov/contact",
@@ -378,6 +305,60 @@ function sortStatewideLeadership(reps: Representative[]) {
     const bKey = getDisplayName(b).trim().toLowerCase();
     return (order[aKey] ?? 99) - (order[bKey] ?? 99);
   });
+}
+
+function DynamicRepresentativePhoto({
+  name,
+  alt,
+  className,
+}: {
+  name: string;
+  alt: string;
+  className?: string;
+}) {
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    name
+  )}&background=e2e8f0&color=334155&size=300`;
+
+  const [src, setSrc] = useState(fallback);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadImage() {
+      try {
+        const res = await fetch(
+          `/api/representative-photo?name=${encodeURIComponent(name)}`
+        );
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!cancelled && data?.imageUrl) {
+          setSrc(data.imageUrl);
+        }
+      } catch {
+        // keep fallback
+      }
+    }
+
+    loadImage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [name, fallback]);
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      referrerPolicy="no-referrer"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).src = fallback;
+      }}
+    />
+  );
 }
 
 export default function MyRepresentativesPage() {
@@ -489,7 +470,7 @@ export default function MyRepresentativesPage() {
     }
 
     loadPage();
-  }, [supabase]);
+  }, [supabase, userDistrict, userState]);
 
   const visibleRepresentatives = useMemo(() => {
     return representatives.filter((rep) =>
@@ -706,14 +687,10 @@ export default function MyRepresentativesPage() {
                             className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm transition hover:shadow-md"
                           >
                             <div className="flex flex-col items-center text-center">
-                              <img
-                                src={getDisplayPhoto(rep)}
+                              <DynamicRepresentativePhoto
+                                name={getDisplayName(rep)}
                                 alt={getDisplayName(rep)}
                                 className="h-28 w-28 rounded-full object-cover ring-4 ring-white"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src =
-                                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                                }}
                               />
 
                               <div
@@ -778,14 +755,10 @@ export default function MyRepresentativesPage() {
                             className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
                           >
                             <div className="flex flex-col items-center text-center">
-                              <img
-                                src={getDisplayPhoto(rep)}
+                              <DynamicRepresentativePhoto
+                                name={getDisplayName(rep)}
                                 alt={getDisplayName(rep)}
                                 className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src =
-                                    "https://placehold.co/300x300/e2e8f0/334155?text=Profile";
-                                }}
                               />
 
                               <div
