@@ -25,7 +25,9 @@ type RegionInfo = {
   query: string;
 };
 
-function inferRegionFromUserMetadata(userMetadata: Record<string, any> | undefined): RegionInfo {
+function inferRegionFromUserMetadata(
+  userMetadata: Record<string, any> | undefined
+): RegionInfo {
   const rawDistrict =
     userMetadata?.district ||
     userMetadata?.district_name ||
@@ -136,10 +138,7 @@ async function getStateNews(region: RegionInfo): Promise<FeedItem[]> {
         description:
           stripHtml(item.description) ||
           `Latest news update for ${region.stateName}.`,
-        source:
-          item?.source?.["#text"] ||
-          item?.source ||
-          "Google News",
+        source: item?.source?.["#text"] || item?.source || "Google News",
       }));
   } catch (error) {
     console.error(`${region.stateName} news fetch error:`, error);
@@ -193,26 +192,108 @@ function getTopSource(news: FeedItem[]) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
+function extractTrendingTopics(news: FeedItem[]) {
+  const text = news
+    .map((item) => `${item.title} ${item.description || ""}`)
+    .join(" ")
+    .toLowerCase();
+
+  const topicBank = [
+    "voting",
+    "election",
+    "education",
+    "housing",
+    "healthcare",
+    "transportation",
+    "immigration",
+    "tax",
+    "budget",
+    "economy",
+    "jobs",
+    "community",
+    "public safety",
+    "sports",
+    "climate",
+    "energy",
+    "technology",
+    "infrastructure",
+  ];
+
+  const matched = topicBank.filter((topic) => text.includes(topic.toLowerCase()));
+
+  if (matched.length >= 3) {
+    return matched.slice(0, 3);
+  }
+
+  if (matched.length === 2) {
+    return [...matched, "community"];
+  }
+
+  if (matched.length === 1) {
+    return [matched[0], "community", "local updates"];
+  }
+
+  return ["community", "policy", "local updates"];
+}
+
+function getCitizenPulse(news: FeedItem[]) {
+  const titles = news.map((item) => item.title.toLowerCase()).join(" ");
+
+  if (
+    titles.includes("vote") ||
+    titles.includes("bill") ||
+    titles.includes("law") ||
+    titles.includes("policy") ||
+    titles.includes("governor")
+  ) {
+    return {
+      label: "High civic attention",
+      description:
+        "This news cycle shows strong public-interest activity around government actions and civic issues.",
+      tone: "bg-red-50 text-red-700 border-red-200",
+    };
+  }
+
+  if (
+    titles.includes("school") ||
+    titles.includes("city") ||
+    titles.includes("community") ||
+    titles.includes("transport")
+  ) {
+    return {
+      label: "Moderate public discussion",
+      description:
+        "Stories suggest an active but balanced level of community discussion across the district.",
+      tone: "bg-amber-50 text-amber-700 border-amber-200",
+    };
+  }
+
+  return {
+    label: "General local activity",
+    description:
+      "The feed reflects a mix of local updates and community interest topics across the region.",
+    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  };
+}
+
 export default async function TrendingPostsPage() {
   const region = await getUserRegion();
   const news = await getStateNews(region);
 
   const topSource = getTopSource(news);
-  const latestStoryDate = news[0]?.pubDate
-    ? formatDate(news[0].pubDate)
-    : "Latest";
+  const latestStoryDate = news[0]?.pubDate ? formatDate(news[0].pubDate) : "Latest";
+  const freshness = getFreshnessLabel(news[0]?.pubDate);
+  const trendingTopics = extractTrendingTopics(news);
+  const citizenPulse = getCitizenPulse(news);
 
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="w-full p-4 md:p-6 xl:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
-
           {/* HEADER */}
           <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-6 md:px-8">
-              <p className="text-sm font-medium text-blue-100/80">
-                Trending Posts
-              </p>
+              <p className="text-sm font-medium text-blue-100/80">Trending Posts</p>
 
               <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">
                 Top stories in {region.stateName}
@@ -220,9 +301,7 @@ export default async function TrendingPostsPage() {
 
               <p className="mt-3 text-sm text-blue-100/80 md:text-base">
                 Current district:{" "}
-                <span className="font-semibold text-white">
-                  {region.districtLabel}
-                </span>
+                <span className="font-semibold text-white">{region.districtLabel}</span>
               </p>
             </div>
 
@@ -249,41 +328,178 @@ export default async function TrendingPostsPage() {
             </div>
           </section>
 
-          {/* NEWS LIST */}
-          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="space-y-4">
-              {news.map((item, index) => (
-                <a
-                  key={`${item.link}-${index}`}
-                  href={item.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block"
-                >
-                  <div className="rounded-3xl border p-6 hover:bg-slate-50">
-                    <div className="flex gap-4">
-                      <div className="h-10 w-10 bg-red-100 text-red-600 flex items-center justify-center rounded-full font-bold">
-                        {index + 1}
-                      </div>
+          {/* CONTENT + SIDEBAR */}
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            {/* NEWS LIST */}
+            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="space-y-4">
+                {news.map((item, index) => (
+                  <a
+                    key={`${item.link}-${index}`}
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                  >
+                    <div className="rounded-3xl border border-slate-300 p-6 transition hover:bg-slate-50">
+                      <div className="flex gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 font-bold text-red-600">
+                          {index + 1}
+                        </div>
 
-                      <div>
-                        <h3 className="font-bold text-xl">{item.title}</h3>
+                        <div className="min-w-0">
+                          <h3 className="text-xl font-bold text-slate-900">
+                            {item.title}
+                          </h3>
 
-                        <p className="text-sm text-gray-600 mt-2">
-                          {item.description}
-                        </p>
+                          <p className="mt-2 text-sm leading-6 text-gray-600">
+                            {item.description}
+                          </p>
 
-                        <p className="text-blue-600 mt-3 text-sm">
-                          Read full story →
-                        </p>
+                          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                              <Clock3 className="h-4 w-4" />
+                              {formatDate(item.pubDate)}
+                            </span>
+
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                              <Newspaper className="h-4 w-4" />
+                              {item.source || "News Source"}
+                            </span>
+                          </div>
+
+                          <p className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600">
+                            Read full story
+                            <ExternalLink className="h-4 w-4" />
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </a>
-              ))}
+                  </a>
+                ))}
+              </div>
             </div>
-          </section>
 
+            {/* SMART SIDEBAR */}
+            <aside className="space-y-4">
+              <div className="sticky top-6 space-y-4">
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <MapPinned className="h-5 w-5 text-slate-700" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      District Snapshot
+                    </h3>
+                  </div>
+
+                  <div className="mt-4 space-y-3 text-sm">
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-slate-600">State</span>
+                      <span className="font-semibold text-slate-900">
+                        {region.stateName}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-slate-600">District</span>
+                      <span className="font-semibold text-slate-900">
+                        {region.districtLabel}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-slate-600">Stories tracked</span>
+                      <span className="font-semibold text-slate-900">{news.length}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-slate-600">Freshness</span>
+                      <span className="font-semibold text-slate-900">{freshness}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-slate-700" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      What’s Trending
+                    </h3>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {trendingTopics.map((topic) => (
+                      <span
+                        key={topic}
+                        className="rounded-full bg-indigo-50 px-3 py-1.5 text-sm font-medium capitalize text-indigo-700"
+                      >
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
+
+                  <p className="mt-4 text-sm leading-6 text-slate-600">
+                    These topic signals are inferred from recent headlines and summaries
+                    in your district feed.
+                  </p>
+                </div>
+
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-slate-700" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Citizen Pulse
+                    </h3>
+                  </div>
+
+                  <div
+                    className={`mt-4 rounded-2xl border px-4 py-4 ${citizenPulse.tone}`}
+                  >
+                    <p className="font-semibold">{citizenPulse.label}</p>
+                    <p className="mt-2 text-sm leading-6">{citizenPulse.description}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Newspaper className="h-5 w-5 text-slate-700" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Quick Actions
+                    </h3>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <Link
+                      href="/district-feed"
+                      className="flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      View District Feed
+                    </Link>
+
+                    <Link
+                      href="/create-post"
+                      className="flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      Create Post
+                    </Link>
+
+                    <Link
+                      href="/my-representatives"
+                      className="flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      Contact Representatives
+                    </Link>
+
+                    <Link
+                      href="/dashboard"
+                      className="flex items-center justify-center rounded-2xl bg-amber-500 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      Back to Dashboard
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </section>
         </div>
       </div>
     </main>
