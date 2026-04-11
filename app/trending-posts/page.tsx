@@ -198,262 +198,92 @@ export default async function TrendingPostsPage() {
   const news = await getStateNews(region);
 
   const topSource = getTopSource(news);
-  const latestStoryDate = news[0]?.pubDate ? formatDate(news[0].pubDate) : "Latest";
+  const latestStoryDate = news[0]?.pubDate
+    ? formatDate(news[0].pubDate)
+    : "Latest";
 
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="w-full p-4 md:p-6 xl:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
+
+          {/* HEADER */}
           <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-6 md:px-8">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-100/80">
-                    Trending Posts
-                  </p>
-                  <h1 className="mt-2 text-3xl font-bold tracking-tight text-white md:text-4xl">
-                    Top stories in {region.stateName}
-                  </h1>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/80 md:text-base">
-                    Explore regional headlines, policy signals, and public-interest
-                    stories connected to{" "}
-                    <span className="font-semibold text-white">
-                      {region.districtLabel}
-                    </span>
-                    .
-                  </p>
-                </div>
+              <p className="text-sm font-medium text-blue-100/80">
+                Trending Posts
+              </p>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white backdrop-blur">
-                    <span className="font-semibold">Current district:</span>{" "}
-                    {region.districtLabel}
-                  </div>
+              <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">
+                Top stories in {region.stateName}
+              </h1>
 
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white backdrop-blur">
-                    <span className="font-semibold">Feed:</span> {region.feedLabel}
-                  </div>
-                </div>
-              </div>
+              <p className="mt-3 text-sm text-blue-100/80 md:text-base">
+                Current district:{" "}
+                <span className="font-semibold text-white">
+                  {region.districtLabel}
+                </span>
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-4 md:p-6">
-              <div className="rounded-3xl bg-gradient-to-br from-red-500 to-orange-400 p-5 text-white shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white/85">Top Stories</p>
-                  <Newspaper className="h-5 w-5 text-white/85" />
-                </div>
-                <p className="mt-4 text-3xl font-bold">{news.length}</p>
+              <div className="rounded-3xl bg-red-500 p-5 text-white">
+                <p>Stories</p>
+                <p className="text-2xl font-bold">{news.length}</p>
               </div>
 
-              <div className="rounded-3xl bg-gradient-to-br from-violet-500 to-fuchsia-500 p-5 text-white shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white/85">Lead Source</p>
-                  <Activity className="h-5 w-5 text-white/85" />
-                </div>
-                <p className="mt-4 text-lg font-bold leading-6">{topSource}</p>
+              <div className="rounded-3xl bg-purple-500 p-5 text-white">
+                <p>Source</p>
+                <p className="text-lg font-bold">{topSource}</p>
               </div>
 
-              <div className="rounded-3xl bg-gradient-to-br from-blue-500 to-sky-400 p-5 text-white shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white/85">Latest Story</p>
-                  <Clock3 className="h-5 w-5 text-white/85" />
-                </div>
-                <p className="mt-4 text-2xl font-bold">{latestStoryDate}</p>
+              <div className="rounded-3xl bg-blue-500 p-5 text-white">
+                <p>Latest</p>
+                <p className="text-lg font-bold">{latestStoryDate}</p>
               </div>
 
-              <div className="rounded-3xl bg-gradient-to-br from-emerald-500 to-green-400 p-5 text-white shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white/85">Coverage</p>
-                  <MapPinned className="h-5 w-5 text-white/85" />
-                </div>
-                <p className="mt-4 text-2xl font-bold">{region.stateName}</p>
+              <div className="rounded-3xl bg-green-500 p-5 text-white">
+                <p>Coverage</p>
+                <p className="text-lg font-bold">{region.stateName}</p>
               </div>
             </div>
           </section>
 
-          <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/dashboard"
-                className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 active:scale-[0.98]"
-              >
-                Back to Dashboard
-              </Link>
-
-              <Link
-                href="/feed"
-                className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 active:scale-[0.98]"
-              >
-                View District Feed
-              </Link>
-
-              <Link
-                href="/official-updates"
-                className="rounded-2xl bg-green-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-[0.98]"
-              >
-                Official Updates
-              </Link>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <div className="xl:col-span-8 space-y-6">
-              <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500">Regional News Stream</p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900 md:text-3xl">
-                      What’s trending in {region.stateName}
-                    </h2>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 md:text-base">
-                      Live headlines curated for your state and district context,
-                      presented in the same visual style as the CivicPulse dashboard.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {news.map((item, index) => (
-                    <a
-                      key={`${item.link}-${index}`}
-                      href={item.link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block"
-                    >
-                      <div className="rounded-3xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:bg-slate-50">
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div className="flex min-w-0 gap-4">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-sm font-bold text-red-600">
-                              {index + 1}
-                            </div>
-
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap gap-2">
-                                <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                                  {region.feedLabel}
-                                </span>
-                                <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
-                                  {item.source || "Source"}
-                                </span>
-                                <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-                                  {getFreshnessLabel(item.pubDate)}
-                                </span>
-                              </div>
-
-                              <h3 className="mt-4 text-xl font-bold text-slate-900 md:text-2xl">
-                                {item.title}
-                              </h3>
-
-                              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
-                                {item.description || `Read the latest ${region.stateName} news story.`}
-                              </p>
-
-                              <div className="mt-4 flex items-center gap-2 text-sm font-medium text-blue-600">
-                                <span>Read full story</span>
-                                <ExternalLink className="h-4 w-4" />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 md:justify-end">
-                            <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                              {formatDate(item.pubDate)}
-                            </span>
-                          </div>
-                        </div>
+          {/* NEWS LIST */}
+          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="space-y-4">
+              {news.map((item, index) => (
+                <a
+                  key={`${item.link}-${index}`}
+                  href={item.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block"
+                >
+                  <div className="rounded-3xl border p-6 hover:bg-slate-50">
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 bg-red-100 text-red-600 flex items-center justify-center rounded-full font-bold">
+                        {index + 1}
                       </div>
-                    </a>
-                  ))}
-                </div>
-              </section>
+
+                      <div>
+                        <h3 className="font-bold text-xl">{item.title}</h3>
+
+                        <p className="text-sm text-gray-600 mt-2">
+                          {item.description}
+                        </p>
+
+                        <p className="text-blue-600 mt-3 text-sm">
+                          Read full story →
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              ))}
             </div>
-
-            <aside className="xl:col-span-4">
-              <div className="sticky top-6 space-y-6">
-                <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-slate-400" />
-                    <h2 className="text-xl font-semibold text-slate-900">
-                      Feed Summary
-                    </h2>
-                  </div>
-
-                  <div className="mt-6 space-y-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm text-slate-500">State</p>
-                      <p className="mt-2 text-lg font-bold text-slate-900">
-                        {region.stateName}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm text-slate-500">District</p>
-                      <p className="mt-2 text-lg font-bold text-slate-900">
-                        {region.districtLabel}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm text-slate-500">Stories loaded</p>
-                      <p className="mt-2 text-lg font-bold text-slate-900">
-                        {news.length}
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium text-slate-500">How this works</p>
-                  <h3 className="mt-2 text-2xl font-bold text-slate-900">
-                    Live {region.stateName} feed
-                  </h3>
-
-                  <div className="mt-5 space-y-3 text-sm leading-6 text-slate-600">
-                    <p>
-                      This page fetches the latest stories for {region.stateName}{" "}
-                      each time the cache refreshes.
-                    </p>
-                    <p>
-                      Stories are refreshed every 30 minutes using Next.js server-side
-                      revalidation.
-                    </p>
-                    <p>
-                      The feed adapts to the logged-in user’s district or state
-                      instead of showing Texas for every user.
-                    </p>
-                  </div>
-                </section>
-
-                <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium text-slate-500">Navigation</p>
-                  <div className="mt-4 grid gap-3">
-                    <Link
-                      href="/dashboard"
-                      className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      Back to Dashboard
-                    </Link>
-
-                    <Link
-                      href="/feed"
-                      className="rounded-2xl bg-red-500 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-red-600"
-                    >
-                      View District Feed
-                    </Link>
-
-                    <Link
-                      href="/official-updates"
-                      className="rounded-2xl bg-green-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-700"
-                    >
-                      Official Updates
-                    </Link>
-                  </div>
-                </section>
-              </div>
-            </aside>
           </section>
+
         </div>
       </div>
     </main>
