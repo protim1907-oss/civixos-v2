@@ -3,7 +3,61 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
+function DynamicRepresentativePhoto({
+  name,
+  alt,
+  className,
+}: {
+  name: string;
+  alt: string;
+  className?: string;
+}) {
+  const [src, setSrc] = useState(
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      name
+    )}&background=e2e8f0&color=334155&size=300`
+  );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadImage() {
+      try {
+        const res = await fetch(
+          `/api/representative-photo?name=${encodeURIComponent(name)}`
+        );
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!cancelled && data?.imageUrl) {
+          setSrc(data.imageUrl);
+        }
+      } catch {
+        // keep fallback avatar
+      }
+    }
+
+    loadImage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [name]);
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).src =
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            name
+          )}&background=e2e8f0&color=334155&size=300`;
+      }}
+    />
+  );
+}
 type Representative = {
   id: string;
   full_name: string;
