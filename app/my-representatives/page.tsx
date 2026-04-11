@@ -28,11 +28,11 @@ type Representative = {
 };
 
 const LOCAL_HEADSHOTS: Record<string, string> = {
-  "kelly ayotte": "/officials/kelly-ayotte.jpg",
-  "jeanne shaheen": "/officials/jeanne-shaheen.jpg",
-  "maggie hassan": "/officials/maggie-hassan.jpg",
-  "chris pappas": "/officials/chris-pappas.jpg",
-  "maggie goodlander": "/officials/maggie-goodlander.jpg",
+  "chris pappas": "https://upload.wikimedia.org/wikipedia/commons/9/94/Chris_Pappas%2C_official_portrait%2C_116th_Congress.jpg",
+  "maggie goodlander": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Maggie_Goodlander_official_photo.jpg",
+  "jeanne shaheen": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Jeanne_Shaheen%2C_official_portrait%2C_116th_Congress.jpg",
+  "maggie hassan": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Maggie_Hassan%2C_official_portrait%2C_116th_Congress.jpg",
+  "kelly ayotte": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Kelly_Ayotte_official_portrait.jpg",
 };
 
 function getDisplayName(rep: Representative) {
