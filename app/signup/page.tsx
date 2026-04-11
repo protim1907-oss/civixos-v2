@@ -102,6 +102,36 @@ const newHampshireZipCityToDistricts: Record<string, DistrictOption[]> = {
   "Nashua|03060": [{ value: "NH", label: "New Hampshire" }],
 };
 
+const californiaZipCityToDistricts: Record<string, DistrictOption[]> = {
+  "San Francisco|94102": [
+    { value: "CA-11", label: "California 11th District (CA-11)" },
+  ],
+  "San Francisco|94103": [
+    { value: "CA-11", label: "California 11th District (CA-11)" },
+  ],
+  "San Francisco|94107": [
+    { value: "CA-11", label: "California 11th District (CA-11)" },
+  ],
+  "Los Angeles|90012": [
+    { value: "CA-34", label: "California 34th District (CA-34)" },
+  ],
+  "Los Angeles|90013": [
+    { value: "CA-34", label: "California 34th District (CA-34)" },
+  ],
+  "Los Angeles|90017": [
+    { value: "CA-34", label: "California 34th District (CA-34)" },
+  ],
+  "San Diego|92101": [
+    { value: "CA-51", label: "California 51st District (CA-51)" },
+  ],
+  "San Diego|92102": [
+    { value: "CA-51", label: "California 51st District (CA-51)" },
+  ],
+  "San Diego|92113": [
+    { value: "CA-51", label: "California 51st District (CA-51)" },
+  ],
+};
+
 function toTitleCase(value: string) {
   return value
     .trim()
@@ -123,6 +153,10 @@ function resolveDistrictOptions(state: string, city: string, zipCode: string): D
 
   if (state === "New Hampshire") {
     return newHampshireZipCityToDistricts[key] || [];
+  }
+
+  if (state === "California") {
+    return californiaZipCityToDistricts[key] || [];
   }
 
   return [];
@@ -317,6 +351,7 @@ export default function SignupPage() {
           <option value="">Select State</option>
           <option value="Texas">Texas</option>
           <option value="New Hampshire">New Hampshire</option>
+          <option value="California">California</option>
         </select>
       </div>
 
