@@ -29,6 +29,14 @@ type Issue = {
   user_id: string;
 };
 
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+  district: string | null;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -63,14 +71,27 @@ export default function DashboardPage() {
       if (!session?.user && guestUser) {
         try {
           const parsedGuest = JSON.parse(guestUser);
-          setUserName(parsedGuest?.name || "Guest Citizen");
-          setCurrentDistrict("District 12");
+
+          const guestName =
+            parsedGuest?.name ||
+            parsedGuest?.full_name ||
+            "Guest Citizen";
+
+          const guestDistrict =
+            parsedGuest?.district ||
+            parsedGuest?.district_name ||
+            parsedGuest?.district_id ||
+            "District 12";
+
+          setUserName(guestName);
+          setCurrentDistrict(guestDistrict);
 
           const { data: guestIssues, error: guestError } = await supabase
             .from("issues")
             .select(
               "id, title, description, status, category, district, created_at, user_id"
             )
+            .eq("district", guestDistrict)
             .order("created_at", { ascending: false });
 
           if (guestError) {
@@ -93,7 +114,20 @@ export default function DashboardPage() {
 
       const user = session!.user;
 
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role, district")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Profile load error:", profileError);
+      }
+
+      const typedProfile = profile as ProfileRow | null;
+
       const displayName =
+        typedProfile?.full_name ||
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
         user.email?.split("@")[0] ||
@@ -101,20 +135,21 @@ export default function DashboardPage() {
 
       setUserName(displayName);
 
-      const userDistrict =
+      const resolvedDistrict =
+        typedProfile?.district ||
         user.user_metadata?.district ||
         user.user_metadata?.district_name ||
         user.user_metadata?.district_id ||
         "District 12";
 
-      setCurrentDistrict(userDistrict);
+      setCurrentDistrict(resolvedDistrict);
 
-      const { data: userIssues, error } = await supabase
+      const { data: districtIssues, error } = await supabase
         .from("issues")
         .select(
           "id, title, description, status, category, district, created_at, user_id"
         )
-        .eq("user_id", user.id)
+        .eq("district", resolvedDistrict)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -124,7 +159,7 @@ export default function DashboardPage() {
         return;
       }
 
-      setIssues((userIssues as Issue[]) || []);
+      setIssues((districtIssues as Issue[]) || []);
       setLoading(false);
     }
 
