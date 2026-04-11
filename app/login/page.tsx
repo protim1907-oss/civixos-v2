@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -17,6 +17,43 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session && mounted) {
+        const accountType = session.user?.user_metadata?.account_type;
+        const redirectPath =
+          accountType === "official" ? "/official-dashboard" : "/dashboard";
+
+        router.replace(redirectPath);
+      }
+    };
+
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && mounted) {
+        const accountType = session.user?.user_metadata?.account_type;
+        const redirectPath =
+          accountType === "official" ? "/official-dashboard" : "/dashboard";
+
+        router.replace(redirectPath);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
 
   function getRedirectPath(accountType?: string | null) {
     if (accountType === "official") {
@@ -51,74 +88,74 @@ export default function LoginPage() {
   }
 
   async function handleMobileLogin(e: FormEvent) {
-  e.preventDefault();
-  setMessage("");
-  setLoading(true);
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
 
-  if (!mobile.trim()) {
-    setMessage("Please enter your mobile number.");
-    setLoading(false);
-    return;
+    if (!mobile.trim()) {
+      setMessage("Please enter your mobile number.");
+      setLoading(false);
+      return;
+    }
+
+    if (!password.trim()) {
+      setMessage("Please enter your password.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        "guest_user",
+        JSON.stringify({
+          name: "Mobile Citizen",
+          role: "guest",
+          account_type: "citizen",
+          mobile: mobile.trim(),
+          state: "Texas",
+          district_id: "TX-20",
+        })
+      );
+
+      setMessage("Mobile login is a demo flow. Redirecting...");
+      setLoading(false);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      console.error("Mobile login error:", error);
+      setMessage("Unable to continue with mobile login.");
+      setLoading(false);
+    }
   }
-
-  if (!password.trim()) {
-    setMessage("Please enter your password.");
-    setLoading(false);
-    return;
-  }
-
-  try {
-    localStorage.setItem(
-      "guest_user",
-      JSON.stringify({
-        name: "Mobile Citizen",
-        role: "guest",
-        account_type: "citizen",
-        mobile: mobile.trim(),
-        state: "Texas",
-        district_id: "TX-20",
-      })
-    );
-
-    setMessage("Mobile login is a demo flow. Redirecting...");
-    setLoading(false);
-    router.push("/dashboard");
-    router.refresh();
-  } catch (error) {
-    console.error("Mobile login error:", error);
-    setMessage("Unable to continue with mobile login.");
-    setLoading(false);
-  }
-}
 
   async function handleGoogleLogin() {
-  try {
-    setMessage("");
-    setGoogleLoading(true);
+    try {
+      setMessage("");
+      setGoogleLoading(true);
 
-    const redirectTo =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/auth/callback?next=/dashboard`
-        : undefined;
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback?next=/dashboard`
+          : undefined;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-      },
-    });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
 
-    if (error) {
-      console.error("Google login error:", error.message);
-      setMessage("Google login failed. Please try again.");
+      if (error) {
+        console.error("Google login error:", error.message);
+        setMessage("Google login failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      setMessage("Something went wrong.");
+    } finally {
+      setGoogleLoading(false);
     }
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    setMessage("Something went wrong.");
-  } finally {
-    setGoogleLoading(false);
   }
-}
 
   async function handleGuestLogin() {
     try {
