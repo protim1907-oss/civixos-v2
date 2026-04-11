@@ -24,6 +24,9 @@ type IssueRow = {
   title: string | null;
   description: string | null;
   user_id: string | null;
+  district: string | null;
+  category?: string | null;
+  status?: string | null;
 };
 
 type VoteRow = {
@@ -162,6 +165,18 @@ function inferCategory(title: string, description: string) {
   return "General";
 }
 
+function normalizeStatus(value?: string | null): FeedPost["status"] {
+  const v = (value || "").toLowerCase().trim();
+  if (v === "under review" || v === "under_review") return "Under Review";
+  if (v === "resolved") return "Resolved";
+  if (v === "escalated") return "Escalated";
+  return "Open";
+}
+
+function normalizeDistrict(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
 function getProfileDisplayName(profile?: ProfileRow | null) {
   if (!profile) return "Citizen";
   if (profile.full_name?.trim()) return profile.full_name.trim();
@@ -189,14 +204,10 @@ export default function FeedPage() {
 
   const [commentsByIssue, setCommentsByIssue] = useState<CommentMap>({});
   const [commenterNames, setCommenterNames] = useState<ProfileNameMap>({});
-  const [openCommentsFor, setOpenCommentsFor] = useState<
-    Record<string, boolean>
-  >({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<Record<string, boolean>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [sharingIssueId, setSharingIssueId] = useState<string | null>(null);
-  const [submittingCommentFor, setSubmittingCommentFor] = useState<
-    string | null
-  >(null);
+  const [submittingCommentFor, setSubmittingCommentFor] = useState<string | null>(null);
   const [togglingVoteFor, setTogglingVoteFor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,9 +220,7 @@ export default function FeedPage() {
         const session = data?.session;
 
         const guestUser =
-          typeof window !== "undefined"
-            ? localStorage.getItem("guest_user")
-            : null;
+          typeof window !== "undefined" ? localStorage.getItem("guest_user") : null;
 
         let district = "District 12";
         let signedInUserId: string | null = null;
@@ -222,6 +231,7 @@ export default function FeedPage() {
             district =
               parsedGuest?.district ||
               parsedGuest?.district_name ||
+              parsedGuest?.district_id ||
               "District 12";
           } catch (error) {
             console.error("Guest parse error:", error);
@@ -257,11 +267,13 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
+        // IMPORTANT: fetch district from issues and filter by the user's district
         const { data: issuesData, error: issuesError } = await supabase
           .from("issues")
-          .select("id, title, description, user_id")
-          .limit(100)
-          .order("id", { ascending: false });
+          .select("id, title, description, user_id, district, category, status")
+          .eq("district", district)
+          .order("id", { ascending: false })
+          .limit(100);
 
         if (issuesError) {
           console.error("Issues load error:", issuesError);
@@ -271,14 +283,14 @@ export default function FeedPage() {
         }
 
         const issues = ((issuesData as IssueRow[]) || []).filter(
-          (issue) => issue?.id
+          (issue) => issue?.id && normalizeDistrict(issue.district) === normalizeDistrict(district)
         );
 
         if (issues.length === 0) {
           setFeedPosts([]);
-          setDebugMessage(
-            "Issues table loaded successfully, but no rows were returned."
-          );
+          setDebugMessage(`No issues found for ${district}.`);
+          setCommentsByIssue({});
+          setCommenterNames({});
           return;
         }
 
@@ -359,10 +371,11 @@ export default function FeedPage() {
           id: issue.id ?? String(index),
           title: issue.title || "Untitled issue",
           description: issue.description || "No description provided.",
-          district,
-          category: inferCategory(issue.title || "", issue.description || ""),
+          district: issue.district || district,
+          category:
+            issue.category || inferCategory(issue.title || "", issue.description || ""),
           urgency: inferUrgency(issue.title || "", issue.description || ""),
-          status: "Open",
+          status: normalizeStatus(issue.status),
           upvotes: voteCounts[issue.id] || 0,
           comments: groupedComments[issue.id]?.length || 0,
           representative: representativeName,
@@ -712,7 +725,7 @@ export default function FeedPage() {
                           </span>
 
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                            {currentDistrict}
+                            {post.district}
                           </span>
                         </div>
 
