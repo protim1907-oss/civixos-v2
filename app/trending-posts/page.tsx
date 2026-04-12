@@ -26,6 +26,52 @@ type RegionInfo = {
   query: string;
 };
 
+function displayState(value: string | null | undefined) {
+  const normalized = (value || "").trim().toUpperCase();
+
+  switch (normalized) {
+    case "NH":
+    case "NEW HAMPSHIRE":
+      return "New Hampshire";
+    case "TX":
+    case "TEXAS":
+      return "Texas";
+    case "CA":
+    case "CALIFORNIA":
+      return "California";
+    case "FL":
+    case "FLORIDA":
+      return "Florida";
+    default:
+      return value || "Your State";
+  }
+}
+
+function displayDistrict(value: string | null | undefined) {
+  const normalized = (value || "").trim().toUpperCase();
+
+  switch (normalized) {
+    case "NH":
+      return "New Hampshire";
+    case "NH-01":
+      return "New Hampshire 1st Congressional District";
+    case "NH-02":
+      return "New Hampshire 2nd Congressional District";
+    case "TX":
+      return "Texas";
+    case "TX-12":
+      return "Texas 12th District";
+    case "TX-20":
+      return "Texas 20th District";
+    case "CA":
+      return "California";
+    case "FL":
+      return "Florida";
+    default:
+      return value || "Your District";
+  }
+}
+
 function inferRegionFromUserMetadata(
   userMetadata: Record<string, any> | undefined
 ): RegionInfo {
@@ -41,8 +87,8 @@ function inferRegionFromUserMetadata(
   if (value.includes("new hampshire") || value === "nh" || value.startsWith("nh-")) {
     return {
       stateName: "New Hampshire",
-      districtLabel: String(rawDistrict),
-      feedLabel: "NH News",
+      districtLabel: displayDistrict(String(rawDistrict)),
+      feedLabel: "New Hampshire News",
       query: "New Hampshire",
     };
   }
@@ -50,7 +96,7 @@ function inferRegionFromUserMetadata(
   if (value.includes("texas") || value === "tx" || value.startsWith("tx-")) {
     return {
       stateName: "Texas",
-      districtLabel: String(rawDistrict),
+      districtLabel: displayDistrict(String(rawDistrict)),
       feedLabel: "Texas News",
       query: "Texas",
     };
@@ -59,7 +105,7 @@ function inferRegionFromUserMetadata(
   if (value.includes("california") || value === "ca" || value.startsWith("ca-")) {
     return {
       stateName: "California",
-      districtLabel: String(rawDistrict),
+      districtLabel: displayDistrict(String(rawDistrict)),
       feedLabel: "California News",
       query: "California",
     };
@@ -68,15 +114,15 @@ function inferRegionFromUserMetadata(
   if (value.includes("florida") || value === "fl" || value.startsWith("fl-")) {
     return {
       stateName: "Florida",
-      districtLabel: String(rawDistrict),
+      districtLabel: displayDistrict(String(rawDistrict)),
       feedLabel: "Florida News",
       query: "Florida",
     };
   }
 
   return {
-    stateName: "Your State",
-    districtLabel: String(rawDistrict),
+    stateName: displayState(String(rawDistrict)),
+    districtLabel: displayDistrict(String(rawDistrict)),
     feedLabel: "State News",
     query: String(rawDistrict),
   };
@@ -508,4 +554,4 @@ export default async function TrendingPostsPage() {
       </div>
     </main>
   );
-}
+} 
