@@ -5,6 +5,28 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+function getDistrictMappingFromEmail(email?: string | null) {
+  const normalized = (email || "").trim().toLowerCase();
+
+  if (normalized === "protim1907@gmail.com") {
+    return {
+      state: "Texas",
+      district: "TX-35",
+      district_id: "TX-35",
+    };
+  }
+
+  if (normalized === "protimghosh93@gmail.com") {
+    return {
+      state: "New Hampshire",
+      district: "NH",
+      district_id: "NH",
+    };
+  }
+
+  return null;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -18,6 +40,71 @@ export default function LoginPage() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  function getRedirectPath(accountType?: string | null) {
+    if (accountType === "official") {
+      return "/official-dashboard";
+    }
+    return "/dashboard";
+  }
+
+  async function syncDistrictFromEmail(user: any) {
+    if (!user?.email) return user;
+
+    const mapped = getDistrictMappingFromEmail(user.email);
+    if (!mapped) return user;
+
+    const currentDistrict =
+      user.user_metadata?.district_id ||
+      user.user_metadata?.district ||
+      "";
+
+    const currentState = user.user_metadata?.state || "";
+
+    const needsUpdate =
+      currentDistrict !== mapped.district_id || currentState !== mapped.state;
+
+    if (!needsUpdate) {
+      return user;
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        ...user.user_metadata,
+        state: mapped.state,
+        district: mapped.district,
+        district_id: mapped.district_id,
+      },
+    });
+
+    if (error) {
+      console.error("Failed to sync district from email:", error);
+      return user;
+    }
+
+    return data.user || user;
+  }
+
+  async function handleSessionRedirect(session: any) {
+    if (!session?.user) return;
+
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("guest_user");
+      }
+
+      const updatedUser = await syncDistrictFromEmail(session.user);
+      const accountType = updatedUser?.user_metadata?.account_type;
+      const redirectPath = getRedirectPath(accountType);
+
+      router.replace(redirectPath);
+    } catch (error) {
+      console.error("Session redirect error:", error);
+      const accountType = session.user?.user_metadata?.account_type;
+      const redirectPath = getRedirectPath(accountType);
+      router.replace(redirectPath);
+    }
+  }
+
   useEffect(() => {
     let mounted = true;
 
@@ -27,11 +114,7 @@ export default function LoginPage() {
       } = await supabase.auth.getSession();
 
       if (session && mounted) {
-        const accountType = session.user?.user_metadata?.account_type;
-        const redirectPath =
-          accountType === "official" ? "/official-dashboard" : "/dashboard";
-
-        router.replace(redirectPath);
+        await handleSessionRedirect(session);
       }
     };
 
@@ -39,13 +122,9 @@ export default function LoginPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session && mounted) {
-        const accountType = session.user?.user_metadata?.account_type;
-        const redirectPath =
-          accountType === "official" ? "/official-dashboard" : "/dashboard";
-
-        router.replace(redirectPath);
+        await handleSessionRedirect(session);
       }
     });
 
@@ -55,39 +134,36 @@ export default function LoginPage() {
     };
   }, [router, supabase]);
 
-  function getRedirectPath(accountType?: string | null) {
-    if (accountType === "official") {
-      return "/official-dashboard";
-    }
-    return "/dashboard";
-  }
-
   async function handleEmailLogin(e: FormEvent) {
-  e.preventDefault();
-  setMessage("");
-  setLoading(true);
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    setMessage(error.message || "Invalid login credentials");
-    setLoading(false);
-    return;
+    if (error) {
+      setMessage(error.message || "Invalid login credentials");
+      setLoading(false);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("guest_user");
+    }
+
+    const updatedUser = await syncDistrictFromEmail(data.user);
+    const accountType = updatedUser?.user_metadata?.account_type;
+    const redirectPath = getRedirectPath(accountType);
+
+    setMessage("Login successful. Redirecting...");
+
+    setTimeout(() => {
+      window.location.href = redirectPath;
+    }, 200);
   }
-
-  const accountType = data.user?.user_metadata?.account_type;
-  const redirectPath = getRedirectPath(accountType);
-
-  setMessage("Login successful. Redirecting...");
-
-  // ✅ CRITICAL FIX
-  setTimeout(() => {
-    window.location.href = redirectPath;
-  }, 200);
-}
 
   async function handleMobileLogin(e: FormEvent) {
     e.preventDefault();
@@ -134,6 +210,10 @@ export default function LoginPage() {
     try {
       setMessage("");
       setGoogleLoading(true);
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("guest_user");
+      }
 
       const redirectTo =
         typeof window !== "undefined"
