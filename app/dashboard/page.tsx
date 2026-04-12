@@ -16,6 +16,7 @@ import {
   BarChart3,
   MapPinned,
   Activity,
+  MessageSquare,
 } from "lucide-react";
 
 type Issue = {
@@ -35,6 +36,37 @@ type ProfileRow = {
   email: string | null;
   role: string | null;
   district: string | null;
+};
+
+type DiscussionRow = {
+  id: string;
+  title: string;
+  topic: string | null;
+  district: string | null;
+  status: string;
+};
+
+type PostRow = {
+  id: string;
+  discussion_id: string;
+  parent_post_id: string | null;
+  author_id: string | null;
+  content: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type FeedItem = {
+  id: string;
+  kind: "issue" | "post";
+  title: string;
+  description: string;
+  status: string | null;
+  category: string | null;
+  district: string | null;
+  created_at: string | null;
+  href: string;
 };
 
 function getDistrictMappingFromEmail(email?: string | null) {
@@ -65,6 +97,8 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [posts, setPosts] = useState<PostRow[]>([]);
+  const [discussions, setDiscussions] = useState<DiscussionRow[]>([]);
   const [userName, setUserName] = useState("Citizen");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -163,22 +197,56 @@ export default function DashboardPage() {
           setUserName(guestName);
           setCurrentDistrict(guestDistrict);
 
-          const { data: guestIssues, error: guestError } = await supabase
-            .from("issues")
-            .select(
-              "id, title, description, status, category, district, created_at, user_id"
-            )
-            .eq("district", guestDistrict)
-            .order("created_at", { ascending: false });
+          const [
+            issuesRes,
+            discussionsRes,
+          ] = await Promise.all([
+            supabase
+              .from("issues")
+              .select(
+                "id, title, description, status, category, district, created_at, user_id"
+              )
+              .eq("district", guestDistrict)
+              .order("created_at", { ascending: false }),
+            supabase
+              .from("discussions")
+              .select("id, title, topic, district, status")
+              .eq("district", guestDistrict)
+              .eq("status", "active"),
+          ]);
 
-          if (guestError) {
-            console.error("Dashboard load error:", guestError);
-            setIssues([]);
-            setLoading(false);
-            return;
+          if (issuesRes.error) {
+            console.error("Dashboard issue load error:", issuesRes.error);
+          }
+          if (discussionsRes.error) {
+            console.error("Dashboard discussion load error:", discussionsRes.error);
           }
 
-          setIssues((guestIssues as Issue[]) || []);
+          const discussionRows = (discussionsRes.data || []) as DiscussionRow[];
+          setDiscussions(discussionRows);
+
+          const discussionIds = discussionRows.map((d) => d.id);
+
+          let postRows: PostRow[] = [];
+          if (discussionIds.length > 0) {
+            const { data: guestPosts, error: guestPostsError } = await supabase
+              .from("posts")
+              .select(
+                "id, discussion_id, parent_post_id, author_id, content, status, created_at, updated_at"
+              )
+              .in("discussion_id", discussionIds)
+              .eq("status", "active")
+              .order("created_at", { ascending: false });
+
+            if (guestPostsError) {
+              console.error("Dashboard post load error:", guestPostsError);
+            } else {
+              postRows = (guestPosts as PostRow[]) || [];
+            }
+          }
+
+          setIssues((issuesRes.data as Issue[]) || []);
+          setPosts(postRows);
           setLoading(false);
           return;
         } catch (error) {
@@ -221,22 +289,56 @@ export default function DashboardPage() {
 
       setCurrentDistrict(resolvedDistrict);
 
-      const { data: districtIssues, error } = await supabase
-        .from("issues")
-        .select(
-          "id, title, description, status, category, district, created_at, user_id"
-        )
-        .eq("district", resolvedDistrict)
-        .order("created_at", { ascending: false });
+      const [
+        issuesRes,
+        discussionsRes,
+      ] = await Promise.all([
+        supabase
+          .from("issues")
+          .select(
+            "id, title, description, status, category, district, created_at, user_id"
+          )
+          .eq("district", resolvedDistrict)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("discussions")
+          .select("id, title, topic, district, status")
+          .eq("district", resolvedDistrict)
+          .eq("status", "active"),
+      ]);
 
-      if (error) {
-        console.error("Dashboard load error:", error);
-        setIssues([]);
-        setLoading(false);
-        return;
+      if (issuesRes.error) {
+        console.error("Dashboard issue load error:", issuesRes.error);
+      }
+      if (discussionsRes.error) {
+        console.error("Dashboard discussion load error:", discussionsRes.error);
       }
 
-      setIssues((districtIssues as Issue[]) || []);
+      const discussionRows = (discussionsRes.data || []) as DiscussionRow[];
+      setDiscussions(discussionRows);
+
+      const discussionIds = discussionRows.map((d) => d.id);
+
+      let postRows: PostRow[] = [];
+      if (discussionIds.length > 0) {
+        const { data: districtPosts, error: postsError } = await supabase
+          .from("posts")
+          .select(
+            "id, discussion_id, parent_post_id, author_id, content, status, created_at, updated_at"
+          )
+          .in("discussion_id", discussionIds)
+          .eq("status", "active")
+          .order("created_at", { ascending: false });
+
+        if (postsError) {
+          console.error("Dashboard post load error:", postsError);
+        } else {
+          postRows = (districtPosts as PostRow[]) || [];
+        }
+      }
+
+      setIssues((issuesRes.data as Issue[]) || []);
+      setPosts(postRows);
       setLoading(false);
     }
 
@@ -262,27 +364,72 @@ export default function DashboardPage() {
     }
   }
 
-  const filteredIssues = useMemo(() => {
-    let result = [...issues];
+  const discussionMap = useMemo(() => {
+    const map = new Map<string, DiscussionRow>();
+    discussions.forEach((discussion) => {
+      map.set(discussion.id, discussion);
+    });
+    return map;
+  }, [discussions]);
+
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const issueItems: FeedItem[] = issues.map((issue) => ({
+      id: issue.id,
+      kind: "issue",
+      title: issue.title,
+      description: issue.description,
+      status: issue.status,
+      category: issue.category || "Infrastructure",
+      district: issue.district,
+      created_at: issue.created_at,
+      href: `/feed?issue=${encodeURIComponent(issue.title)}`,
+    }));
+
+    const postItems: FeedItem[] = posts.map((post) => {
+      const discussion = discussionMap.get(post.discussion_id);
+      const rawContent = post.content || "";
+      const parts = rawContent.split("\n\n");
+      const extractedTitle = parts[0]?.trim() || discussion?.title || "Discussion Post";
+      const extractedDescription =
+        parts.slice(1).join("\n\n").trim() || rawContent;
+
+      return {
+        id: post.id,
+        kind: "post",
+        title: discussion?.title || extractedTitle,
+        description: extractedDescription,
+        status: post.status,
+        category: discussion?.topic || "Community Discussion",
+        district: discussion?.district || currentDistrict,
+        created_at: post.created_at,
+        href: "/feed",
+      };
+    });
+
+    return [...issueItems, ...postItems];
+  }, [issues, posts, discussionMap, currentDistrict]);
+
+  const filteredFeed = useMemo(() => {
+    let result = [...feedItems];
 
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
-        (issue) =>
-          issue.title?.toLowerCase().includes(q) ||
-          issue.description?.toLowerCase().includes(q)
+        (item) =>
+          item.title?.toLowerCase().includes(q) ||
+          item.description?.toLowerCase().includes(q)
       );
     }
 
     if (statusFilter !== "all") {
       result = result.filter(
-        (issue) => (issue.status || "").toLowerCase() === statusFilter
+        (item) => (item.status || "").toLowerCase() === statusFilter
       );
     }
 
     if (categoryFilter !== "all") {
       result = result.filter(
-        (issue) => (issue.category || "").toLowerCase() === categoryFilter
+        (item) => (item.category || "").toLowerCase() === categoryFilter
       );
     }
 
@@ -301,7 +448,7 @@ export default function DashboardPage() {
     }
 
     return result;
-  }, [issues, search, statusFilter, categoryFilter, sortBy]);
+  }, [feedItems, search, statusFilter, categoryFilter, sortBy]);
 
   const openCount = issues.filter(
     (i) => (i.status || "").toLowerCase() === "open"
@@ -315,13 +462,15 @@ export default function DashboardPage() {
     (i) => (i.status || "").toLowerCase() === "resolved"
   ).length;
 
-  const totalCount = issues.length;
+  const totalCount = posts.length;
 
   function formatStatus(status: string | null) {
     if (!status) return "Open";
     if (status === "under_review") return "Under Review";
     if (status === "resolved") return "Resolved";
     if (status === "escalated") return "Escalated";
+    if (status === "active") return "Active";
+    if (status === "removed") return "Removed";
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
@@ -342,16 +491,16 @@ export default function DashboardPage() {
   }
 
   const topIssueCategory = useMemo(() => {
-    const categories = issues.map((i) => i.category || "General").filter(Boolean);
+    const categories = feedItems.map((i) => i.category || "General").filter(Boolean);
     return getTopValue(categories);
-  }, [issues]);
+  }, [feedItems]);
 
   const mostActiveDistrict = useMemo(() => {
-    const districts = issues
+    const districts = feedItems
       .map((i) => i.district || currentDistrict || "District 12")
       .filter(Boolean);
     return getTopValue(districts);
-  }, [issues, currentDistrict]);
+  }, [feedItems, currentDistrict]);
 
   const riskTrend = useMemo(() => {
     if (!issues.length) return 0;
@@ -364,24 +513,24 @@ export default function DashboardPage() {
     return Math.round((risky / issues.length) * 100);
   }, [issues]);
 
-  const districtIssues = useMemo(() => {
-    return issues.filter(
-      (issue) => (issue.district || currentDistrict || "District 12") === currentDistrict
+  const districtFeed = useMemo(() => {
+    return feedItems.filter(
+      (item) => (item.district || currentDistrict || "District 12") === currentDistrict
     );
-  }, [issues, currentDistrict]);
+  }, [feedItems, currentDistrict]);
 
   const trendingIssues = useMemo(() => {
     const titleCounts: Record<string, number> = {};
 
-    districtIssues.forEach((issue) => {
-      const normalized = issue.title?.trim() || "Untitled issue";
+    districtFeed.forEach((item) => {
+      const normalized = item.title?.trim() || "Untitled";
       titleCounts[normalized] = (titleCounts[normalized] || 0) + 1;
     });
 
     return Object.entries(titleCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);
-  }, [districtIssues]);
+  }, [districtFeed]);
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -578,13 +727,13 @@ export default function DashboardPage() {
                                       {title}
                                     </p>
                                     <p className="text-sm text-slate-500">
-                                      Recurring issue in {currentDistrict}
+                                      Recurring item in {currentDistrict}
                                     </p>
                                   </div>
                                 </div>
 
                                 <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                                  {count} report{count > 1 ? "s" : ""}
+                                  {count} mention{count > 1 ? "s" : ""}
                                 </span>
                               </div>
                             </Link>
@@ -599,7 +748,7 @@ export default function DashboardPage() {
                       <p className="text-base text-slate-600 md:text-lg">
                         {loading
                           ? "Loading posts..."
-                          : `${filteredIssues.length} posts found`}
+                          : `${filteredFeed.length} posts found`}
                       </p>
 
                       <div className="flex items-center gap-3">
@@ -624,50 +773,62 @@ export default function DashboardPage() {
                             Loading...
                           </h3>
                           <p className="mt-4 text-lg text-slate-500">
-                            Fetching your issues.
+                            Fetching your district feed.
                           </p>
                         </div>
-                      ) : filteredIssues.length === 0 ? (
+                      ) : filteredFeed.length === 0 ? (
                         <div className="rounded-3xl border border-slate-200 bg-slate-50 px-6 py-16 text-center">
                           <h3 className="text-3xl font-bold text-slate-900">
                             No posts found
                           </h3>
                           <p className="mt-4 text-lg text-slate-500">
-                            Try changing filters or create the first issue for
+                            Try changing filters or create the first post for
                             this district.
                           </p>
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {filteredIssues.map((issue) => (
+                          {filteredFeed.map((item) => (
                             <Link
-                              key={issue.id}
-                              href={`/feed?issue=${encodeURIComponent(issue.title)}`}
+                              key={`${item.kind}-${item.id}`}
+                              href={item.href}
                               className="block"
                             >
                               <div className="rounded-3xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:bg-slate-50">
                                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                   <div>
+                                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                                        {item.kind === "post" ? "Post" : "Issue"}
+                                      </span>
+                                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                        {item.category || "General"}
+                                      </span>
+                                      {item.kind === "post" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                                          <MessageSquare className="h-3 w-3" />
+                                          Community Discussion
+                                        </span>
+                                      ) : null}
+                                    </div>
+
                                     <h3 className="text-xl font-bold text-slate-900 md:text-2xl">
-                                      {issue.title}
+                                      {item.title}
                                     </h3>
                                     <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
-                                      {issue.description}
+                                      {item.description}
                                     </p>
                                   </div>
 
                                   <div className="flex flex-wrap gap-2">
                                     <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                                      {formatStatus(issue.status)}
-                                    </span>
-                                    <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
-                                      {issue.category || "General"}
+                                      {formatStatus(item.status)}
                                     </span>
                                   </div>
                                 </div>
 
                                 <div className="mt-4 text-sm text-slate-500">
-                                  Created on {formatDate(issue.created_at)}
+                                  Created on {formatDate(item.created_at)}
                                 </div>
                               </div>
                             </Link>
@@ -716,6 +877,8 @@ export default function DashboardPage() {
                             ["under_review", "Under Review"],
                             ["resolved", "Resolved"],
                             ["escalated", "Escalated"],
+                            ["active", "Active"],
+                            ["removed", "Removed"],
                           ].map(([value, label]) => (
                             <label key={value} className="flex items-center gap-3">
                               <input
@@ -743,6 +906,8 @@ export default function DashboardPage() {
                             ["transportation", "Transportation"],
                             ["environment", "Environment"],
                             ["drainage and flooding", "Drainage and flooding"],
+                            ["general civic discussion", "General civic discussion"],
+                            ["community discussion", "Community discussion"],
                           ].map(([value, label]) => (
                             <label key={value} className="flex items-center gap-3">
                               <input
