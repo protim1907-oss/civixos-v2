@@ -21,7 +21,7 @@ export default function TrendingNewsActions({ title, link }: Props) {
   const [copied, setCopied] = useState(false);
 
   const commentHref = useMemo(() => {
-    return `/district-feed?comment=${encodeURIComponent(slugify(title))}`;
+    return `/feed?comment=${encodeURIComponent(slugify(title))}`;
   }, [title]);
 
   async function handleShare() {
@@ -37,7 +37,7 @@ export default function TrendingNewsActions({ title, link }: Props) {
         window.setTimeout(() => setCopied(false), 1800);
       }
     } catch {
-      // user cancelled share or clipboard failed
+      // user cancelled or clipboard failed
     }
   }
 
