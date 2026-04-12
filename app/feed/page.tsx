@@ -52,6 +52,52 @@ type ProfileRow = {
 type CommentMap = Record<string, CommentRow[]>;
 type ProfileNameMap = Record<string, string>;
 
+function displayStateName(value?: string | null) {
+  const normalized = (value || "").trim().toUpperCase();
+
+  switch (normalized) {
+    case "NH":
+    case "NEW HAMPSHIRE":
+      return "New Hampshire";
+    case "TX":
+    case "TEXAS":
+      return "Texas";
+    case "CA":
+    case "CALIFORNIA":
+      return "California";
+    case "FL":
+    case "FLORIDA":
+      return "Florida";
+    default:
+      return value || "Your State";
+  }
+}
+
+function displayDistrictName(value?: string | null) {
+  const normalized = (value || "").trim().toUpperCase();
+
+  switch (normalized) {
+    case "NH":
+      return "New Hampshire";
+    case "NH-01":
+      return "New Hampshire 1st Congressional District";
+    case "NH-02":
+      return "New Hampshire 2nd Congressional District";
+    case "TX":
+      return "Texas";
+    case "TX-12":
+      return "Texas 12th District";
+    case "TX-20":
+      return "Texas 20th District";
+    case "CA":
+      return "California";
+    case "FL":
+      return "Florida";
+    default:
+      return value || "Your District";
+  }
+}
+
 function getStatusStyles(status: FeedPost["status"]) {
   switch (status) {
     case "Open":
@@ -267,7 +313,6 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
-        // IMPORTANT: fetch district from issues and filter by the user's district
         const { data: issuesData, error: issuesError } = await supabase
           .from("issues")
           .select("id, title, description, user_id, district, category, status")
@@ -288,7 +333,7 @@ export default function FeedPage() {
 
         if (issues.length === 0) {
           setFeedPosts([]);
-          setDebugMessage(`No issues found for ${district}.`);
+          setDebugMessage(`No issues found for ${displayDistrictName(district)}.`);
           setCommentsByIssue({});
           setCommenterNames({});
           return;
@@ -403,7 +448,7 @@ export default function FeedPage() {
         !q ||
         post.title.toLowerCase().includes(q) ||
         post.description.toLowerCase().includes(q) ||
-        post.district.toLowerCase().includes(q) ||
+        displayDistrictName(post.district).toLowerCase().includes(q) ||
         post.representative.toLowerCase().includes(q) ||
         post.category.toLowerCase().includes(q);
 
@@ -430,7 +475,9 @@ export default function FeedPage() {
         ? `${window.location.origin}/feed?issue=${encodeURIComponent(post.id)}`
         : "";
 
-    const shareText = `${post.title}\n\n${post.description}\n\nDistrict: ${post.district}\nRepresentative: ${post.representative}`;
+    const shareText = `${post.title}\n\n${post.description}\n\nDistrict: ${displayDistrictName(
+      post.district
+    )}\nRepresentative: ${post.representative}`;
 
     try {
       setSharingIssueId(post.id);
@@ -624,7 +671,7 @@ export default function FeedPage() {
               Browse civic issues, track status, and connect with your
               representative in{" "}
               <span className="font-semibold text-slate-900">
-                {currentDistrict}
+                {displayDistrictName(currentDistrict)}
               </span>
               .
             </p>
@@ -725,7 +772,7 @@ export default function FeedPage() {
                           </span>
 
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                            {post.district}
+                            {displayDistrictName(post.district)}
                           </span>
                         </div>
 
@@ -894,7 +941,7 @@ export default function FeedPage() {
               Showing {filteredPosts.length} issue
               {filteredPosts.length === 1 ? "" : "s"} for{" "}
               <span className="font-semibold text-slate-700">
-                {currentDistrict}
+                {displayDistrictName(currentDistrict)}
               </span>
               . Primary representative:{" "}
               <span className="font-semibold text-slate-700">
