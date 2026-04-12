@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { APP_NAME } from "@/lib/config";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: "🏠" },
@@ -32,7 +33,7 @@ export default function Sidebar() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400">
             Civic Platform
           </p>
-          <h2 className="text-base font-bold text-slate-900">CivicPulse</h2>
+          <h2 className="text-base font-bold text-slate-900">{APP_NAME}</h2>
         </div>
 
         <div className="w-[74px]" />
@@ -63,7 +64,7 @@ export default function Sidebar() {
                 Civic Platform
               </p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
-                CivicPulse
+                {APP_NAME}
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 Community engagement and district insight hub
