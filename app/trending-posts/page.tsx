@@ -278,8 +278,8 @@ function getCitizenPulse(news: FeedItem[]) {
     label: "General local activity",
     description:
       "The feed reflects a mix of local updates and community interest topics across the region.",
-      tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    };
+    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  };
 }
 
 export default async function TrendingPostsPage() {
@@ -473,7 +473,7 @@ export default async function TrendingPostsPage() {
 
                   <div className="mt-4 space-y-3">
                     <Link
-                      href="/district-feed"
+                      href="/feed"
                       className="flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
                     >
                       View District Feed
