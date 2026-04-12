@@ -40,11 +40,39 @@ export default function LoginPage() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  function getRedirectPath(accountType?: string | null) {
+  function getRedirectPath({
+    accountType,
+    role,
+  }: {
+    accountType?: string | null;
+    role?: string | null;
+  }) {
+    if (role === "moderator" || role === "admin") {
+      return "/moderator";
+    }
+
     if (accountType === "official") {
       return "/official-dashboard";
     }
+
     return "/dashboard";
+  }
+
+  async function getProfileRole(userId?: string) {
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("Failed to fetch profile role:", error);
+      return null;
+    }
+
+    return data?.role ?? null;
   }
 
   async function syncDistrictFromEmail(user: any) {
@@ -94,13 +122,25 @@ export default function LoginPage() {
 
       const updatedUser = await syncDistrictFromEmail(session.user);
       const accountType = updatedUser?.user_metadata?.account_type;
-      const redirectPath = getRedirectPath(accountType);
+      const role = await getProfileRole(updatedUser?.id);
+
+      const redirectPath = getRedirectPath({
+        accountType,
+        role,
+      });
 
       router.replace(redirectPath);
     } catch (error) {
       console.error("Session redirect error:", error);
+
       const accountType = session.user?.user_metadata?.account_type;
-      const redirectPath = getRedirectPath(accountType);
+      const role = await getProfileRole(session.user?.id);
+
+      const redirectPath = getRedirectPath({
+        accountType,
+        role,
+      });
+
       router.replace(redirectPath);
     }
   }
@@ -156,9 +196,15 @@ export default function LoginPage() {
 
     const updatedUser = await syncDistrictFromEmail(data.user);
     const accountType = updatedUser?.user_metadata?.account_type;
-    const redirectPath = getRedirectPath(accountType);
+    const role = await getProfileRole(updatedUser?.id);
+
+    const redirectPath = getRedirectPath({
+      accountType,
+      role,
+    });
 
     setMessage("Login successful. Redirecting...");
+    setLoading(false);
 
     setTimeout(() => {
       window.location.href = redirectPath;
@@ -217,7 +263,7 @@ export default function LoginPage() {
 
       const redirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?next=/dashboard`
+          ? `${window.location.origin}/auth/callback`
           : undefined;
 
       const { error } = await supabase.auth.signInWithOAuth({
