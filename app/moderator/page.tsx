@@ -176,6 +176,18 @@ function getIssueRiskScore(ai: IssueAIModeration | undefined) {
   return clampRisk(Math.max(toxicity, spam, misinformation));
 }
 
+function getPostNextStatus(action: "approve" | "remove" | "escalate") {
+  if (action === "approve") return "active";
+  if (action === "remove") return "removed";
+  return "under_review";
+}
+
+function getIssueNextStatus(action: "approve" | "remove" | "escalate") {
+  if (action === "approve") return "active";
+  if (action === "remove") return "removed";
+  return "under_review";
+}
+
 export default function ModeratorDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -273,7 +285,9 @@ export default function ModeratorDashboardPage() {
 
     const profileRows = (profilesRes.data || []) as Profile[];
     const profileMap: Record<string, Profile> = {};
-    for (const item of profileRows) profileMap[item.id] = item;
+    for (const item of profileRows) {
+      profileMap[item.id] = item;
+    }
 
     setProfilesMap(profileMap);
     setPosts((postsRes.data || []) as Post[]);
@@ -288,6 +302,42 @@ export default function ModeratorDashboardPage() {
 
   useEffect(() => {
     loadData();
+
+    const channel = supabase
+      .channel("moderator-live-actions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        async () => {
+          await loadData("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "moderation_queue" },
+        async () => {
+          await loadData("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "moderation_actions" },
+        async () => {
+          await loadData("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "issues" },
+        async () => {
+          await loadData("refresh");
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -432,7 +482,7 @@ export default function ModeratorDashboardPage() {
 
   const stats = useMemo(() => {
     const pendingPosts = moderationQueue.filter((row) => !row.reviewer_decision).length;
-    const escalatedPosts = moderationQueue.filter((row) => row.reviewer_decision === "escalate").length;
+    const escalatedPosts = posts.filter((row) => row.status === "under_review").length;
     const highRiskIssues = unifiedItems.filter((item) => item.kind === "issue" && item.riskScore >= 80).length;
     const totalReviewed = moderationQueue.filter((row) => !!row.reviewer_decision).length;
 
@@ -442,7 +492,7 @@ export default function ModeratorDashboardPage() {
       highRiskIssues,
       totalReviewed,
     };
-  }, [moderationQueue, unifiedItems]);
+  }, [moderationQueue, unifiedItems, posts]);
 
   const selectedItem = useMemo(() => {
     if (!selectedId || !selectedKind) return null;
@@ -471,38 +521,54 @@ export default function ModeratorDashboardPage() {
     notes?: string
   ) {
     if (!profile) return;
+
     setSavingId(postId);
 
-    const queueRow = moderationQueue.find((row) => row.post_id === postId);
+    try {
+      const queueRow = moderationQueue.find((row) => row.post_id === postId);
+      const nowIso = new Date().toISOString();
+      const nextStatus = getPostNextStatus(action);
 
-    if (queueRow) {
-      await supabase
-        .from("moderation_queue")
+      if (queueRow) {
+        const { error: queueError } = await supabase
+          .from("moderation_queue")
+          .update({
+            reviewer_decision: action,
+            reviewed_by: profile.id,
+            reviewed_at: nowIso,
+          })
+          .eq("post_id", postId);
+
+        if (queueError) throw queueError;
+      }
+
+      const { error: actionError } = await supabase.from("moderation_actions").insert({
+        flag_id: queueRow?.id || null,
+        post_id: postId,
+        moderator_id: profile.id,
+        action,
+        notes: notes || null,
+      });
+
+      if (actionError) throw actionError;
+
+      const { error: postError } = await supabase
+        .from("posts")
         .update({
-          reviewer_decision: action,
-          reviewed_by: profile.id,
-          reviewed_at: new Date().toISOString(),
+          status: nextStatus,
+          updated_at: nowIso,
         })
-        .eq("post_id", postId);
+        .eq("id", postId);
+
+      if (postError) throw postError;
+
+      setActionNotes("");
+      await loadData("refresh");
+    } catch (error) {
+      console.error("Post moderation error:", error);
+    } finally {
+      setSavingId(null);
     }
-
-    await supabase.from("moderation_actions").insert({
-      post_id: postId,
-      moderator_id: profile.id,
-      action,
-      notes: notes || null,
-    });
-
-    await supabase
-      .from("posts")
-      .update({
-        status: action === "remove" ? "removed" : "active",
-      })
-      .eq("id", postId);
-
-    setActionNotes("");
-    await loadData("refresh");
-    setSavingId(null);
   }
 
   async function handleIssueDecision(
@@ -511,83 +577,111 @@ export default function ModeratorDashboardPage() {
   ) {
     setSavingId(issueId);
 
-    let nextStatus = "active";
-    if (action === "remove") nextStatus = "removed";
-    if (action === "escalate") nextStatus = "under_review";
+    try {
+      const nextStatus = getIssueNextStatus(action);
 
-    await supabase
-      .from("issues")
-      .update({
-        status: nextStatus,
-      })
-      .eq("id", issueId);
+      const { error } = await supabase
+        .from("issues")
+        .update({
+          status: nextStatus,
+        })
+        .eq("id", issueId);
 
-    setActionNotes("");
-    await loadData("refresh");
-    setSavingId(null);
+      if (error) throw error;
+
+      setActionNotes("");
+      await loadData("refresh");
+    } catch (error) {
+      console.error("Issue moderation error:", error);
+    } finally {
+      setSavingId(null);
+    }
   }
 
   async function handleBulkAction(action: "approve" | "remove" | "escalate") {
     if (!profile || bulkSelected.length === 0) return;
     setBulkSaving(true);
 
-    for (const key of bulkSelected) {
-      const [kind, id] = key.split(":") as ["post" | "issue", string];
-      if (kind === "post") {
-        const queueRow = moderationQueue.find((row) => row.post_id === id);
+    try {
+      const nowIso = new Date().toISOString();
 
-        if (queueRow) {
-          await supabase
-            .from("moderation_queue")
+      for (const key of bulkSelected) {
+        const [kind, id] = key.split(":") as ["post" | "issue", string];
+
+        if (kind === "post") {
+          const queueRow = moderationQueue.find((row) => row.post_id === id);
+          const nextStatus = getPostNextStatus(action);
+
+          if (queueRow) {
+            const { error: queueError } = await supabase
+              .from("moderation_queue")
+              .update({
+                reviewer_decision: action,
+                reviewed_by: profile.id,
+                reviewed_at: nowIso,
+              })
+              .eq("post_id", id);
+
+            if (queueError) throw queueError;
+          }
+
+          const { error: actionError } = await supabase.from("moderation_actions").insert({
+            flag_id: queueRow?.id || null,
+            post_id: id,
+            moderator_id: profile.id,
+            action,
+            notes: actionNotes || null,
+          });
+
+          if (actionError) throw actionError;
+
+          const { error: postError } = await supabase
+            .from("posts")
             .update({
-              reviewer_decision: action,
-              reviewed_by: profile.id,
-              reviewed_at: new Date().toISOString(),
+              status: nextStatus,
+              updated_at: nowIso,
             })
-            .eq("post_id", id);
+            .eq("id", id);
+
+          if (postError) throw postError;
+        } else {
+          const nextStatus = getIssueNextStatus(action);
+
+          const { error: issueError } = await supabase
+            .from("issues")
+            .update({
+              status: nextStatus,
+            })
+            .eq("id", id);
+
+          if (issueError) throw issueError;
         }
-
-        await supabase.from("moderation_actions").insert({
-          post_id: id,
-          moderator_id: profile.id,
-          action,
-          notes: actionNotes || null,
-        });
-
-        await supabase
-          .from("posts")
-          .update({
-            status: action === "remove" ? "removed" : "active",
-          })
-          .eq("id", id);
-      } else {
-        let nextStatus = "active";
-        if (action === "remove") nextStatus = "removed";
-        if (action === "escalate") nextStatus = "under_review";
-
-        await supabase
-          .from("issues")
-          .update({
-            status: nextStatus,
-          })
-          .eq("id", id);
       }
-    }
 
-    setBulkSelected([]);
-    setActionNotes("");
-    await loadData("refresh");
-    setBulkSaving(false);
+      setBulkSelected([]);
+      setActionNotes("");
+      await loadData("refresh");
+    } catch (error) {
+      console.error("Bulk moderation error:", error);
+    } finally {
+      setBulkSaving(false);
+    }
   }
 
   async function assignToMe(item: UnifiedItem) {
     if (!profile || item.kind !== "post") return;
-    await supabase
+
+    const { error } = await supabase
       .from("moderation_queue")
       .update({
         reviewed_by: profile.id,
       })
       .eq("post_id", item.id);
+
+    if (error) {
+      console.error("Assign to me error:", error);
+      return;
+    }
 
     await loadData("refresh");
   }
@@ -610,13 +704,14 @@ export default function ModeratorDashboardPage() {
     );
   }
 
-  const tabItems = tab === "queue"
-    ? filteredQueueItems
-    : tab === "posts"
-    ? filteredPosts
-    : tab === "issues"
-    ? filteredIssues
-    : [];
+  const tabItems =
+    tab === "queue"
+      ? filteredQueueItems
+      : tab === "posts"
+      ? filteredPosts
+      : tab === "issues"
+      ? filteredIssues
+      : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -792,9 +887,7 @@ export default function ModeratorDashboardPage() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Bulk moderation actions</h2>
-                  <p className="text-sm text-slate-500">
-                    {bulkSelected.length} selected
-                  </p>
+                  <p className="text-sm text-slate-500">{bulkSelected.length} selected</p>
                 </div>
 
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -862,15 +955,11 @@ export default function ModeratorDashboardPage() {
                         <div key={row.id} className="p-5">
                           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div>
-                              <p className="font-semibold capitalize text-slate-900">
-                                {row.action}
-                              </p>
+                              <p className="font-semibold capitalize text-slate-900">{row.action}</p>
                               <p className="text-sm text-slate-600">
                                 Moderator: {moderator?.full_name || moderator?.email || "Unknown"}
                               </p>
-                              <p className="text-sm text-slate-500">
-                                Post ID: {row.post_id}
-                              </p>
+                              <p className="text-sm text-slate-500">Post ID: {row.post_id}</p>
                             </div>
                             <p className="text-sm text-slate-500">{formatDate(row.created_at)}</p>
                           </div>
@@ -900,14 +989,16 @@ export default function ModeratorDashboardPage() {
                           className="p-5 transition hover:bg-slate-50"
                         >
                           <div className="flex gap-4">
-                            <div className="pt-1">
-                              <input
-                                type="checkbox"
-                                checked={isBulkSelected(item)}
-                                onChange={() => toggleBulkSelection(item)}
-                                className="h-4 w-4 rounded border-slate-300"
-                              />
-                            </div>
+                            {(tab === "queue" || tab === "posts" || tab === "issues") && (
+                              <div className="pt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isBulkSelected(item)}
+                                  onChange={() => toggleBulkSelection(item)}
+                                  className="h-4 w-4 rounded border-slate-300"
+                                />
+                              </div>
+                            )}
 
                             <div className="min-w-0 flex-1">
                               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -930,95 +1021,125 @@ export default function ModeratorDashboardPage() {
                                 <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">
                                   {item.status}
                                 </span>
+
+                                {item.flaggedReason && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">
+                                    <Flag className="h-3.5 w-3.5" />
+                                    {item.flaggedReason}
+                                  </span>
+                                )}
                               </div>
 
-                              <button
-                                onClick={() => {
-                                  setSelectedId(item.id);
-                                  setSelectedKind(item.kind);
-                                }}
-                                className="text-left"
-                              >
-                                <p className="font-semibold text-slate-900 hover:text-indigo-700">
-                                  {item.title}
-                                </p>
-                                <p className="mt-1 line-clamp-3 text-sm text-slate-600">
-                                  {item.body}
-                                </p>
-                              </button>
-
-                              <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-500 md:grid-cols-2">
-                                <p>Owner: {item.ownerName}</p>
-                                <p>District: {item.district || "—"}</p>
-                                <p>Created: {formatDate(item.createdAt)}</p>
-                                <p>Recommended: {item.recommendedAction}</p>
-                              </div>
-
-                              {item.flaggedReason && (
-                                <div className="mt-3 rounded-2xl bg-red-50 p-3 text-sm text-red-700">
-                                  <span className="font-semibold">Flagged reason:</span> {item.flaggedReason}
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <h3 className="text-base font-semibold text-slate-900">
+                                    {item.title}
+                                  </h3>
+                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                                    {item.body}
+                                  </p>
                                 </div>
-                              )}
+
+                                <button
+                                  onClick={() => {
+                                    setSelectedId(item.id);
+                                    setSelectedKind(item.kind);
+                                  }}
+                                  className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  View
+                                </button>
+                              </div>
+
+                              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <MessageSquare className="h-4 w-4" />
+                                  {item.ownerName}
+                                </span>
+
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Layers3 className="h-4 w-4" />
+                                  {item.district || "No district"}
+                                </span>
+
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Clock3 className="h-4 w-4" />
+                                  {formatDate(item.createdAt)}
+                                </span>
+
+                                {assignedModerator && (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <UserCheck className="h-4 w-4" />
+                                    Assigned: {assignedModerator.full_name || assignedModerator.email}
+                                  </span>
+                                )}
+                              </div>
 
                               {item.kind === "post" && (
-                                <div className="mt-4 flex flex-wrap items-center gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => assignToMe(item)}
+                                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                  >
+                                    Assign to me
+                                  </button>
+
                                   <button
                                     onClick={() => handlePostModeration(item.id, "approve", actionNotes)}
                                     disabled={savingId === item.id}
-                                    className="rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                   >
+                                    <CheckCircle2 className="h-4 w-4" />
                                     Approve
                                   </button>
+
                                   <button
                                     onClick={() => handlePostModeration(item.id, "escalate", actionNotes)}
                                     disabled={savingId === item.id}
-                                    className="rounded-xl bg-yellow-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                   >
+                                    <AlertTriangle className="h-4 w-4" />
                                     Escalate
                                   </button>
+
                                   <button
                                     onClick={() => handlePostModeration(item.id, "remove", actionNotes)}
                                     disabled={savingId === item.id}
-                                    className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                   >
+                                    <XCircle className="h-4 w-4" />
                                     Remove
                                   </button>
-                                  <button
-                                    onClick={() => assignToMe(item)}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
-                                  >
-                                    <UserCheck className="h-3.5 w-3.5" />
-                                    Assign to me
-                                  </button>
-                                  {assignedModerator && (
-                                    <span className="text-xs text-slate-500">
-                                      Assigned/Reviewed by {assignedModerator.full_name || assignedModerator.email}
-                                    </span>
-                                  )}
                                 </div>
                               )}
 
                               {item.kind === "issue" && (
-                                <div className="mt-4 flex flex-wrap items-center gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2">
                                   <button
                                     onClick={() => handleIssueDecision(item.id, "approve")}
                                     disabled={savingId === item.id}
-                                    className="rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                   >
-                                    Mark Safe
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Approve
                                   </button>
+
                                   <button
                                     onClick={() => handleIssueDecision(item.id, "escalate")}
                                     disabled={savingId === item.id}
-                                    className="rounded-xl bg-yellow-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                   >
-                                    Under Review
+                                    <AlertTriangle className="h-4 w-4" />
+                                    Escalate
                                   </button>
+
                                   <button
                                     onClick={() => handleIssueDecision(item.id, "remove")}
                                     disabled={savingId === item.id}
-                                    className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                   >
+                                    <XCircle className="h-4 w-4" />
                                     Remove
                                   </button>
                                 </div>
@@ -1036,112 +1157,80 @@ export default function ModeratorDashboardPage() {
             <aside className="space-y-6">
               <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
-                  <Eye className="h-5 w-5 text-indigo-600" />
-                  <h2 className="text-lg font-semibold text-slate-900">Inspector Panel</h2>
+                  <Brain className="h-5 w-5 text-indigo-600" />
+                  <h2 className="text-lg font-semibold text-slate-900">Selected item</h2>
                 </div>
 
                 {!selectedItem ? (
                   <p className="text-sm text-slate-500">
-                    Select a post or issue from the queue to inspect its full context.
+                    Select a post or issue to inspect more details.
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                        {selectedItem.kind === "post" ? "Post" : "Issue"}
-                      </span>
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(
-                          selectedItem.severity
-                        )}`}
-                      >
-                        {selectedItem.severity}
-                      </span>
-                    </div>
-
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Title</p>
-                      <p className="mt-1 font-semibold text-slate-900">{selectedItem.title}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Body</p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                          {selectedItem.kind}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(
+                            selectedItem.severity
+                          )}`}
+                        >
+                          {selectedItem.severity}
+                        </span>
+                      </div>
+                      <h3 className="text-base font-semibold text-slate-900">
+                        {selectedItem.title}
+                      </h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
                         {selectedItem.body}
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-slate-500">Owner</p>
-                        <p className="mt-1 font-medium text-slate-900">{selectedItem.ownerName}</p>
+                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                      <div className="flex items-center justify-between">
+                        <span>Status</span>
+                        <span className="font-semibold capitalize">{selectedItem.status}</span>
                       </div>
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-slate-500">District</p>
-                        <p className="mt-1 font-medium text-slate-900">{selectedItem.district || "—"}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span>Recommended action</span>
+                        <span className="font-semibold">{selectedItem.recommendedAction}</span>
                       </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 p-4">
-                      <div className="mb-3 flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-slate-600" />
-                        <p className="font-medium text-slate-900">AI / Risk Signals</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span>Risk score</span>
+                        <span className="font-semibold">{selectedItem.riskScore}</span>
                       </div>
-
-                      <div className="space-y-2 text-sm text-slate-700">
-                        <div className="flex items-center justify-between">
-                          <span>Risk Score</span>
-                          <span>{selectedItem.riskScore}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Recommended</span>
-                          <span>{selectedItem.recommendedAction}</span>
-                        </div>
-                        {selectedItem.aiBreakdown && (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <span>Toxicity</span>
-                              <span>{selectedItem.aiBreakdown.toxicity || 0}%</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Spam</span>
-                              <span>{selectedItem.aiBreakdown.spam || 0}%</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Misinformation</span>
-                              <span>{selectedItem.aiBreakdown.misinformation || 0}%</span>
-                            </div>
-                          </>
-                        )}
+                      <div className="mt-2 flex items-center justify-between">
+                        <span>Created</span>
+                        <span className="font-semibold">{formatDate(selectedItem.createdAt)}</span>
                       </div>
                     </div>
 
-                    {selectedItem.flaggedReason && (
-                      <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">
-                        <span className="font-semibold">Flagged reason:</span> {selectedItem.flaggedReason}
-                      </div>
-                    )}
-
-                    {selectedItem.kind === "post" && recentActionsForSelectedPost.length > 0 && (
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-slate-600" />
-                          <p className="font-medium text-slate-900">Recent audit trail</p>
-                        </div>
-                        <div className="space-y-2">
-                          {recentActionsForSelectedPost.map((row) => {
-                            const moderator = row.moderator_id ? profilesMap[row.moderator_id] : undefined;
-                            return (
-                              <div key={row.id} className="rounded-2xl bg-slate-50 p-3 text-sm">
-                                <p className="font-semibold capitalize text-slate-900">{row.action}</p>
-                                <p className="text-slate-600">
-                                  {moderator?.full_name || moderator?.email || "Unknown"}
-                                </p>
-                                <p className="text-slate-500">{formatDate(row.created_at)}</p>
-                                {row.notes && <p className="mt-1 text-slate-700">{row.notes}</p>}
-                              </div>
-                            );
-                          })}
+                    {selectedItem.aiBreakdown && (
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <h4 className="mb-3 text-sm font-semibold text-slate-900">
+                          AI breakdown
+                        </h4>
+                        <div className="space-y-2 text-sm text-slate-700">
+                          <div className="flex items-center justify-between">
+                            <span>Toxicity</span>
+                            <span className="font-semibold">
+                              {selectedItem.aiBreakdown.toxicity ?? 0}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Spam</span>
+                            <span className="font-semibold">
+                              {selectedItem.aiBreakdown.spam ?? 0}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Misinformation</span>
+                            <span className="font-semibold">
+                              {selectedItem.aiBreakdown.misinformation ?? 0}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1151,35 +1240,33 @@ export default function ModeratorDashboardPage() {
 
               <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
-                  <Layers3 className="h-5 w-5 text-indigo-600" />
-                  <h2 className="text-lg font-semibold text-slate-900">Operating Model</h2>
+                  <Activity className="h-5 w-5 text-indigo-600" />
+                  <h2 className="text-lg font-semibold text-slate-900">Post action history</h2>
                 </div>
 
-                <div className="space-y-3 text-sm text-slate-600">
-                  <div className="rounded-2xl bg-slate-50 p-3">
-                    <p className="font-semibold text-slate-800">Approve / Mark Safe</p>
-                    <p className="mt-1">Use when the content is acceptable and can remain visible.</p>
+                {!selectedItem || selectedItem.kind !== "post" ? (
+                  <p className="text-sm text-slate-500">
+                    Select a post to view recent moderation history.
+                  </p>
+                ) : recentActionsForSelectedPost.length === 0 ? (
+                  <p className="text-sm text-slate-500">No moderation actions yet for this post.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentActionsForSelectedPost.map((row) => {
+                      const moderator = row.moderator_id ? profilesMap[row.moderator_id] : undefined;
+                      return (
+                        <div key={row.id} className="rounded-2xl bg-slate-50 p-3 text-sm">
+                          <p className="font-semibold capitalize text-slate-900">{row.action}</p>
+                          <p className="mt-1 text-slate-600">
+                            {moderator?.full_name || moderator?.email || "Unknown moderator"}
+                          </p>
+                          <p className="mt-1 text-slate-500">{formatDate(row.created_at)}</p>
+                          {row.notes && <p className="mt-2 text-slate-700">{row.notes}</p>}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="rounded-2xl bg-slate-50 p-3">
-                    <p className="font-semibold text-slate-800">Escalate / Under Review</p>
-                    <p className="mt-1">Use when policy context or human judgment is still needed.</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 p-3">
-                    <p className="font-semibold text-slate-800">Remove</p>
-                    <p className="mt-1">Use for harmful, abusive, spam, or policy-violating content.</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-700">
-                    <MessageSquare className="mb-2 h-4 w-4" />
-                    Posts queue
-                  </div>
-                  <div className="rounded-2xl bg-red-50 p-3 text-red-700">
-                    <Flag className="mb-2 h-4 w-4" />
-                    Issue risk
-                  </div>
-                </div>
+                )}
               </section>
             </aside>
           </div>
