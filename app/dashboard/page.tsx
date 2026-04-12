@@ -17,6 +17,7 @@ import {
   MapPinned,
   Activity,
   MessageSquare,
+  RefreshCw,
 } from "lucide-react";
 
 type Issue = {
@@ -91,11 +92,17 @@ function getDistrictMappingFromEmail(email?: string | null) {
   return null;
 }
 
+function normalizeStatus(status?: string | null) {
+  return (status || "").trim().toLowerCase();
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   const [issues, setIssues] = useState<Issue[]>([]);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [discussions, setDiscussions] = useState<DiscussionRow[]>([]);
@@ -148,10 +155,11 @@ export default function DashboardPage() {
     return true;
   }
 
-  useEffect(() => {
-    async function loadDashboard() {
-      setLoading(true);
+  async function loadDashboard(mode: "initial" | "refresh" = "initial") {
+    if (mode === "initial") setLoading(true);
+    if (mode === "refresh") setRefreshing(true);
 
+    try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -173,7 +181,7 @@ export default function DashboardPage() {
 
         const updated = await syncDistrictFromEmail();
 
-        if (updated) {
+        if (updated && mode === "initial") {
           window.location.reload();
           return;
         }
@@ -197,16 +205,14 @@ export default function DashboardPage() {
           setUserName(guestName);
           setCurrentDistrict(guestDistrict);
 
-          const [
-            issuesRes,
-            discussionsRes,
-          ] = await Promise.all([
+          const [issuesRes, discussionsRes] = await Promise.all([
             supabase
               .from("issues")
               .select(
                 "id, title, description, status, category, district, created_at, user_id"
               )
               .eq("district", guestDistrict)
+              .neq("status", "removed")
               .order("created_at", { ascending: false }),
             supabase
               .from("discussions")
@@ -247,7 +253,6 @@ export default function DashboardPage() {
 
           setIssues((issuesRes.data as Issue[]) || []);
           setPosts(postRows);
-          setLoading(false);
           return;
         } catch (error) {
           console.error("Guest parse error:", error);
@@ -271,6 +276,14 @@ export default function DashboardPage() {
 
       const typedProfile = profile as ProfileRow | null;
 
+      if (
+        typedProfile?.role === "moderator" ||
+        typedProfile?.role === "admin"
+      ) {
+        router.replace("/moderator");
+        return;
+      }
+
       const displayName =
         typedProfile?.full_name ||
         user.user_metadata?.full_name ||
@@ -289,16 +302,14 @@ export default function DashboardPage() {
 
       setCurrentDistrict(resolvedDistrict);
 
-      const [
-        issuesRes,
-        discussionsRes,
-      ] = await Promise.all([
+      const [issuesRes, discussionsRes] = await Promise.all([
         supabase
           .from("issues")
           .select(
             "id, title, description, status, category, district, created_at, user_id"
           )
           .eq("district", resolvedDistrict)
+          .neq("status", "removed")
           .order("created_at", { ascending: false }),
         supabase
           .from("discussions")
@@ -339,10 +350,44 @@ export default function DashboardPage() {
 
       setIssues((issuesRes.data as Issue[]) || []);
       setPosts(postRows);
+    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }
 
-    loadDashboard();
+  useEffect(() => {
+    loadDashboard("initial");
+
+    const channel = supabase
+      .channel("dashboard-live-updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        async () => {
+          await loadDashboard("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "issues" },
+        async () => {
+          await loadDashboard("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "discussions" },
+        async () => {
+          await loadDashboard("refresh");
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, supabase]);
 
   async function handleLogout() {
@@ -373,38 +418,43 @@ export default function DashboardPage() {
   }, [discussions]);
 
   const feedItems = useMemo<FeedItem[]>(() => {
-    const issueItems: FeedItem[] = issues.map((issue) => ({
-      id: issue.id,
-      kind: "issue",
-      title: issue.title,
-      description: issue.description,
-      status: issue.status,
-      category: issue.category || "Infrastructure",
-      district: issue.district,
-      created_at: issue.created_at,
-      href: `/feed?issue=${encodeURIComponent(issue.title)}`,
-    }));
+    const issueItems: FeedItem[] = issues
+      .filter((issue) => normalizeStatus(issue.status) !== "removed")
+      .map((issue) => ({
+        id: issue.id,
+        kind: "issue",
+        title: issue.title,
+        description: issue.description,
+        status: issue.status,
+        category: issue.category || "Infrastructure",
+        district: issue.district,
+        created_at: issue.created_at,
+        href: `/feed?issue=${encodeURIComponent(issue.title)}`,
+      }));
 
-    const postItems: FeedItem[] = posts.map((post) => {
-      const discussion = discussionMap.get(post.discussion_id);
-      const rawContent = post.content || "";
-      const parts = rawContent.split("\n\n");
-      const extractedTitle = parts[0]?.trim() || discussion?.title || "Discussion Post";
-      const extractedDescription =
-        parts.slice(1).join("\n\n").trim() || rawContent;
+    const postItems: FeedItem[] = posts
+      .filter((post) => normalizeStatus(post.status) === "active")
+      .map((post) => {
+        const discussion = discussionMap.get(post.discussion_id);
+        const rawContent = post.content || "";
+        const parts = rawContent.split("\n\n");
+        const extractedTitle =
+          parts[0]?.trim() || discussion?.title || "Discussion Post";
+        const extractedDescription =
+          parts.slice(1).join("\n\n").trim() || rawContent;
 
-      return {
-        id: post.id,
-        kind: "post",
-        title: discussion?.title || extractedTitle,
-        description: extractedDescription,
-        status: post.status,
-        category: discussion?.topic || "Community Discussion",
-        district: discussion?.district || currentDistrict,
-        created_at: post.created_at,
-        href: "/feed",
-      };
-    });
+        return {
+          id: post.id,
+          kind: "post",
+          title: discussion?.title || extractedTitle,
+          description: extractedDescription,
+          status: post.status,
+          category: discussion?.topic || "Community Discussion",
+          district: discussion?.district || currentDistrict,
+          created_at: post.created_at,
+          href: "/feed",
+        };
+      });
 
     return [...issueItems, ...postItems];
   }, [issues, posts, discussionMap, currentDistrict]);
@@ -423,7 +473,7 @@ export default function DashboardPage() {
 
     if (statusFilter !== "all") {
       result = result.filter(
-        (item) => (item.status || "").toLowerCase() === statusFilter
+        (item) => normalizeStatus(item.status) === statusFilter
       );
     }
 
@@ -451,18 +501,20 @@ export default function DashboardPage() {
   }, [feedItems, search, statusFilter, categoryFilter, sortBy]);
 
   const openCount = issues.filter(
-    (i) => (i.status || "").toLowerCase() === "open"
+    (i) => normalizeStatus(i.status) === "open" || normalizeStatus(i.status) === "active"
   ).length;
 
   const underReviewCount = issues.filter(
-    (i) => (i.status || "").toLowerCase() === "under_review"
+    (i) => normalizeStatus(i.status) === "under_review"
   ).length;
 
   const resolvedCount = issues.filter(
-    (i) => (i.status || "").toLowerCase() === "resolved"
+    (i) => normalizeStatus(i.status) === "resolved"
   ).length;
 
-  const totalCount = posts.length;
+  const totalCount = posts.filter(
+    (p) => normalizeStatus(p.status) === "active"
+  ).length;
 
   function formatStatus(status: string | null) {
     if (!status) return "Open";
@@ -506,7 +558,7 @@ export default function DashboardPage() {
     if (!issues.length) return 0;
 
     const risky = issues.filter((issue) => {
-      const status = (issue.status || "").toLowerCase();
+      const status = normalizeStatus(issue.status);
       return status === "under_review" || status === "escalated";
     }).length;
 
@@ -562,6 +614,15 @@ export default function DashboardPage() {
                         <span className="font-semibold">Current district:</span>{" "}
                         {currentDistrict}
                       </div>
+
+                      <button
+                        onClick={() => loadDashboard("refresh")}
+                        disabled={refreshing}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-60"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                        Refresh
+                      </button>
 
                       <button
                         onClick={handleLogout}
@@ -878,7 +939,6 @@ export default function DashboardPage() {
                             ["resolved", "Resolved"],
                             ["escalated", "Escalated"],
                             ["active", "Active"],
-                            ["removed", "Removed"],
                           ].map(([value, label]) => (
                             <label key={value} className="flex items-center gap-3">
                               <input
