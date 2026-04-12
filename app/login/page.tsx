@@ -323,7 +323,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  CivicPulse
+                  Civix250
                 </p>
                 <h1 className="text-2xl font-bold text-slate-900">Citizen Login</h1>
               </div>
@@ -381,7 +381,7 @@ export default function LoginPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Welcome back
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">Log in to CivicPulse</h2>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">Log in to Civix250</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 Choose your preferred login option below. Citizens can sign in normally, while
                 government and public officials can use the official registration path for role-based
