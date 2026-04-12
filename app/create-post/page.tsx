@@ -16,6 +16,7 @@ type AiReview = {
   spamScore: number;
   misinformationScore: number;
   overallScore: number;
+  flaggedReason?: string | null;
 };
 
 export default function CreateIssuePage() {
@@ -76,34 +77,65 @@ export default function CreateIssuePage() {
     return "Low";
   }
 
-  function getRecommendedActionFromScores(
-    toxicityScore: number,
-    spamScore: number,
-    misinformationScore: number,
-    overallScore: number
-  ): "Approve" | "Review" | "Block" {
+  function getCategoryFromText(combined: string) {
     if (
-      toxicityScore >= 80 ||
-      spamScore >= 80 ||
-      misinformationScore >= 85 ||
-      overallScore >= 85
+      combined.includes("drain") ||
+      combined.includes("overflow") ||
+      combined.includes("waterlogging") ||
+      combined.includes("flood") ||
+      combined.includes("sewage")
     ) {
-      return "Block";
+      return {
+        category: "Drainage and flooding",
+        summary:
+          "The report points to recurring drainage overflow and waterlogging, which may present sanitation and public health risks.",
+      };
     }
 
     if (
-      toxicityScore >= 35 ||
-      spamScore >= 35 ||
-      misinformationScore >= 40 ||
-      overallScore >= 40
+      combined.includes("road") ||
+      combined.includes("pothole") ||
+      combined.includes("traffic")
     ) {
-      return "Review";
+      return {
+        category: "Transportation",
+        summary:
+          "The issue suggests road or traffic conditions that may require inspection and public works follow-up.",
+      };
     }
 
-    return "Approve";
+    if (
+      combined.includes("garbage") ||
+      combined.includes("waste") ||
+      combined.includes("trash")
+    ) {
+      return {
+        category: "Environment",
+        summary:
+          "The issue appears related to sanitation or waste handling and may require cleanup and district monitoring.",
+      };
+    }
+
+    if (
+      combined.includes("crime") ||
+      combined.includes("unsafe") ||
+      combined.includes("assault")
+    ) {
+      return {
+        category: "Safety",
+        summary:
+          "The issue appears connected to resident safety and may need escalation to the relevant district authority.",
+      };
+    }
+
+    return {
+      category: "Infrastructure",
+      summary:
+        "This issue appears to describe a civic concern that may require local review and follow-up.",
+    };
   }
 
-  function runAiReview() {
+  async function runAiReview() {
     setErrorMessage("");
     setSuccessMessage("");
 
@@ -117,133 +149,60 @@ export default function CreateIssuePage() {
 
     setIsReviewing(true);
 
-    const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
+    try {
+      const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
+      const { category, summary } = getCategoryFromText(combined);
 
-    let toxicityScore = 5;
-    let spamScore = 4;
-    let misinformationScore = 6;
-    let category = "General civic issue";
-    let summary =
-      "This issue appears to describe a civic concern that may require local review and follow-up.";
-    let suggestedTitle = trimmedTitle || "Civic issue report";
+      const response = await fetch("/api/moderate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: trimmedTitle,
+          description: trimmedDescription,
+        }),
+      });
 
-    if (
-      combined.includes("drain") ||
-      combined.includes("overflow") ||
-      combined.includes("waterlogging") ||
-      combined.includes("flood") ||
-      combined.includes("sewage")
-    ) {
-      toxicityScore = 4;
-      spamScore = 3;
-      misinformationScore = 14;
-      category = "Drainage and flooding";
-      summary =
-        "The report points to recurring drainage overflow and waterlogging, which may present sanitation and public health risks.";
-      if (!trimmedTitle) suggestedTitle = "Waterlogging in District 12";
-    } else if (
-      combined.includes("road") ||
-      combined.includes("pothole") ||
-      combined.includes("traffic")
-    ) {
-      toxicityScore = 3;
-      spamScore = 2;
-      misinformationScore = 10;
-      category = "Transportation";
-      summary =
-        "The issue suggests road or traffic conditions that may require inspection and public works follow-up.";
-    } else if (
-      combined.includes("garbage") ||
-      combined.includes("waste") ||
-      combined.includes("trash")
-    ) {
-      toxicityScore = 3;
-      spamScore = 2;
-      misinformationScore = 9;
-      category = "Environment";
-      summary =
-        "The issue appears related to sanitation or waste handling and may require cleanup and district monitoring.";
-    } else if (
-      combined.includes("crime") ||
-      combined.includes("unsafe") ||
-      combined.includes("assault")
-    ) {
-      toxicityScore = 6;
-      spamScore = 2;
-      misinformationScore = 12;
-      category = "Safety";
-      summary =
-        "The issue appears connected to resident safety and may need escalation to the relevant district authority.";
-    } else {
-      category = "Infrastructure";
-    }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to review content.");
+      }
 
-    if (
-      combined.includes("urgent") ||
-      combined.includes("immediately") ||
-      combined.includes("danger") ||
-      combined.includes("health risk")
-    ) {
-      misinformationScore += 6;
-    }
+      const moderation = await response.json();
 
-    if (
-      combined.includes("idiot") ||
-      combined.includes("stupid") ||
-      combined.includes("kill") ||
-      combined.includes("hate")
-    ) {
-      toxicityScore += 45;
-    }
+      const toxicityScore = Math.round(Number(moderation.toxicity || 0) * 100);
+      const spamScore = Math.round(Number(moderation.spam || 0) * 100);
+      const misinformationScore = Math.round(
+        Number(moderation.misinformation || 0) * 100
+      );
 
-    if (
-      combined.includes("buy now") ||
-      combined.includes("click here") ||
-      combined.includes("http://") ||
-      combined.includes("https://") ||
-      combined.includes("whatsapp group")
-    ) {
-      spamScore += 55;
-    }
+      const overallScore = Math.round(
+        toxicityScore * 0.35 + spamScore * 0.25 + misinformationScore * 0.4
+      );
 
-    if (
-      combined.includes("everyone is dying") ||
-      combined.includes("government poisoned") ||
-      combined.includes("100% guaranteed coverup")
-    ) {
-      misinformationScore += 45;
-    }
+      const severity = getSeverityFromOverallScore(overallScore);
 
-    toxicityScore = Math.min(toxicityScore, 100);
-    spamScore = Math.min(spamScore, 100);
-    misinformationScore = Math.min(misinformationScore, 100);
-
-    const overallScore = Math.round(
-      toxicityScore * 0.35 + spamScore * 0.25 + misinformationScore * 0.4
-    );
-
-    const severity = getSeverityFromOverallScore(overallScore);
-    const recommendedAction = getRecommendedActionFromScores(
-      toxicityScore,
-      spamScore,
-      misinformationScore,
-      overallScore
-    );
-
-    setTimeout(() => {
       setAiReview({
         severity,
         category,
-        suggestedTitle,
+        suggestedTitle: trimmedTitle || "Civic issue report",
         summary,
-        recommendedAction,
+        recommendedAction: moderation.recommendedAction ?? "Approve",
         toxicityScore,
         spamScore,
         misinformationScore,
         overallScore,
+        flaggedReason: moderation.flaggedReason ?? null,
       });
+    } catch (error) {
+      console.error("AI review error:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to review content with AI."
+      );
+    } finally {
       setIsReviewing(false);
-    }, 400);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -278,37 +237,120 @@ export default function CreateIssuePage() {
       return;
     }
 
-    const payload = {
-      title: trimmedTitle,
-      description: trimmedDescription,
-      user_id: currentUser.id,
-      status: aiReview?.recommendedAction === "Approve" ? "open" : "under_review",
-      category: aiReview?.category ?? "Infrastructure",
-      district:
-        currentUser.user_metadata?.district_id ||
-        currentUser.user_metadata?.district ||
-        currentUser.user_metadata?.district_name ||
-        "District 12",
-    };
+    let finalReview = aiReview;
 
-    const { error } = await supabase.from("issues").insert([payload]);
+    try {
+      // If the user did not click "Review with AI", run moderation automatically on submit.
+      if (!finalReview) {
+        const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
+        const { category, summary } = getCategoryFromText(combined);
 
-    if (error) {
-      console.error("Insert error:", error);
-      setErrorMessage(error.message || "Failed to create issue.");
+        const moderationRes = await fetch("/api/moderate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            description: trimmedDescription,
+          }),
+        });
+
+        if (!moderationRes.ok) {
+          const errorData = await moderationRes.json().catch(() => null);
+          throw new Error(errorData?.error || "Failed to moderate issue content.");
+        }
+
+        const moderation = await moderationRes.json();
+
+        const toxicityScore = Math.round(Number(moderation.toxicity || 0) * 100);
+        const spamScore = Math.round(Number(moderation.spam || 0) * 100);
+        const misinformationScore = Math.round(
+          Number(moderation.misinformation || 0) * 100
+        );
+
+        const overallScore = Math.round(
+          toxicityScore * 0.35 + spamScore * 0.25 + misinformationScore * 0.4
+        );
+
+        finalReview = {
+          severity: getSeverityFromOverallScore(overallScore),
+          category,
+          suggestedTitle: trimmedTitle || "Civic issue report",
+          summary,
+          recommendedAction: moderation.recommendedAction ?? "Approve",
+          toxicityScore,
+          spamScore,
+          misinformationScore,
+          overallScore,
+          flaggedReason: moderation.flaggedReason ?? null,
+        };
+
+        setAiReview(finalReview);
+      }
+
+      const issueStatus =
+        finalReview?.recommendedAction === "Approve"
+          ? "open"
+          : finalReview?.recommendedAction === "Block"
+          ? "removed"
+          : "under_review";
+
+      const payload = {
+        title: trimmedTitle,
+        description: trimmedDescription,
+        user_id: currentUser.id,
+        status: issueStatus,
+        category: finalReview?.category ?? "Infrastructure",
+        district:
+          currentUser.user_metadata?.district_id ||
+          currentUser.user_metadata?.district ||
+          currentUser.user_metadata?.district_name ||
+          "District 12",
+      };
+
+      const { data: insertedIssue, error: issueError } = await supabase
+        .from("issues")
+        .insert([payload])
+        .select("id")
+        .single();
+
+      if (issueError || !insertedIssue) {
+        console.error("Insert error:", issueError);
+        setErrorMessage(issueError?.message || "Failed to create issue.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Save AI moderation results into issue_ai_moderation
+      const { error: aiInsertError } = await supabase.from("issue_ai_moderation").insert([
+        {
+          issue_id: insertedIssue.id,
+          toxicity_score: Number((finalReview?.toxicityScore ?? 0) / 100),
+          spam_score: Number((finalReview?.spamScore ?? 0) / 100),
+          misinformation_score: Number((finalReview?.misinformationScore ?? 0) / 100),
+          recommended_action: finalReview?.recommendedAction ?? "Approve",
+        },
+      ]);
+
+      if (aiInsertError) {
+        console.error("AI moderation insert error:", aiInsertError);
+      }
+
+      setSuccessMessage("Issue created successfully.");
+      setTitle("");
+      setDescription("");
+      setAiReview(null);
       setIsSubmitting(false);
-      return;
+
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
+    } catch (error) {
+      console.error("Submit error:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to create issue."
+      );
+      setIsSubmitting(false);
     }
-
-    setSuccessMessage("Issue created successfully.");
-    setTitle("");
-    setDescription("");
-    setAiReview(null);
-    setIsSubmitting(false);
-
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 1000);
   }
 
   return (
@@ -427,6 +469,11 @@ export default function CreateIssuePage() {
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                       Action: {aiReview.recommendedAction}
                     </span>
+                    {aiReview.flaggedReason ? (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                        Reason: {aiReview.flaggedReason}
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-4">
