@@ -220,84 +220,84 @@ export default function ModeratorDashboardPage() {
     if (mode === "initial") setLoading(true);
     if (mode === "refresh") setRefreshing(true);
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-    if (sessionError || !session?.user) {
-      router.push("/login");
-      return;
-    }
+      if (sessionError || !session?.user) {
+        router.push("/login");
+        return;
+      }
 
-    const { data: myProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, role, district, avatar_url, is_suspended")
-      .eq("id", session.user.id)
-      .single();
-
-    if (profileError || !myProfile) {
-      router.push("/login");
-      return;
-    }
-
-    const typedProfile = myProfile as Profile;
-    const allowedRoles = ["moderator", "admin"];
-
-    if (!allowedRoles.includes(typedProfile.role)) {
-      router.push("/dashboard");
-      return;
-    }
-
-    setProfile(typedProfile);
-
-    const [
-      profilesRes,
-      postsRes,
-      queueRes,
-      actionsRes,
-      issuesRes,
-      issueAiRes,
-    ] = await Promise.all([
-      supabase
+      const { data: myProfile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, full_name, email, role, district, avatar_url, is_suspended"),
-      supabase
-        .from("posts")
-        .select("id, discussion_id, parent_post_id, author_id, content, status, created_at, updated_at")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("moderation_queue")
-        .select("id, post_id, flagged_reason, ai_recommended_action, reviewed_by, reviewer_decision, reviewed_at"),
-      supabase
-        .from("moderation_actions")
-        .select("id, flag_id, post_id, moderator_id, policy_id, action, notes, created_at")
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("issues")
-        .select("id, title, description, status, category, district, created_at, user_id")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("issue_ai_moderation")
-        .select("id, issue_id, toxicity_score, spam_score, misinformation_score, recommended_action, created_at, updated_at"),
-    ]);
+        .select("id, full_name, email, role, district, avatar_url, is_suspended")
+        .eq("id", session.user.id)
+        .single();
 
-    const profileRows = (profilesRes.data || []) as Profile[];
-    const profileMap: Record<string, Profile> = {};
-    for (const item of profileRows) {
-      profileMap[item.id] = item;
+      if (profileError || !myProfile) {
+        router.push("/login");
+        return;
+      }
+
+      const typedProfile = myProfile as Profile;
+      if (!["moderator", "admin"].includes(typedProfile.role)) {
+        router.push("/dashboard");
+        return;
+      }
+
+      setProfile(typedProfile);
+
+      const [
+        profilesRes,
+        postsRes,
+        queueRes,
+        actionsRes,
+        issuesRes,
+        issueAiRes,
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, email, role, district, avatar_url, is_suspended"),
+        supabase
+          .from("posts")
+          .select("id, discussion_id, parent_post_id, author_id, content, status, created_at, updated_at")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("moderation_queue")
+          .select("id, post_id, flagged_reason, ai_recommended_action, reviewed_by, reviewer_decision, reviewed_at"),
+        supabase
+          .from("moderation_actions")
+          .select("id, flag_id, post_id, moderator_id, policy_id, action, notes, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("issues")
+          .select("id, title, description, status, category, district, created_at, user_id")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("issue_ai_moderation")
+          .select("id, issue_id, toxicity_score, spam_score, misinformation_score, recommended_action, created_at, updated_at"),
+      ]);
+
+      const profileRows = (profilesRes.data || []) as Profile[];
+      const profileMap: Record<string, Profile> = {};
+      for (const item of profileRows) profileMap[item.id] = item;
+
+      setProfilesMap(profileMap);
+      setPosts((postsRes.data || []) as Post[]);
+      setModerationQueue((queueRes.data || []) as ModerationQueueRow[]);
+      setModerationActions((actionsRes.data || []) as ModerationAction[]);
+      setIssues((issuesRes.data || []) as Issue[]);
+      setIssueAI((issueAiRes.data || []) as IssueAIModeration[]);
+    } catch (error) {
+      console.error("Load moderator data error:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-
-    setProfilesMap(profileMap);
-    setPosts((postsRes.data || []) as Post[]);
-    setModerationQueue((queueRes.data || []) as ModerationQueueRow[]);
-    setModerationActions((actionsRes.data || []) as ModerationAction[]);
-    setIssues((issuesRes.data || []) as Issue[]);
-    setIssueAI((issueAiRes.data || []) as IssueAIModeration[]);
-
-    setLoading(false);
-    setRefreshing(false);
   }
 
   useEffect(() => {
@@ -422,10 +422,10 @@ export default function ModeratorDashboardPage() {
   const queueItems = useMemo(() => {
     return unifiedItems.filter((item) => {
       if (item.kind === "post") {
-        return !item.queueDecision;
+        return !item.queueDecision || item.status === "under_review";
       }
       if (item.kind === "issue") {
-        return item.riskScore >= 50;
+        return item.riskScore >= 50 || item.status === "under_review";
       }
       return false;
     });
@@ -539,7 +539,11 @@ export default function ModeratorDashboardPage() {
           })
           .eq("post_id", postId);
 
-        if (queueError) throw queueError;
+        if (queueError) {
+          console.error("Queue update error:", queueError);
+          alert(`Queue update failed: ${queueError.message}`);
+          return;
+        }
       }
 
       const { error: actionError } = await supabase.from("moderation_actions").insert({
@@ -550,7 +554,11 @@ export default function ModeratorDashboardPage() {
         notes: notes || null,
       });
 
-      if (actionError) throw actionError;
+      if (actionError) {
+        console.error("Moderation action insert error:", actionError);
+        alert(`Moderation action failed: ${actionError.message}`);
+        return;
+      }
 
       const { error: postError } = await supabase
         .from("posts")
@@ -560,12 +568,42 @@ export default function ModeratorDashboardPage() {
         })
         .eq("id", postId);
 
-      if (postError) throw postError;
+      if (postError) {
+        console.error("Post status update error:", postError);
+        alert(`Post update failed: ${postError.message}`);
+        return;
+      }
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                status: nextStatus,
+                updated_at: nowIso,
+              }
+            : post
+        )
+      );
+
+      setModerationQueue((prev) =>
+        prev.map((row) =>
+          row.post_id === postId
+            ? {
+                ...row,
+                reviewer_decision: action,
+                reviewed_by: profile.id,
+                reviewed_at: nowIso,
+              }
+            : row
+        )
+      );
 
       setActionNotes("");
       await loadData("refresh");
     } catch (error) {
       console.error("Post moderation error:", error);
+      alert("Something went wrong while updating the post.");
     } finally {
       setSavingId(null);
     }
@@ -663,6 +701,7 @@ export default function ModeratorDashboardPage() {
       await loadData("refresh");
     } catch (error) {
       console.error("Bulk moderation error:", error);
+      alert("Bulk moderation failed. Check console for details.");
     } finally {
       setBulkSaving(false);
     }
