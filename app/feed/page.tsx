@@ -7,12 +7,13 @@ import { createClient } from "@/lib/supabase/client";
 
 type FeedPost = {
   id: string;
+  kind: "issue" | "post";
   title: string;
   description: string;
   district: string;
   category: string;
   urgency: "High" | "Medium" | "Low";
-  status: "Open" | "Under Review" | "Resolved" | "Escalated";
+  status: "Open" | "Under Review" | "Resolved" | "Escalated" | "Active" | "Removed";
   upvotes: number;
   comments: number;
   representative: string;
@@ -27,6 +28,26 @@ type IssueRow = {
   district: string | null;
   category?: string | null;
   status?: string | null;
+  created_at?: string | null;
+};
+
+type DiscussionRow = {
+  id: string;
+  title: string;
+  topic: string | null;
+  district: string | null;
+  status: string;
+};
+
+type PostRow = {
+  id: string;
+  discussion_id: string;
+  parent_post_id: string | null;
+  author_id: string | null;
+  content: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type VoteRow = {
@@ -52,27 +73,6 @@ type ProfileRow = {
 type CommentMap = Record<string, CommentRow[]>;
 type ProfileNameMap = Record<string, string>;
 
-function displayStateName(value?: string | null) {
-  const normalized = (value || "").trim().toUpperCase();
-
-  switch (normalized) {
-    case "NH":
-    case "NEW HAMPSHIRE":
-      return "New Hampshire";
-    case "TX":
-    case "TEXAS":
-      return "Texas";
-    case "CA":
-    case "CALIFORNIA":
-      return "California";
-    case "FL":
-    case "FLORIDA":
-      return "Florida";
-    default:
-      return value || "Your State";
-  }
-}
-
 function displayDistrictName(value?: string | null) {
   const normalized = (value || "").trim().toUpperCase();
 
@@ -89,6 +89,8 @@ function displayDistrictName(value?: string | null) {
       return "Texas 12th District";
     case "TX-20":
       return "Texas 20th District";
+    case "TX-35":
+      return "Texas 35th District";
     case "CA":
       return "California";
     case "FL":
@@ -108,6 +110,10 @@ function getStatusStyles(status: FeedPost["status"]) {
       return "border-l-4 border-emerald-500";
     case "Escalated":
       return "border-l-4 border-blue-500";
+    case "Active":
+      return "border-l-4 border-violet-500";
+    case "Removed":
+      return "border-l-4 border-slate-500";
     default:
       return "border-l-4 border-slate-300";
   }
@@ -136,6 +142,10 @@ function getStatusBadge(status: FeedPost["status"]) {
       return "bg-emerald-100 text-emerald-700";
     case "Escalated":
       return "bg-blue-100 text-blue-700";
+    case "Active":
+      return "bg-violet-100 text-violet-700";
+    case "Removed":
+      return "bg-slate-200 text-slate-700";
     default:
       return "bg-slate-100 text-slate-700";
   }
@@ -151,7 +161,9 @@ function inferUrgency(title: string, description: string): FeedPost["urgency"] {
     text.includes("unsafe") ||
     text.includes("pothole") ||
     text.includes("overflow") ||
-    text.includes("manhole")
+    text.includes("manhole") ||
+    text.includes("hate") ||
+    text.includes("kill")
   ) {
     return "High";
   }
@@ -187,7 +199,8 @@ function inferCategory(title: string, description: string) {
     text.includes("school") ||
     text.includes("crime") ||
     text.includes("police") ||
-    text.includes("safety")
+    text.includes("safety") ||
+    text.includes("hate")
   ) {
     return "Public Safety";
   }
@@ -211,12 +224,19 @@ function inferCategory(title: string, description: string) {
   return "General";
 }
 
-function normalizeStatus(value?: string | null): FeedPost["status"] {
+function normalizeIssueStatus(value?: string | null): FeedPost["status"] {
   const v = (value || "").toLowerCase().trim();
   if (v === "under review" || v === "under_review") return "Under Review";
   if (v === "resolved") return "Resolved";
   if (v === "escalated") return "Escalated";
+  if (v === "removed") return "Removed";
   return "Open";
+}
+
+function normalizePostStatus(value?: string | null): FeedPost["status"] {
+  const v = (value || "").toLowerCase().trim();
+  if (v === "removed") return "Removed";
+  return "Active";
 }
 
 function normalizeDistrict(value?: string | null) {
@@ -313,30 +333,53 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
-        const { data: issuesData, error: issuesError } = await supabase
-          .from("issues")
-          .select("id, title, description, user_id, district, category, status")
-          .eq("district", district)
-          .order("id", { ascending: false })
-          .limit(100);
+        const [
+          issuesRes,
+          discussionsRes,
+        ] = await Promise.all([
+          supabase
+            .from("issues")
+            .select("id, title, description, user_id, district, category, status, created_at")
+            .eq("district", district)
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase
+            .from("discussions")
+            .select("id, title, topic, district, status")
+            .eq("district", district)
+            .eq("status", "active"),
+        ]);
 
-        if (issuesError) {
-          console.error("Issues load error:", issuesError);
-          setFeedPosts([]);
-          setDebugMessage(`Could not load issues: ${issuesError.message}`);
-          return;
+        if (issuesRes.error) {
+          console.error("Issues load error:", issuesRes.error);
+        }
+        if (discussionsRes.error) {
+          console.error("Discussions load error:", discussionsRes.error);
         }
 
-        const issues = ((issuesData as IssueRow[]) || []).filter(
+        const issues = ((issuesRes.data as IssueRow[]) || []).filter(
           (issue) => issue?.id && normalizeDistrict(issue.district) === normalizeDistrict(district)
         );
 
-        if (issues.length === 0) {
-          setFeedPosts([]);
-          setDebugMessage(`No issues found for ${displayDistrictName(district)}.`);
-          setCommentsByIssue({});
-          setCommenterNames({});
-          return;
+        const discussions = (discussionsRes.data as DiscussionRow[]) || [];
+        const discussionMap = new Map(discussions.map((d) => [d.id, d]));
+
+        let districtPosts: PostRow[] = [];
+        if (discussions.length > 0) {
+          const discussionIds = discussions.map((d) => d.id);
+
+          const { data: postsData, error: postsError } = await supabase
+            .from("posts")
+            .select("id, discussion_id, parent_post_id, author_id, content, status, created_at, updated_at")
+            .in("discussion_id", discussionIds)
+            .eq("status", "active")
+            .order("created_at", { ascending: false });
+
+          if (postsError) {
+            console.error("Posts load error:", postsError);
+          } else {
+            districtPosts = (postsData as PostRow[]) || [];
+          }
         }
 
         const issueIds = issues.map((issue) => issue.id);
@@ -345,15 +388,19 @@ export default function FeedPage() {
           { data: votesData, error: votesError },
           { data: commentsData, error: commentsError },
         ] = await Promise.all([
-          supabase
-            .from("issue_votes")
-            .select("issue_id, user_id")
-            .in("issue_id", issueIds),
-          supabase
-            .from("issue_comments")
-            .select("id, issue_id, user_id, content, created_at")
-            .in("issue_id", issueIds)
-            .order("created_at", { ascending: false }),
+          issueIds.length
+            ? supabase
+                .from("issue_votes")
+                .select("issue_id, user_id")
+                .in("issue_id", issueIds)
+            : Promise.resolve({ data: [], error: null }),
+          issueIds.length
+            ? supabase
+                .from("issue_comments")
+                .select("id, issue_id, user_id, content, created_at")
+                .in("issue_id", issueIds)
+                .order("created_at", { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
         ]);
 
         if (votesError) {
@@ -412,22 +459,52 @@ export default function FeedPage() {
           setCommenterNames({});
         }
 
-        const mappedPosts: FeedPost[] = issues.map((issue, index) => ({
+        const mappedIssues: FeedPost[] = issues.map((issue, index) => ({
           id: issue.id ?? String(index),
+          kind: "issue",
           title: issue.title || "Untitled issue",
           description: issue.description || "No description provided.",
           district: issue.district || district,
           category:
             issue.category || inferCategory(issue.title || "", issue.description || ""),
           urgency: inferUrgency(issue.title || "", issue.description || ""),
-          status: normalizeStatus(issue.status),
+          status: normalizeIssueStatus(issue.status),
           upvotes: voteCounts[issue.id] || 0,
           comments: groupedComments[issue.id]?.length || 0,
           representative: representativeName,
           hasUpvoted: !!userVoteMap[issue.id],
         }));
 
-        setFeedPosts(mappedPosts);
+        const mappedDiscussionPosts: FeedPost[] = districtPosts.map((post) => {
+          const discussion = discussionMap.get(post.discussion_id);
+          const raw = post.content || "";
+          const parts = raw.split("\n\n");
+          const firstLine = parts[0]?.trim() || "";
+          const body = parts.slice(1).join("\n\n").trim() || raw;
+
+          return {
+            id: post.id,
+            kind: "post",
+            title: discussion?.title || firstLine || "Discussion Post",
+            description: body,
+            district: discussion?.district || district,
+            category: discussion?.topic || "Community Discussion",
+            urgency: inferUrgency(discussion?.title || firstLine, body),
+            status: normalizePostStatus(post.status),
+            upvotes: 0,
+            comments: 0,
+            representative: representativeName,
+            hasUpvoted: false,
+          };
+        });
+
+        const merged = [...mappedIssues, ...mappedDiscussionPosts];
+
+        if (merged.length === 0) {
+          setDebugMessage(`No issues or posts found for ${displayDistrictName(district)}.`);
+        }
+
+        setFeedPosts(merged);
       } catch (error) {
         console.error("Feed load error:", error);
         setFeedPosts([]);
@@ -472,7 +549,7 @@ export default function FeedPage() {
   async function handleShare(post: FeedPost) {
     const issueUrl =
       typeof window !== "undefined"
-        ? `${window.location.origin}/feed?issue=${encodeURIComponent(post.id)}`
+        ? `${window.location.origin}/feed?post=${encodeURIComponent(post.id)}`
         : "";
 
     const shareText = `${post.title}\n\n${post.description}\n\nDistrict: ${displayDistrictName(
@@ -511,11 +588,13 @@ export default function FeedPage() {
       return;
     }
 
+    const targetPost = feedPosts.find((post) => post.id === issueId);
+    if (!targetPost || targetPost.kind !== "issue") {
+      return;
+    }
+
     try {
       setTogglingVoteFor(issueId);
-
-      const targetPost = feedPosts.find((post) => post.id === issueId);
-      if (!targetPost) return;
 
       if (targetPost.hasUpvoted) {
         const { error } = await supabase
@@ -586,6 +665,11 @@ export default function FeedPage() {
 
     if (!currentUserId) {
       alert("Please sign in to comment.");
+      return;
+    }
+
+    const targetPost = feedPosts.find((post) => post.id === issueId);
+    if (!targetPost || targetPost.kind !== "issue") {
       return;
     }
 
@@ -710,6 +794,8 @@ export default function FeedPage() {
                 <option>Under Review</option>
                 <option>Resolved</option>
                 <option>Escalated</option>
+                <option>Active</option>
+                <option>Removed</option>
               </select>
 
               <select
@@ -736,10 +822,10 @@ export default function FeedPage() {
               </div>
             ) : (
               filteredPosts.map((post) => {
-                const issueId = String(post.id);
-                const issueComments = commentsByIssue[issueId] || [];
-                const commentsOpen = !!openCommentsFor[issueId];
-                const draft = commentDrafts[issueId] || "";
+                const itemId = String(post.id);
+                const issueComments = post.kind === "issue" ? commentsByIssue[itemId] || [] : [];
+                const commentsOpen = !!openCommentsFor[itemId];
+                const draft = commentDrafts[itemId] || "";
 
                 return (
                   <div
@@ -774,6 +860,10 @@ export default function FeedPage() {
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                             {displayDistrictName(post.district)}
                           </span>
+
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                            {post.kind === "post" ? "Post" : "Issue"}
+                          </span>
                         </div>
 
                         <h2 className="text-xl font-bold text-slate-900">
@@ -783,33 +873,41 @@ export default function FeedPage() {
                         <p className="mt-3 text-slate-600">{post.description}</p>
 
                         <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleUpvote(issueId)}
-                            disabled={togglingVoteFor === issueId}
-                            className={`inline-flex items-center gap-2 rounded-full px-3 py-2 transition ${
-                              post.hasUpvoted
-                                ? "bg-blue-50 text-blue-700"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            } disabled:opacity-60`}
-                          >
-                            <span className="text-base">⬆</span>
-                            <span>{post.upvotes} upvotes</span>
-                          </button>
+                          {post.kind === "issue" ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleUpvote(itemId)}
+                                disabled={togglingVoteFor === itemId}
+                                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 transition ${
+                                  post.hasUpvoted
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                } disabled:opacity-60`}
+                              >
+                                <span className="text-base">⬆</span>
+                                <span>{post.upvotes} upvotes</span>
+                              </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleToggleComments(issueId)}
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200"
-                          >
-                            <span className="text-base">💬</span>
-                            <span>{post.comments} comments</span>
-                          </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleComments(itemId)}
+                                className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200"
+                              >
+                                <span className="text-base">💬</span>
+                                <span>{post.comments} comments</span>
+                              </button>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-2 text-violet-700">
+                              💬 Community discussion
+                            </span>
+                          )}
 
                           <span>Representative: {post.representative}</span>
                         </div>
 
-                        {commentsOpen && (
+                        {post.kind === "issue" && commentsOpen && (
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <h3 className="text-sm font-semibold text-slate-900">
                               Comments
@@ -822,7 +920,7 @@ export default function FeedPage() {
                                 onChange={(e) =>
                                   setCommentDrafts((prev) => ({
                                     ...prev,
-                                    [issueId]: e.target.value,
+                                    [itemId]: e.target.value,
                                   }))
                                 }
                                 placeholder="Write a comment..."
@@ -831,14 +929,14 @@ export default function FeedPage() {
 
                               <button
                                 type="button"
-                                onClick={() => handleSubmitComment(issueId)}
+                                onClick={() => handleSubmitComment(itemId)}
                                 disabled={
-                                  submittingCommentFor === issueId ||
+                                  submittingCommentFor === itemId ||
                                   !draft.trim()
                                 }
                                 className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                {submittingCommentFor === issueId
+                                {submittingCommentFor === itemId
                                   ? "Posting..."
                                   : "Post"}
                               </button>
@@ -858,7 +956,7 @@ export default function FeedPage() {
 
                                   return (
                                     <div
-                                      key={comment.id || `${issueId}-${idx}`}
+                                      key={comment.id || `${itemId}-${idx}`}
                                       className="rounded-xl bg-white px-4 py-3 text-sm text-slate-700"
                                     >
                                       <div className="font-semibold text-slate-900">
@@ -909,7 +1007,7 @@ export default function FeedPage() {
                         <button
                           type="button"
                           onClick={() => handleShare(post)}
-                          disabled={sharingIssueId === issueId}
+                          disabled={sharingIssueId === itemId}
                           className="flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                           aria-label="Share issue"
                           title="Share issue"
@@ -938,7 +1036,7 @@ export default function FeedPage() {
 
           {!loading && filteredPosts.length > 0 && (
             <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm">
-              Showing {filteredPosts.length} issue
+              Showing {filteredPosts.length} item
               {filteredPosts.length === 1 ? "" : "s"} for{" "}
               <span className="font-semibold text-slate-700">
                 {displayDistrictName(currentDistrict)}
