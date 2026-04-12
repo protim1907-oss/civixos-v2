@@ -37,6 +37,28 @@ type ProfileRow = {
   district: string | null;
 };
 
+function getDistrictMappingFromEmail(email?: string | null) {
+  const normalized = (email || "").trim().toLowerCase();
+
+  if (normalized === "protim1907@gmail.com") {
+    return {
+      state: "Texas",
+      district: "TX-35",
+      district_id: "TX-35",
+    };
+  }
+
+  if (normalized === "protimghosh93@gmail.com") {
+    return {
+      state: "New Hampshire",
+      district: "NH",
+      district_id: "NH",
+    };
+  }
+
+  return null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -51,12 +73,54 @@ export default function DashboardPage() {
   const [currentDistrict, setCurrentDistrict] = useState("District 12");
   const [loggingOut, setLoggingOut] = useState(false);
 
+  async function syncDistrictFromEmail() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const user = session?.user;
+    if (!user?.email) return false;
+
+    const mapped = getDistrictMappingFromEmail(user.email);
+    if (!mapped) return false;
+
+    const currentDistrictValue =
+      user.user_metadata?.district_id ||
+      user.user_metadata?.district ||
+      "";
+
+    const currentStateValue = user.user_metadata?.state || "";
+
+    const needsUpdate =
+      currentDistrictValue !== mapped.district_id ||
+      currentStateValue !== mapped.state;
+
+    if (!needsUpdate) return false;
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        ...user.user_metadata,
+        state: mapped.state,
+        district: mapped.district,
+        district_id: mapped.district_id,
+      },
+    });
+
+    if (error) {
+      console.error("Failed to sync district from email:", error);
+      return false;
+    }
+
+    return true;
+  }
+
   useEffect(() => {
     async function loadDashboard() {
       setLoading(true);
 
-      const { data } = await supabase.auth.getSession();
-      const session = data?.session;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       const guestUser =
         typeof window !== "undefined"
@@ -66,6 +130,19 @@ export default function DashboardPage() {
       if (!session?.user && !guestUser) {
         router.replace("/login");
         return;
+      }
+
+      if (session?.user) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("guest_user");
+        }
+
+        const updated = await syncDistrictFromEmail();
+
+        if (updated) {
+          window.location.reload();
+          return;
+        }
       }
 
       if (!session?.user && guestUser) {
