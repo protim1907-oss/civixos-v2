@@ -19,7 +19,19 @@ type AiReview = {
   flaggedReason?: string | null;
 };
 
-export default function CreateIssuePage() {
+type DiscussionRow = {
+  id: string;
+  title: string;
+  topic: string | null;
+  district: string | null;
+  created_by: string | null;
+  representative_id: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export default function CreatePostPage() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -88,7 +100,7 @@ export default function CreateIssuePage() {
       return {
         category: "Drainage and flooding",
         summary:
-          "The report points to recurring drainage overflow and waterlogging, which may present sanitation and public health risks.",
+          "This post appears to describe recurring drainage overflow and waterlogging that may require district attention.",
       };
     }
 
@@ -100,7 +112,7 @@ export default function CreateIssuePage() {
       return {
         category: "Transportation",
         summary:
-          "The issue suggests road or traffic conditions that may require inspection and public works follow-up.",
+          "This post appears related to road or traffic conditions that may require public works follow-up.",
       };
     }
 
@@ -112,7 +124,7 @@ export default function CreateIssuePage() {
       return {
         category: "Environment",
         summary:
-          "The issue appears related to sanitation or waste handling and may require cleanup and district monitoring.",
+          "This post appears related to sanitation, waste handling, or cleanup concerns in the district.",
       };
     }
 
@@ -124,15 +136,66 @@ export default function CreateIssuePage() {
       return {
         category: "Safety",
         summary:
-          "The issue appears connected to resident safety and may need escalation to the relevant district authority.",
+          "This post appears connected to resident safety and may require escalation or official review.",
       };
     }
 
     return {
-      category: "Infrastructure",
+      category: "General civic discussion",
       summary:
-        "This issue appears to describe a civic concern that may require local review and follow-up.",
+        "This post appears to describe a local civic concern or district discussion topic.",
     };
+  }
+
+  function getDistrictForUser(currentUser: User) {
+    return (
+      currentUser.user_metadata?.district_id ||
+      currentUser.user_metadata?.district ||
+      currentUser.user_metadata?.district_name ||
+      "District 12"
+    );
+  }
+
+  async function getOrCreateDiscussion(currentUser: User, discussionTitle: string, topic: string) {
+    const district = getDistrictForUser(currentUser);
+
+    const { data: existingDiscussion, error: findError } = await supabase
+      .from("discussions")
+      .select("*")
+      .eq("district", district)
+      .eq("title", discussionTitle)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (findError) {
+      throw new Error(findError.message || "Failed to check existing discussion.");
+    }
+
+    if (existingDiscussion) {
+      return existingDiscussion as DiscussionRow;
+    }
+
+    const { data: newDiscussion, error: createError } = await supabase
+      .from("discussions")
+      .insert([
+        {
+          title: discussionTitle,
+          topic,
+          district,
+          created_by: currentUser.id,
+          status: "active",
+        },
+      ])
+      .select("*")
+      .single();
+
+    if (createError || !newDiscussion) {
+      throw new Error(createError?.message || "Failed to create discussion.");
+    }
+
+    return newDiscussion as DiscussionRow;
   }
 
   async function runAiReview() {
@@ -161,6 +224,7 @@ export default function CreateIssuePage() {
         body: JSON.stringify({
           title: trimmedTitle,
           description: trimmedDescription,
+          content: `${trimmedTitle}\n\n${trimmedDescription}`,
         }),
       });
 
@@ -186,7 +250,7 @@ export default function CreateIssuePage() {
       setAiReview({
         severity,
         category,
-        suggestedTitle: trimmedTitle || "Civic issue report",
+        suggestedTitle: trimmedTitle || "District civic discussion",
         summary,
         recommendedAction: moderation.recommendedAction ?? "Approve",
         toxicityScore,
@@ -220,27 +284,23 @@ export default function CreateIssuePage() {
 
     setIsSubmitting(true);
 
-    const { data, error: sessionError } = await supabase.auth.getSession();
-    const session = data?.session;
-
-    if (sessionError) {
-      setErrorMessage("Could not verify your login session. Please refresh and try again.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const currentUser = session?.user ?? null;
-
-    if (!currentUser) {
-      setErrorMessage("You must be logged in to create an issue.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    let finalReview = aiReview;
-
     try {
-      // If the user did not click "Review with AI", run moderation automatically on submit.
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      const session = data?.session;
+
+      if (sessionError) {
+        throw new Error("Could not verify your login session. Please refresh and try again.");
+      }
+
+      const currentUser = session?.user ?? null;
+
+      if (!currentUser) {
+        throw new Error("You must be logged in to create a post.");
+      }
+
+      let finalReview = aiReview;
+
+      // Auto-run moderation if user did not click Review with AI
       if (!finalReview) {
         const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
         const { category, summary } = getCategoryFromText(combined);
@@ -251,12 +311,13 @@ export default function CreateIssuePage() {
           body: JSON.stringify({
             title: trimmedTitle,
             description: trimmedDescription,
+            content: `${trimmedTitle}\n\n${trimmedDescription}`,
           }),
         });
 
         if (!moderationRes.ok) {
           const errorData = await moderationRes.json().catch(() => null);
-          throw new Error(errorData?.error || "Failed to moderate issue content.");
+          throw new Error(errorData?.error || "Failed to moderate post content.");
         }
 
         const moderation = await moderationRes.json();
@@ -274,7 +335,7 @@ export default function CreateIssuePage() {
         finalReview = {
           severity: getSeverityFromOverallScore(overallScore),
           category,
-          suggestedTitle: trimmedTitle || "Civic issue report",
+          suggestedTitle: trimmedTitle || "District civic discussion",
           summary,
           recommendedAction: moderation.recommendedAction ?? "Approve",
           toxicityScore,
@@ -287,59 +348,57 @@ export default function CreateIssuePage() {
         setAiReview(finalReview);
       }
 
-      const issueStatus =
-        finalReview?.recommendedAction === "Approve"
-          ? "open"
-          : finalReview?.recommendedAction === "Block"
-          ? "removed"
-          : "under_review";
+      const discussion = await getOrCreateDiscussion(
+        currentUser,
+        trimmedTitle,
+        finalReview?.category ?? "General civic discussion"
+      );
 
-      const payload = {
-        title: trimmedTitle,
-        description: trimmedDescription,
-        user_id: currentUser.id,
-        status: issueStatus,
-        category: finalReview?.category ?? "Infrastructure",
-        district:
-          currentUser.user_metadata?.district_id ||
-          currentUser.user_metadata?.district ||
-          currentUser.user_metadata?.district_name ||
-          "District 12",
-      };
+      const initialPostStatus =
+        finalReview?.recommendedAction === "Block" ? "removed" : "active";
 
-      const { data: insertedIssue, error: issueError } = await supabase
-        .from("issues")
-        .insert([payload])
-        .select("id")
+      const { data: newPost, error: postError } = await supabase
+        .from("posts")
+        .insert([
+          {
+            discussion_id: discussion.id,
+            author_id: currentUser.id,
+            content: `${trimmedTitle}\n\n${trimmedDescription}`,
+            status: initialPostStatus,
+          },
+        ])
+        .select("id, discussion_id, author_id, content, status, created_at, updated_at")
         .single();
 
-      if (issueError || !insertedIssue) {
-        console.error("Insert error:", issueError);
-        setErrorMessage(issueError?.message || "Failed to create issue.");
-        setIsSubmitting(false);
-        return;
+      if (postError || !newPost) {
+        throw new Error(postError?.message || "Failed to create post.");
       }
 
-      // Save AI moderation results into issue_ai_moderation
-      const { error: aiInsertError } = await supabase.from("issue_ai_moderation").insert([
-        {
-          issue_id: insertedIssue.id,
-          toxicity_score: Number((finalReview?.toxicityScore ?? 0) / 100),
-          spam_score: Number((finalReview?.spamScore ?? 0) / 100),
-          misinformation_score: Number((finalReview?.misinformationScore ?? 0) / 100),
-          recommended_action: finalReview?.recommendedAction ?? "Approve",
-        },
-      ]);
+      // Send flagged or blocked content to moderation queue
+      if (
+        finalReview?.recommendedAction === "Review" ||
+        finalReview?.recommendedAction === "Block"
+      ) {
+        const queueAction =
+          finalReview.recommendedAction === "Block" ? "remove" : "review";
 
-      if (aiInsertError) {
-        console.error("AI moderation insert error:", aiInsertError);
+        const { error: queueError } = await supabase.from("moderation_queue").insert([
+          {
+            post_id: newPost.id,
+            flagged_reason: finalReview.flaggedReason || "ai_flagged",
+            ai_recommended_action: queueAction,
+          },
+        ]);
+
+        if (queueError) {
+          console.error("Moderation queue insert error:", queueError);
+        }
       }
 
-      setSuccessMessage("Issue created successfully.");
+      setSuccessMessage("Post created successfully.");
       setTitle("");
       setDescription("");
       setAiReview(null);
-      setIsSubmitting(false);
 
       setTimeout(() => {
         router.push("/dashboard");
@@ -347,8 +406,9 @@ export default function CreateIssuePage() {
     } catch (error) {
       console.error("Submit error:", error);
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to create issue."
+        error instanceof Error ? error.message : "Failed to create post."
       );
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -364,15 +424,15 @@ export default function CreateIssuePage() {
               <div>
                 <p className="text-sm font-medium text-slate-500">Citizen Dashboard</p>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                  Create Civic Issue
+                  Create Post
                 </h1>
                 <p className="mt-3 text-lg text-slate-600 md:text-2xl">
-                  Submit a concern for your district.
+                  Start a civic discussion for your district.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                AI moderation and civic issue intake
+                AI moderation and community discussion intake
               </div>
             </div>
 
@@ -389,7 +449,7 @@ export default function CreateIssuePage() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Waterlogging in District 12"
+                  placeholder="Waterlogging issues in Texas District 35"
                   className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
                 />
               </div>
@@ -406,7 +466,7 @@ export default function CreateIssuePage() {
                   rows={5}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Residents in District 12 are reporting frequent drain overflows, leading to waterlogging, foul odor, and potential health risks..."
+                  placeholder="Residents in District 35 are reporting frequent drain overflows, poor road conditions, or other issues that need visibility..."
                   className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
                 />
               </div>
@@ -426,7 +486,7 @@ export default function CreateIssuePage() {
                   disabled={checkingAuth || isSubmitting}
                   className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmitting ? "Submitting..." : "Create Issue"}
+                  {isSubmitting ? "Submitting..." : "Create Post"}
                 </button>
               </div>
 
@@ -438,7 +498,7 @@ export default function CreateIssuePage() {
 
               {!checkingAuth && !user && !errorMessage && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
-                  You must be logged in to create an issue.
+                  You must be logged in to create a post.
                 </div>
               )}
 
