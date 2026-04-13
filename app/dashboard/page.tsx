@@ -276,13 +276,15 @@ export default function DashboardPage() {
 
       const typedProfile = profile as ProfileRow | null;
 
-      if (
-        typedProfile?.role === "moderator" ||
-        typedProfile?.role === "admin"
-      ) {
-        router.replace("/moderator");
-        return;
-      }
+      if (typedProfile?.role === "admin") {
+  router.replace("/admin");
+  return;
+}
+
+if (typedProfile?.role === "moderator") {
+  router.replace("/moderator");
+  return;
+}
 
       const displayName =
         typedProfile?.full_name ||
