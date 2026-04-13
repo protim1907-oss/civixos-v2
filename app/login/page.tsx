@@ -390,51 +390,51 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <div className="mx-auto max-w-md">
-            <div className="mb-6">
+        <section className="self-start rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+          <div className="mx-auto max-w-sm">
+            <div className="mb-4">
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Welcome back
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">
+              <h2 className="mt-2 text-2xl font-bold text-slate-900">
                 Log in to Civix250
               </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
+              <p className="mt-2 text-sm leading-6 text-slate-600">
                 Choose your preferred login option below. Citizens can sign in
                 normally, while government and public officials can use the
                 official registration path for role-based access.
               </p>
             </div>
 
-            <div className="mb-5 rounded-3xl border border-green-200 bg-green-50 p-4">
+            <div className="mb-4 rounded-3xl border border-green-200 bg-green-50 p-3.5">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
                 Government & Official Access
               </p>
-              <h3 className="mt-2 text-lg font-bold text-slate-900">
+              <h3 className="mt-1.5 text-base font-bold text-slate-900">
                 Are you a state, local, or federal official?
               </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-1.5 text-sm leading-6 text-slate-600">
                 Register using the official onboarding flow to create a
                 government account and unlock official-specific platform
                 features.
               </p>
-              <div className="mt-4 flex flex-wrap gap-3">
+              <div className="mt-3 flex flex-wrap gap-3">
                 <Link
                   href="/signup-official"
-                  className="rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                  className="rounded-2xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
                 >
                   Register as Official
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Citizen Signup
                 </Link>
               </div>
             </div>
 
-            <div className="mb-6 grid grid-cols-2 gap-3">
+            <div className="mb-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setLoginMode("email")}
@@ -461,9 +461,9 @@ export default function LoginPage() {
             </div>
 
             {loginMode === "email" ? (
-              <form onSubmit={handleEmailLogin} className="space-y-4">
+              <form onSubmit={handleEmailLogin} className="space-y-3.5">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                     Email
                   </label>
                   <input
@@ -477,7 +477,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                     Password
                   </label>
                   <input
@@ -499,9 +499,9 @@ export default function LoginPage() {
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleMobileLogin} className="space-y-4">
+              <form onSubmit={handleMobileLogin} className="space-y-3.5">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                     Mobile Number
                   </label>
                   <input
@@ -515,7 +515,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                     Password
                   </label>
                   <input
@@ -538,7 +538,7 @@ export default function LoginPage() {
               </form>
             )}
 
-            <div className="my-6 flex items-center gap-4">
+            <div className="my-5 flex items-center gap-4">
               <div className="h-px flex-1 bg-slate-200" />
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                 Or continue with
@@ -567,12 +567,12 @@ export default function LoginPage() {
             </div>
 
             {message ? (
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 {message}
               </div>
             ) : null}
 
-            <div className="mt-6 space-y-3 text-sm text-slate-600">
+            <div className="mt-5 space-y-3 text-sm text-slate-600">
               <div className="flex items-center justify-between gap-4">
                 <Link
                   href="/forgot-password"
