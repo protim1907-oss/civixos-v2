@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -14,8 +13,9 @@ import {
   Trash2,
   RefreshCw,
   FileText,
-  Activity,
   Filter,
+  LogOut,
+  Loader2,
 } from "lucide-react";
 
 type Issue = {
@@ -49,6 +49,7 @@ export default function ModeratorDashboardPage() {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [search, setSearch] = useState("");
@@ -106,12 +107,28 @@ export default function ModeratorDashboardPage() {
   async function fetchIssues() {
     const { data, error } = await supabase
       .from("issues")
-      .select("id, title, description, category, district, status, created_at, user_id")
+      .select(
+        "id, title, description, category, district, status, created_at, user_id"
+      )
       .order("created_at", { ascending: false });
 
     if (!error) {
       setIssues(data ?? []);
     }
+  }
+
+  async function handleRefresh() {
+    try {
+      setRefreshing(true);
+      await fetchIssues();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
   }
 
   async function updateIssueStatus(issueId: string, nextStatus: string) {
@@ -234,43 +251,46 @@ export default function ModeratorDashboardPage() {
 
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
-          {/* Header */}
           <div className="rounded-3xl bg-white border border-slate-200 shadow-sm p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-500">
                   Moderator Console
                 </p>
-                <h1 className="text-3xl font-bold text-slate-900 mt-1">
+                <h1 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
                   Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}
                 </h1>
-                <p className="text-sm text-slate-600 mt-2">
+                <p className="mt-3 max-w-3xl text-base text-slate-600">
                   Review citizen posts, manage moderation status, and keep the
                   platform healthy.
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={fetchIssues}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh
+                  {refreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {refreshing ? "Refreshing..." : "Refresh"}
                 </button>
 
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
                 >
-                  <Activity className="h-4 w-4" />
-                  Citizen Dashboard
-                </Link>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Stats */}
           <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between">
@@ -343,7 +363,6 @@ export default function ModeratorDashboardPage() {
             </div>
           </section>
 
-          {/* Search + Filters inside same box */}
           <section className="rounded-3xl bg-white border border-slate-200 shadow-sm p-5">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -389,7 +408,6 @@ export default function ModeratorDashboardPage() {
             </div>
           </section>
 
-          {/* Moderation Queue */}
           <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-semibold text-slate-900">
