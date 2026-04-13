@@ -333,10 +333,7 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
-        const [
-          issuesRes,
-          discussionsRes,
-        ] = await Promise.all([
+        const [issuesRes, discussionsRes] = await Promise.all([
           supabase
             .from("issues")
             .select("id, title, description, user_id, district, category, status, created_at")
@@ -589,7 +586,22 @@ export default function FeedPage() {
     }
 
     const targetPost = feedPosts.find((post) => post.id === issueId);
-    if (!targetPost || targetPost.kind !== "issue") {
+    if (!targetPost) return;
+
+    if (targetPost.kind !== "issue") {
+      setFeedPosts((prev) =>
+        prev.map((post) =>
+          post.id === issueId
+            ? {
+                ...post,
+                hasUpvoted: !post.hasUpvoted,
+                upvotes: post.hasUpvoted
+                  ? Math.max(0, post.upvotes - 1)
+                  : post.upvotes + 1,
+              }
+            : post
+        )
+      );
       return;
     }
 
@@ -651,15 +663,15 @@ export default function FeedPage() {
     }
   }
 
-  function handleToggleComments(issueId: string) {
+  function handleToggleComments(itemId: string) {
     setOpenCommentsFor((prev) => ({
       ...prev,
-      [issueId]: !prev[issueId],
+      [itemId]: !prev[itemId],
     }));
   }
 
-  async function handleSubmitComment(issueId: string) {
-    const draft = (commentDrafts[issueId] || "").trim();
+  async function handleSubmitComment(itemId: string) {
+    const draft = (commentDrafts[itemId] || "").trim();
 
     if (!draft) return;
 
@@ -668,18 +680,72 @@ export default function FeedPage() {
       return;
     }
 
-    const targetPost = feedPosts.find((post) => post.id === issueId);
-    if (!targetPost || targetPost.kind !== "issue") {
+    const targetPost = feedPosts.find((post) => post.id === itemId);
+    if (!targetPost) return;
+
+    if (targetPost.kind !== "issue") {
+      const localComment: CommentRow = {
+        id: `${itemId}-${Date.now()}`,
+        issue_id: itemId,
+        user_id: currentUserId,
+        content: draft,
+        created_at: new Date().toISOString(),
+      };
+
+      let newCommenterName = "You";
+
+      try {
+        const { data: currentProfile } = await supabase
+          .from("profiles")
+          .select("id, full_name, name, email")
+          .eq("id", currentUserId)
+          .maybeSingle();
+
+        if (currentProfile) {
+          newCommenterName = getProfileDisplayName(currentProfile as ProfileRow);
+        }
+      } catch (error) {
+        console.error("Profile lookup error:", error);
+      }
+
+      setCommenterNames((prev) => ({
+        ...prev,
+        [currentUserId]: newCommenterName,
+      }));
+
+      setCommentDrafts((prev) => ({
+        ...prev,
+        [itemId]: "",
+      }));
+
+      setCommentsByIssue((prev) => ({
+        ...prev,
+        [itemId]: [localComment, ...(prev[itemId] || [])],
+      }));
+
+      setFeedPosts((prev) =>
+        prev.map((post) =>
+          post.id === itemId
+            ? { ...post, comments: post.comments + 1 }
+            : post
+        )
+      );
+
+      setOpenCommentsFor((prev) => ({
+        ...prev,
+        [itemId]: true,
+      }));
+
       return;
     }
 
     try {
-      setSubmittingCommentFor(issueId);
+      setSubmittingCommentFor(itemId);
 
       const { data, error } = await supabase
         .from("issue_comments")
         .insert({
-          issue_id: issueId,
+          issue_id: itemId,
           user_id: currentUserId,
           content: draft,
         })
@@ -715,17 +781,17 @@ export default function FeedPage() {
 
       setCommentDrafts((prev) => ({
         ...prev,
-        [issueId]: "",
+        [itemId]: "",
       }));
 
       setCommentsByIssue((prev) => ({
         ...prev,
-        [issueId]: [newComment, ...(prev[issueId] || [])],
+        [itemId]: [newComment, ...(prev[itemId] || [])],
       }));
 
       setFeedPosts((prev) =>
         prev.map((post) =>
-          post.id === issueId
+          post.id === itemId
             ? { ...post, comments: post.comments + 1 }
             : post
         )
@@ -733,7 +799,7 @@ export default function FeedPage() {
 
       setOpenCommentsFor((prev) => ({
         ...prev,
-        [issueId]: true,
+        [itemId]: true,
       }));
     } catch (error) {
       console.error("Submit comment error:", error);
@@ -823,7 +889,7 @@ export default function FeedPage() {
             ) : (
               filteredPosts.map((post) => {
                 const itemId = String(post.id);
-                const issueComments = post.kind === "issue" ? commentsByIssue[itemId] || [] : [];
+                const itemComments = commentsByIssue[itemId] || [];
                 const commentsOpen = !!openCommentsFor[itemId];
                 const draft = commentDrafts[itemId] || "";
 
@@ -873,41 +939,45 @@ export default function FeedPage() {
                         <p className="mt-3 text-slate-600">{post.description}</p>
 
                         <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                          {post.kind === "issue" ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleUpvote(itemId)}
-                                disabled={togglingVoteFor === itemId}
-                                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 transition ${
-                                  post.hasUpvoted
-                                    ? "bg-blue-50 text-blue-700"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                } disabled:opacity-60`}
-                              >
-                                <span className="text-base">⬆</span>
-                                <span>{post.upvotes} upvotes</span>
-                              </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleUpvote(itemId)}
+                            disabled={togglingVoteFor === itemId}
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-2 transition ${
+                              post.hasUpvoted
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            } disabled:opacity-60`}
+                          >
+                            <span className="text-base">⬆</span>
+                            <span>{post.upvotes} upvotes</span>
+                          </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleToggleComments(itemId)}
-                                className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200"
-                              >
-                                <span className="text-base">💬</span>
-                                <span>{post.comments} comments</span>
-                              </button>
-                            </>
-                          ) : (
-                            <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-2 text-violet-700">
-                              💬 Community discussion
+                          <button
+                            type="button"
+                            onClick={() => handleToggleComments(itemId)}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200"
+                          >
+                            <span className="text-base">💬</span>
+                            <span>{post.comments} comments</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleShare(post)}
+                            disabled={sharingIssueId === itemId}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
+                          >
+                            <span className="text-base">↗</span>
+                            <span>
+                              {sharingIssueId === itemId ? "Sharing..." : "Share"}
                             </span>
-                          )}
+                          </button>
 
                           <span>Representative: {post.representative}</span>
                         </div>
 
-                        {post.kind === "issue" && commentsOpen && (
+                        {commentsOpen && (
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <h3 className="text-sm font-semibold text-slate-900">
                               Comments
@@ -943,12 +1013,12 @@ export default function FeedPage() {
                             </div>
 
                             <div className="mt-4 space-y-3">
-                              {issueComments.length === 0 ? (
+                              {itemComments.length === 0 ? (
                                 <p className="text-sm text-slate-500">
                                   No comments yet.
                                 </p>
                               ) : (
-                                issueComments.map((comment, idx) => {
+                                itemComments.map((comment, idx) => {
                                   const commenterName =
                                     (comment.user_id &&
                                       commenterNames[comment.user_id]) ||
