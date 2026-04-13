@@ -47,7 +47,11 @@ export default function LoginPage() {
     accountType?: string | null;
     role?: string | null;
   }) {
-    if (role === "moderator" || role === "admin") {
+    if (role === "admin") {
+      return "/admin";
+    }
+
+    if (role === "moderator") {
       return "/moderator";
     }
 
@@ -325,7 +329,9 @@ export default function LoginPage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Civix250
                 </p>
-                <h1 className="text-2xl font-bold text-slate-900">Citizen Login</h1>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  Citizen Login
+                </h1>
               </div>
             </div>
 
@@ -334,31 +340,40 @@ export default function LoginPage() {
                 Join the conversation in your district.
               </h2>
               <p className="mt-4 text-lg leading-8 text-slate-600">
-                Log in to view local issues, explore district discussions, track policy activity,
-                and take part in civic conversations that matter to your community.
+                Log in to view local issues, explore district discussions, track
+                policy activity, and take part in civic conversations that
+                matter to your community.
               </p>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               <div className="rounded-3xl border-2 border-yellow-500 bg-yellow-50/60 p-5 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900">Quick Policy Testing</h3>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Quick Policy Testing
+                </h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Run focused surveys to validate public sentiment before policy rollout.
+                  Run focused surveys to validate public sentiment before policy
+                  rollout.
                 </p>
               </div>
 
               <div className="rounded-3xl border-2 border-red-500 bg-red-50/60 p-5 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900">Citizen Sentiment</h3>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Citizen Sentiment
+                </h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Capture support levels, concerns, and recommendations in one place.
+                  Capture support levels, concerns, and recommendations in one
+                  place.
                 </p>
               </div>
 
               <div className="rounded-3xl border-2 border-green-500 bg-green-50/60 p-5 shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900">Chat with Representatives</h3>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Chat with Representatives
+                </h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Connect directly with elected representatives and share your concerns in real
-                  time.
+                  Connect directly with elected representatives and share your
+                  concerns in real time.
                 </p>
               </div>
 
@@ -367,8 +382,8 @@ export default function LoginPage() {
                   AI-Powered Actionable Insights
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Turn citizen feedback into data-driven decisions, communication strategies, and
-                  next steps.
+                  Turn citizen feedback into data-driven decisions,
+                  communication strategies, and next steps.
                 </p>
               </div>
             </div>
@@ -381,11 +396,13 @@ export default function LoginPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Welcome back
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-slate-900">Log in to Civix250</h2>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">
+                Log in to Civix250
+              </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Choose your preferred login option below. Citizens can sign in normally, while
-                government and public officials can use the official registration path for role-based
-                access.
+                Choose your preferred login option below. Citizens can sign in
+                normally, while government and public officials can use the
+                official registration path for role-based access.
               </p>
             </div>
 
@@ -397,8 +414,9 @@ export default function LoginPage() {
                 Are you a state, local, or federal official?
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Register using the official onboarding flow to create a government account and
-                unlock official-specific platform features.
+                Register using the official onboarding flow to create a
+                government account and unlock official-specific platform
+                features.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
@@ -445,7 +463,9 @@ export default function LoginPage() {
             {loginMode === "email" ? (
               <form onSubmit={handleEmailLogin} className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Email
+                  </label>
                   <input
                     type="email"
                     placeholder="Enter your email"
@@ -561,7 +581,10 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
 
-                <Link href="/signup" className="font-medium text-slate-900 hover:underline">
+                <Link
+                  href="/signup"
+                  className="font-medium text-slate-900 hover:underline"
+                >
                   Create citizen account
                 </Link>
               </div>
