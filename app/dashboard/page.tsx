@@ -639,7 +639,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-4 md:p-6">
                   <div className="rounded-3xl bg-gradient-to-br from-green-500 to-emerald-400 p-5 text-white shadow-sm">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">Open Issues</p>
+                      <p className="text-sm font-medium text-white/85">Active Posts</p>
                       <AlertTriangle className="h-5 w-5 text-white/85" />
                     </div>
                     <p className="mt-4 text-3xl font-bold">{openCount}</p>
