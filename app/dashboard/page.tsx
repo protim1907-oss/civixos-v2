@@ -508,10 +508,6 @@ export default function DashboardPage() {
     (i) => normalizeStatus(i.status) === "under_review"
   ).length;
 
-  const resolvedCount = issues.filter(
-    (i) => normalizeStatus(i.status) === "resolved"
-  ).length;
-
   const totalCount = posts.filter(
     (p) => normalizeStatus(p.status) === "active"
   ).length;
@@ -636,7 +632,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-4 md:p-6">
+                <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-3 md:p-6">
                   <div className="rounded-3xl bg-gradient-to-br from-green-500 to-emerald-400 p-5 text-white shadow-sm">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-white/85">Active Posts</p>
@@ -653,14 +649,6 @@ export default function DashboardPage() {
                       <Activity className="h-5 w-5 text-white/85" />
                     </div>
                     <p className="mt-4 text-3xl font-bold">{underReviewCount}</p>
-                  </div>
-
-                  <div className="rounded-3xl bg-gradient-to-br from-blue-500 to-sky-400 p-5 text-white shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">Resolved</p>
-                      <CheckCircle2 className="h-5 w-5 text-white/85" />
-                    </div>
-                    <p className="mt-4 text-3xl font-bold">{resolvedCount}</p>
                   </div>
 
                   <div className="rounded-3xl bg-gradient-to-br from-amber-400 to-orange-400 p-5 text-white shadow-sm">
