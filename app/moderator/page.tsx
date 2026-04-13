@@ -1,1316 +1,503 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
 import {
-  ShieldCheck,
-  RefreshCw,
   Search,
-  Filter,
-  CheckCircle2,
-  XCircle,
+  ShieldCheck,
   AlertTriangle,
+  CheckCircle2,
   Clock3,
-  UserCheck,
-  FileWarning,
+  Trash2,
+  RefreshCw,
+  FileText,
   Activity,
-  Eye,
-  MessageSquare,
-  Flag,
-  Brain,
-  Layers3,
+  Filter,
 } from "lucide-react";
-
-type UserRole = "citizen" | "official" | "moderator" | "admin";
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  role: UserRole;
-  district: string | null;
-  avatar_url: string | null;
-  is_suspended: boolean;
-};
-
-type Post = {
-  id: string;
-  discussion_id: string;
-  parent_post_id: string | null;
-  author_id: string | null;
-  content: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type ModerationQueueRow = {
-  id: string;
-  post_id: string;
-  flagged_reason: string | null;
-  ai_recommended_action: string | null;
-  reviewed_by: string | null;
-  reviewer_decision: "approve" | "remove" | "escalate" | null;
-  reviewed_at: string | null;
-};
-
-type ModerationAction = {
-  id: string;
-  flag_id: string | null;
-  post_id: string;
-  moderator_id: string | null;
-  policy_id: string | null;
-  action: string;
-  notes: string | null;
-  created_at: string;
-};
 
 type Issue = {
   id: string;
   title: string;
   description: string;
-  status: string | null;
   category: string | null;
   district: string | null;
+  status: string | null;
   created_at: string | null;
-  user_id: string;
+  user_id: string | null;
 };
 
-type IssueAIModeration = {
+type ProfileRow = {
   id: string;
-  issue_id: string;
-  toxicity_score: number | null;
-  spam_score: number | null;
-  misinformation_score: number | null;
-  recommended_action: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type UnifiedItem = {
-  id: string;
-  kind: "post" | "issue";
-  title: string;
-  body: string;
-  createdAt: string | null;
-  status: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
   district: string | null;
-  ownerId: string | null;
-  ownerName: string;
-  riskScore: number;
-  severity: "Low" | "Medium" | "High";
-  recommendedAction: string;
-  queueId?: string;
-  queueDecision?: string | null;
-  queueReviewedBy?: string | null;
-  queueReviewedAt?: string | null;
-  flaggedReason?: string | null;
-  aiBreakdown?: {
-    toxicity?: number;
-    spam?: number;
-    misinformation?: number;
-  };
 };
 
-function pct(value: number | null | undefined) {
-  if (value == null || Number.isNaN(Number(value))) return 0;
-  const numeric = Number(value);
-  if (numeric <= 1) return Math.round(numeric * 100);
-  return Math.round(numeric);
-}
-
-function clampRisk(value: number) {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function getSeverity(score: number): "Low" | "Medium" | "High" {
-  if (score >= 80) return "High";
-  if (score >= 50) return "Medium";
-  return "Low";
-}
-
-function severityClasses(severity: "Low" | "Medium" | "High") {
-  if (severity === "High") return "bg-red-100 text-red-700 border-red-200";
-  if (severity === "Medium") return "bg-yellow-100 text-yellow-700 border-yellow-200";
-  return "bg-green-100 text-green-700 border-green-200";
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return "—";
-  }
-}
-
-function getPostRiskScore(queueRow: ModerationQueueRow) {
-  let base = 35;
-
-  const reason = (queueRow.flagged_reason || "").toLowerCase();
-  const action = (queueRow.ai_recommended_action || "").toLowerCase();
-
-  if (reason.includes("spam")) base += 18;
-  if (reason.includes("abuse")) base += 25;
-  if (reason.includes("harass")) base += 25;
-  if (reason.includes("hate")) base += 30;
-  if (reason.includes("misinformation")) base += 22;
-  if (reason.includes("violence")) base += 35;
-
-  if (action.includes("remove")) base += 20;
-  if (action.includes("escalate")) base += 15;
-  if (action.includes("review")) base += 10;
-
-  if (queueRow.reviewer_decision === "escalate") base += 20;
-
-  return clampRisk(base);
-}
-
-function getIssueRiskScore(ai: IssueAIModeration | undefined) {
-  if (!ai) return 0;
-  const toxicity = pct(ai.toxicity_score);
-  const spam = pct(ai.spam_score);
-  const misinformation = pct(ai.misinformation_score);
-  return clampRisk(Math.max(toxicity, spam, misinformation));
-}
-
-function getPostNextStatus(action: "approve" | "remove" | "escalate") {
-  if (action === "approve") return "active";
-  if (action === "remove") return "removed";
-  return "under_review";
-}
-
-function getIssueNextStatus(action: "approve" | "remove" | "escalate") {
-  if (action === "approve") return "active";
-  if (action === "remove") return "removed";
-  return "under_review";
-}
+type FilterType =
+  | "all"
+  | "active"
+  | "under_review"
+  | "removed"
+  | "approved";
 
 export default function ModeratorDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profilesMap, setProfilesMap] = useState<Record<string, Profile>>({});
-
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [moderationQueue, setModerationQueue] = useState<ModerationQueueRow[]>([]);
-  const [moderationActions, setModerationActions] = useState<ModerationAction[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [issueAI, setIssueAI] = useState<IssueAIModeration[]>([]);
-
-  const [tab, setTab] = useState<"queue" | "posts" | "issues" | "activity">("queue");
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [search, setSearch] = useState("");
-  const [severityFilter, setSeverityFilter] = useState<"All" | "High" | "Medium" | "Low">("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedKind, setSelectedKind] = useState<"post" | "issue" | null>(null);
-
-  const [bulkSelected, setBulkSelected] = useState<string[]>([]);
-  const [actionNotes, setActionNotes] = useState("");
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [bulkSaving, setBulkSaving] = useState(false);
-
-  async function loadData(mode: "initial" | "refresh" = "initial") {
-    if (mode === "initial") setLoading(true);
-    if (mode === "refresh") setRefreshing(true);
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session?.user) {
-        router.push("/login");
-        return;
-      }
-
-      const { data: myProfile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, role, district, avatar_url, is_suspended")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profileError || !myProfile) {
-        router.push("/login");
-        return;
-      }
-
-      const typedProfile = myProfile as Profile;
-      if (!["moderator", "admin"].includes(typedProfile.role)) {
-        router.push("/dashboard");
-        return;
-      }
-
-      setProfile(typedProfile);
-
-      const [
-        profilesRes,
-        postsRes,
-        queueRes,
-        actionsRes,
-        issuesRes,
-        issueAiRes,
-      ] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, full_name, email, role, district, avatar_url, is_suspended"),
-        supabase
-          .from("posts")
-          .select("id, discussion_id, parent_post_id, author_id, content, status, created_at, updated_at")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("moderation_queue")
-          .select("id, post_id, flagged_reason, ai_recommended_action, reviewed_by, reviewer_decision, reviewed_at"),
-        supabase
-          .from("moderation_actions")
-          .select("id, flag_id, post_id, moderator_id, policy_id, action, notes, created_at")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("issues")
-          .select("id, title, description, status, category, district, created_at, user_id")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("issue_ai_moderation")
-          .select("id, issue_id, toxicity_score, spam_score, misinformation_score, recommended_action, created_at, updated_at"),
-      ]);
-
-      const profileRows = (profilesRes.data || []) as Profile[];
-      const profileMap: Record<string, Profile> = {};
-      for (const item of profileRows) profileMap[item.id] = item;
-
-      setProfilesMap(profileMap);
-      setPosts((postsRes.data || []) as Post[]);
-      setModerationQueue((queueRes.data || []) as ModerationQueueRow[]);
-      setModerationActions((actionsRes.data || []) as ModerationAction[]);
-      setIssues((issuesRes.data || []) as Issue[]);
-      setIssueAI((issueAiRes.data || []) as IssueAIModeration[]);
-    } catch (error) {
-      console.error("Load moderator data error:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    let mounted = true;
+
+    const init = async () => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.push("/login");
+        return;
+      }
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role, district")
+        .eq("id", user.id)
+        .single();
+
+      if (mounted) {
+        setProfile(profileData ?? null);
+      }
+
+      await fetchIssues();
+
+      if (mounted) setLoading(false);
+    };
+
+    init();
 
     const channel = supabase
-      .channel("moderator-live-actions")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        async () => {
-          await loadData("refresh");
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "moderation_queue" },
-        async () => {
-          await loadData("refresh");
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "moderation_actions" },
-        async () => {
-          await loadData("refresh");
-        }
-      )
+      .channel("moderator-live-issues")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "issues" },
         async () => {
-          await loadData("refresh");
+          await fetchIssues();
         }
       )
       .subscribe();
 
     return () => {
+      mounted = false;
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router, supabase]);
 
-  const queueMap = useMemo(() => {
-    const map = new Map<string, ModerationQueueRow>();
-    for (const row of moderationQueue) {
-      map.set(row.post_id, row);
+  async function fetchIssues() {
+    const { data, error } = await supabase
+      .from("issues")
+      .select("id, title, description, category, district, status, created_at, user_id")
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setIssues(data ?? []);
     }
-    return map;
-  }, [moderationQueue]);
-
-  const issueAiMap = useMemo(() => {
-    const map = new Map<string, IssueAIModeration>();
-    for (const row of issueAI) {
-      map.set(row.issue_id, row);
-    }
-    return map;
-  }, [issueAI]);
-
-  const unifiedItems = useMemo<UnifiedItem[]>(() => {
-    const postItems: UnifiedItem[] = posts.map((post) => {
-      const queueRow = queueMap.get(post.id);
-      const riskScore = queueRow ? getPostRiskScore(queueRow) : 10;
-      const severity = getSeverity(riskScore);
-      const author = post.author_id ? profilesMap[post.author_id] : undefined;
-
-      return {
-        id: post.id,
-        kind: "post",
-        title: post.parent_post_id ? "Reply Post" : "Discussion Post",
-        body: post.content,
-        createdAt: post.created_at,
-        status: post.status || (queueRow?.reviewer_decision ? queueRow.reviewer_decision : "active"),
-        district: author?.district || null,
-        ownerId: post.author_id,
-        ownerName: author?.full_name || author?.email || "Unknown author",
-        riskScore,
-        severity,
-        recommendedAction: queueRow?.ai_recommended_action || "Review",
-        queueId: queueRow?.id,
-        queueDecision: queueRow?.reviewer_decision || null,
-        queueReviewedBy: queueRow?.reviewed_by || null,
-        queueReviewedAt: queueRow?.reviewed_at || null,
-        flaggedReason: queueRow?.flagged_reason || null,
-      };
-    });
-
-    const issueItems: UnifiedItem[] = issues.map((issue) => {
-      const ai = issueAiMap.get(issue.id);
-      const riskScore = getIssueRiskScore(ai);
-      const severity = getSeverity(riskScore);
-      const owner = profilesMap[issue.user_id];
-
-      return {
-        id: issue.id,
-        kind: "issue",
-        title: issue.title,
-        body: issue.description,
-        createdAt: issue.created_at,
-        status: issue.status || "submitted",
-        district: issue.district || owner?.district || null,
-        ownerId: issue.user_id,
-        ownerName: owner?.full_name || owner?.email || "Unknown user",
-        riskScore,
-        severity,
-        recommendedAction: ai?.recommended_action || "Approve",
-        aiBreakdown: {
-          toxicity: pct(ai?.toxicity_score),
-          spam: pct(ai?.spam_score),
-          misinformation: pct(ai?.misinformation_score),
-        },
-      };
-    });
-
-    return [...postItems, ...issueItems].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
-  }, [posts, issues, queueMap, issueAiMap, profilesMap]);
-
-  const queueItems = useMemo(() => {
-    return unifiedItems.filter((item) => {
-      if (item.kind === "post") {
-        return !item.queueDecision || item.status === "under_review";
-      }
-      if (item.kind === "issue") {
-        return item.riskScore >= 50 || item.status === "under_review";
-      }
-      return false;
-    });
-  }, [unifiedItems]);
-
-  const filteredQueueItems = useMemo(() => {
-    return queueItems.filter((item) => {
-      const blob = [
-        item.title,
-        item.body,
-        item.ownerName,
-        item.district,
-        item.flaggedReason,
-        item.recommendedAction,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = blob.includes(search.toLowerCase());
-      const matchesSeverity = severityFilter === "All" || item.severity === severityFilter;
-      const normalizedStatus = (item.queueDecision || item.status || "").toLowerCase();
-      const matchesStatus =
-        statusFilter === "All" || normalizedStatus === statusFilter.toLowerCase();
-
-      return matchesSearch && matchesSeverity && matchesStatus;
-    });
-  }, [queueItems, search, severityFilter, statusFilter]);
-
-  const filteredPosts = useMemo(() => {
-    return unifiedItems.filter((item) => {
-      if (item.kind !== "post") return false;
-      const blob = [item.title, item.body, item.ownerName, item.flaggedReason, item.district]
-        .join(" ")
-        .toLowerCase();
-      return (
-        blob.includes(search.toLowerCase()) &&
-        (severityFilter === "All" || item.severity === severityFilter)
-      );
-    });
-  }, [unifiedItems, search, severityFilter]);
-
-  const filteredIssues = useMemo(() => {
-    return unifiedItems.filter((item) => {
-      if (item.kind !== "issue") return false;
-      const blob = [item.title, item.body, item.ownerName, item.district]
-        .join(" ")
-        .toLowerCase();
-      return (
-        blob.includes(search.toLowerCase()) &&
-        (severityFilter === "All" || item.severity === severityFilter)
-      );
-    });
-  }, [unifiedItems, search, severityFilter]);
-
-  const stats = useMemo(() => {
-    const pendingPosts = moderationQueue.filter((row) => !row.reviewer_decision).length;
-    const escalatedPosts = posts.filter((row) => row.status === "under_review").length;
-    const highRiskIssues = unifiedItems.filter((item) => item.kind === "issue" && item.riskScore >= 80).length;
-    const totalReviewed = moderationQueue.filter((row) => !!row.reviewer_decision).length;
-
-    return {
-      pendingPosts,
-      escalatedPosts,
-      highRiskIssues,
-      totalReviewed,
-    };
-  }, [moderationQueue, unifiedItems, posts]);
-
-  const selectedItem = useMemo(() => {
-    if (!selectedId || !selectedKind) return null;
-    return unifiedItems.find((item) => item.id === selectedId && item.kind === selectedKind) || null;
-  }, [selectedId, selectedKind, unifiedItems]);
-
-  const recentActionsForSelectedPost = useMemo(() => {
-    if (!selectedItem || selectedItem.kind !== "post") return [];
-    return moderationActions.filter((row) => row.post_id === selectedItem.id).slice(0, 10);
-  }, [selectedItem, moderationActions]);
-
-  function toggleBulkSelection(item: UnifiedItem) {
-    const key = `${item.kind}:${item.id}`;
-    setBulkSelected((prev) =>
-      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
-    );
   }
 
-  function isBulkSelected(item: UnifiedItem) {
-    return bulkSelected.includes(`${item.kind}:${item.id}`);
-  }
-
-  async function handlePostModeration(
-    postId: string,
-    action: "approve" | "remove" | "escalate",
-    notes?: string
-  ) {
-    if (!profile) return;
-
-    setSavingId(postId);
-
+  async function updateIssueStatus(issueId: string, nextStatus: string) {
     try {
-      const queueRow = moderationQueue.find((row) => row.post_id === postId);
-      const nowIso = new Date().toISOString();
-      const nextStatus = getPostNextStatus(action);
-
-      if (queueRow) {
-        const { error: queueError } = await supabase
-          .from("moderation_queue")
-          .update({
-            reviewer_decision: action,
-            reviewed_by: profile.id,
-            reviewed_at: nowIso,
-          })
-          .eq("post_id", postId);
-
-        if (queueError) {
-          console.error("Queue update error:", queueError);
-          alert(`Queue update failed: ${queueError.message}`);
-          return;
-        }
-      }
-
-      const { error: actionError } = await supabase.from("moderation_actions").insert({
-        flag_id: queueRow?.id || null,
-        post_id: postId,
-        moderator_id: profile.id,
-        action,
-        notes: notes || null,
-      });
-
-      if (actionError) {
-        console.error("Moderation action insert error:", actionError);
-        alert(`Moderation action failed: ${actionError.message}`);
-        return;
-      }
-
-      const { error: postError } = await supabase
-        .from("posts")
-        .update({
-          status: nextStatus,
-          updated_at: nowIso,
-        })
-        .eq("id", postId);
-
-      if (postError) {
-        console.error("Post status update error:", postError);
-        alert(`Post update failed: ${postError.message}`);
-        return;
-      }
-
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                status: nextStatus,
-                updated_at: nowIso,
-              }
-            : post
-        )
-      );
-
-      setModerationQueue((prev) =>
-        prev.map((row) =>
-          row.post_id === postId
-            ? {
-                ...row,
-                reviewer_decision: action,
-                reviewed_by: profile.id,
-                reviewed_at: nowIso,
-              }
-            : row
-        )
-      );
-
-      setActionNotes("");
-      await loadData("refresh");
-    } catch (error) {
-      console.error("Post moderation error:", error);
-      alert("Something went wrong while updating the post.");
-    } finally {
-      setSavingId(null);
-    }
-  }
-
-  async function handleIssueDecision(
-    issueId: string,
-    action: "approve" | "remove" | "escalate"
-  ) {
-    setSavingId(issueId);
-
-    try {
-      const nextStatus = getIssueNextStatus(action);
+      setActionLoadingId(issueId);
 
       const { error } = await supabase
         .from("issues")
-        .update({
-          status: nextStatus,
-        })
+        .update({ status: nextStatus })
         .eq("id", issueId);
 
-      if (error) throw error;
-
-      setActionNotes("");
-      await loadData("refresh");
-    } catch (error) {
-      console.error("Issue moderation error:", error);
-    } finally {
-      setSavingId(null);
-    }
-  }
-
-  async function handleBulkAction(action: "approve" | "remove" | "escalate") {
-    if (!profile || bulkSelected.length === 0) return;
-    setBulkSaving(true);
-
-    try {
-      const nowIso = new Date().toISOString();
-
-      for (const key of bulkSelected) {
-        const [kind, id] = key.split(":") as ["post" | "issue", string];
-
-        if (kind === "post") {
-          const queueRow = moderationQueue.find((row) => row.post_id === id);
-          const nextStatus = getPostNextStatus(action);
-
-          if (queueRow) {
-            const { error: queueError } = await supabase
-              .from("moderation_queue")
-              .update({
-                reviewer_decision: action,
-                reviewed_by: profile.id,
-                reviewed_at: nowIso,
-              })
-              .eq("post_id", id);
-
-            if (queueError) throw queueError;
-          }
-
-          const { error: actionError } = await supabase.from("moderation_actions").insert({
-            flag_id: queueRow?.id || null,
-            post_id: id,
-            moderator_id: profile.id,
-            action,
-            notes: actionNotes || null,
-          });
-
-          if (actionError) throw actionError;
-
-          const { error: postError } = await supabase
-            .from("posts")
-            .update({
-              status: nextStatus,
-              updated_at: nowIso,
-            })
-            .eq("id", id);
-
-          if (postError) throw postError;
-        } else {
-          const nextStatus = getIssueNextStatus(action);
-
-          const { error: issueError } = await supabase
-            .from("issues")
-            .update({
-              status: nextStatus,
-            })
-            .eq("id", id);
-
-          if (issueError) throw issueError;
-        }
+      if (error) {
+        console.error("Failed to update issue status:", error.message);
+        return;
       }
 
-      setBulkSelected([]);
-      setActionNotes("");
-      await loadData("refresh");
-    } catch (error) {
-      console.error("Bulk moderation error:", error);
-      alert("Bulk moderation failed. Check console for details.");
+      await fetchIssues();
+    } catch (err) {
+      console.error("Unexpected moderation error:", err);
     } finally {
-      setBulkSaving(false);
+      setActionLoadingId(null);
     }
   }
 
-  async function assignToMe(item: UnifiedItem) {
-    if (!profile || item.kind !== "post") return;
+  const filteredIssues = useMemo(() => {
+    let list = [...issues];
 
-    const { error } = await supabase
-      .from("moderation_queue")
-      .update({
-        reviewed_by: profile.id,
-      })
-      .eq("post_id", item.id);
-
-    if (error) {
-      console.error("Assign to me error:", error);
-      return;
+    if (activeFilter === "active") {
+      list = list.filter(
+        (issue) =>
+          !issue.status ||
+          issue.status === "active" ||
+          issue.status === "open"
+      );
     }
 
-    await loadData("refresh");
+    if (activeFilter === "under_review") {
+      list = list.filter((issue) => issue.status === "under_review");
+    }
+
+    if (activeFilter === "removed") {
+      list = list.filter((issue) => issue.status === "removed");
+    }
+
+    if (activeFilter === "approved") {
+      list = list.filter((issue) => issue.status === "approved");
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (issue) =>
+          issue.title?.toLowerCase().includes(q) ||
+          issue.description?.toLowerCase().includes(q) ||
+          issue.category?.toLowerCase().includes(q) ||
+          issue.district?.toLowerCase().includes(q) ||
+          issue.status?.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [issues, search, activeFilter]);
+
+  const stats = useMemo(() => {
+    const total = issues.length;
+    const active = issues.filter(
+      (i) => !i.status || i.status === "active" || i.status === "open"
+    ).length;
+    const underReview = issues.filter((i) => i.status === "under_review").length;
+    const removed = issues.filter((i) => i.status === "removed").length;
+    const approved = issues.filter((i) => i.status === "approved").length;
+
+    return { total, active, underReview, removed, approved };
+  }, [issues]);
+
+  function formatDate(dateString: string | null) {
+    if (!dateString) return "—";
+    return new Date(dateString).toLocaleString();
+  }
+
+  function getStatusClasses(status: string | null) {
+    switch (status) {
+      case "under_review":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "removed":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "approved":
+        return "bg-green-100 text-green-700 border-green-200";
+      case "active":
+      case "open":
+      case null:
+      default:
+        return "bg-blue-100 text-blue-700 border-blue-200";
+    }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="mx-auto flex max-w-7xl">
-          <Sidebar />
-          <main className="flex-1 p-6 md:p-8">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3 text-slate-700">
-                <RefreshCw className="h-5 w-5 animate-spin" />
-                Loading moderator operations console...
-              </div>
+      <div className="min-h-screen bg-slate-50 flex">
+        <Sidebar />
+        <main className="flex-1 p-6 md:p-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 w-72 rounded-xl bg-slate-200" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="h-28 rounded-2xl bg-slate-200" />
+              <div className="h-28 rounded-2xl bg-slate-200" />
+              <div className="h-28 rounded-2xl bg-slate-200" />
+              <div className="h-28 rounded-2xl bg-slate-200" />
             </div>
-          </main>
-        </div>
+            <div className="h-96 rounded-2xl bg-slate-200" />
+          </div>
+        </main>
       </div>
     );
   }
 
-  const tabItems =
-    tab === "queue"
-      ? filteredQueueItems
-      : tab === "posts"
-      ? filteredPosts
-      : tab === "issues"
-      ? filteredIssues
-      : [];
-
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex max-w-7xl">
-        <Sidebar />
+    <div className="min-h-screen bg-slate-50 flex">
+      <Sidebar />
 
-        <main className="flex-1 p-4 md:p-8">
-          <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                <ShieldCheck className="h-4 w-4" />
-                Enterprise Moderation Console
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-                Moderator Dashboard
-              </h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Unified oversight for discussion posts, civic issues, AI risk signals, and moderator actions.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm">
-                <p className="text-xs text-slate-500">Signed in as</p>
-                <p className="text-sm font-semibold text-slate-900">
-                  {profile?.full_name || profile?.email || "Moderator"}
+      <main className="flex-1 p-4 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          {/* Header */}
+          <div className="rounded-3xl bg-white border border-slate-200 shadow-sm p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  Moderator Console
+                </p>
+                <h1 className="text-3xl font-bold text-slate-900 mt-1">
+                  Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}
+                </h1>
+                <p className="text-sm text-slate-600 mt-2">
+                  Review citizen posts, manage moderation status, and keep the
+                  platform healthy.
                 </p>
               </div>
 
-              <button
-                onClick={() => loadData("refresh")}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={fetchIssues}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  <Activity className="h-4 w-4" />
+                  Citizen Dashboard
+                </Link>
+              </div>
             </div>
           </div>
 
-          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-3xl border border-amber-200 bg-white p-5 shadow-sm">
+          {/* Stats */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Pending Posts</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.pendingPosts}</p>
+                  <p className="text-sm text-slate-500">Total Posts</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {stats.total}
+                  </p>
                 </div>
-                <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
-                  <Clock3 className="h-6 w-6" />
+                <div className="rounded-2xl bg-slate-100 p-3">
+                  <FileText className="h-5 w-5 text-slate-700" />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-red-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">High Risk Issues</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.highRiskIssues}</p>
+                  <p className="text-sm text-slate-500">Active</p>
+                  <p className="mt-2 text-3xl font-bold text-blue-700">
+                    {stats.active}
+                  </p>
                 </div>
-                <div className="rounded-2xl bg-red-100 p-3 text-red-700">
-                  <FileWarning className="h-6 w-6" />
+                <div className="rounded-2xl bg-blue-100 p-3">
+                  <ShieldCheck className="h-5 w-5 text-blue-700" />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-yellow-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Escalated Posts</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.escalatedPosts}</p>
+                  <p className="text-sm text-slate-500">Under Review</p>
+                  <p className="mt-2 text-3xl font-bold text-yellow-700">
+                    {stats.underReview}
+                  </p>
                 </div>
-                <div className="rounded-2xl bg-yellow-100 p-3 text-yellow-700">
-                  <AlertTriangle className="h-6 w-6" />
+                <div className="rounded-2xl bg-yellow-100 p-3">
+                  <Clock3 className="h-5 w-5 text-yellow-700" />
                 </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-green-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Reviewed Queue Items</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalReviewed}</p>
+                  <p className="text-sm text-slate-500">Approved</p>
+                  <p className="mt-2 text-3xl font-bold text-green-700">
+                    {stats.approved}
+                  </p>
                 </div>
-                <div className="rounded-2xl bg-green-100 p-3 text-green-700">
-                  <CheckCircle2 className="h-6 w-6" />
+                <div className="rounded-2xl bg-green-100 p-3">
+                  <CheckCircle2 className="h-5 w-5 text-green-700" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Removed</p>
+                  <p className="mt-2 text-3xl font-bold text-red-700">
+                    {stats.removed}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-red-100 p-3">
+                  <Trash2 className="h-5 w-5 text-red-700" />
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
-              <div className="relative lg:col-span-2">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          {/* Search + Filters inside same box */}
+          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm p-5">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <Search className="h-5 w-5 text-slate-400" />
                 <input
+                  type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search content, owner, district, reason, or recommendation"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:bg-white"
+                  placeholder="Search by title, description, district, category, or status"
+                  className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
                 />
               </div>
 
-              <div className="relative">
-                <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={severityFilter}
-                  onChange={(e) =>
-                    setSeverityFilter(e.target.value as "All" | "High" | "Medium" | "Low")
-                  }
-                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:bg-white"
-                >
-                  <option value="All">All Severity</option>
-                  <option value="High">High</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 mr-2">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </div>
 
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:bg-white"
-                >
-                  <option value="All">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="removed">Removed</option>
-                  <option value="approve">Approve</option>
-                  <option value="remove">Remove</option>
-                  <option value="escalate">Escalate</option>
-                  <option value="under_review">Under Review</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setTab("queue")}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-                    tab === "queue" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  Queue
-                </button>
-                <button
-                  onClick={() => setTab("posts")}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-                    tab === "posts" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  Posts
-                </button>
-                <button
-                  onClick={() => setTab("issues")}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-                    tab === "issues" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  Issues
-                </button>
-                <button
-                  onClick={() => setTab("activity")}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
-                    tab === "activity" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  Activity
-                </button>
+                {[
+                  { key: "all", label: "All Posts" },
+                  { key: "active", label: "Active" },
+                  { key: "under_review", label: "Under Review" },
+                  { key: "approved", label: "Approved" },
+                  { key: "removed", label: "Removed" },
+                ].map((item) => {
+                  const selected = activeFilter === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => setActiveFilter(item.key as FilterType)}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                        selected
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </section>
 
-          {(tab === "queue" || tab === "posts" || tab === "issues") && (
-            <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Bulk moderation actions</h2>
-                  <p className="text-sm text-slate-500">{bulkSelected.length} selected</p>
-                </div>
+          {/* Moderation Queue */}
+          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-4">
+              <h2 className="text-xl font-semibold text-slate-900">
+                Moderation Queue
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Review, approve, remove, or escalate posts.
+              </p>
+            </div>
 
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                  <input
-                    value={actionNotes}
-                    onChange={(e) => setActionNotes(e.target.value)}
-                    placeholder="Optional moderation note"
-                    className="min-w-[240px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:bg-white"
-                  />
-                  <button
-                    onClick={() => handleBulkAction("approve")}
-                    disabled={bulkSelected.length === 0 || bulkSaving}
-                    className="rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Bulk Approve
-                  </button>
-                  <button
-                    onClick={() => handleBulkAction("escalate")}
-                    disabled={bulkSelected.length === 0 || bulkSaving}
-                    className="rounded-2xl bg-yellow-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Bulk Escalate
-                  </button>
-                  <button
-                    onClick={() => handleBulkAction("remove")}
-                    disabled={bulkSelected.length === 0 || bulkSaving}
-                    className="rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Bulk Remove
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <section className="xl:col-span-2 rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    {tab === "queue"
-                      ? "Unified moderation queue"
-                      : tab === "posts"
-                      ? "Post moderation view"
-                      : tab === "issues"
-                      ? "Issue risk monitoring"
-                      : "Recent moderation activity"}
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    {tab === "activity"
-                      ? `${moderationActions.length} action records`
-                      : `${tabItems.length} items shown`}
+            <div className="p-6">
+              {filteredIssues.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
+                  <AlertTriangle className="mx-auto h-8 w-8 text-slate-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                    No posts found
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Try adjusting your search or filter selection.
                   </p>
-                </div>
-              </div>
-
-              {tab === "activity" ? (
-                <div className="divide-y divide-slate-100">
-                  {moderationActions.length === 0 ? (
-                    <div className="p-8 text-sm text-slate-500">No moderation actions yet.</div>
-                  ) : (
-                    moderationActions.map((row) => {
-                      const moderator = row.moderator_id ? profilesMap[row.moderator_id] : undefined;
-                      return (
-                        <div key={row.id} className="p-5">
-                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                            <div>
-                              <p className="font-semibold capitalize text-slate-900">{row.action}</p>
-                              <p className="text-sm text-slate-600">
-                                Moderator: {moderator?.full_name || moderator?.email || "Unknown"}
-                              </p>
-                              <p className="text-sm text-slate-500">Post ID: {row.post_id}</p>
-                            </div>
-                            <p className="text-sm text-slate-500">{formatDate(row.created_at)}</p>
-                          </div>
-                          {row.notes && (
-                            <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
-                              {row.notes}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
-                  {tabItems.length === 0 ? (
-                    <div className="p-8 text-sm text-slate-500">No items match the current filters.</div>
-                  ) : (
-                    tabItems.map((item) => {
-                      const assignedModerator = item.queueReviewedBy
-                        ? profilesMap[item.queueReviewedBy]
-                        : undefined;
+                <div className="space-y-4">
+                  {filteredIssues.map((issue) => (
+                    <div
+                      key={issue.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-sm transition"
+                    >
+                      <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                                issue.status
+                              )}`}
+                            >
+                              {issue.status ?? "active"}
+                            </span>
 
-                      return (
-                        <div
-                          key={`${item.kind}:${item.id}`}
-                          className="p-5 transition hover:bg-slate-50"
-                        >
-                          <div className="flex gap-4">
-                            {(tab === "queue" || tab === "posts" || tab === "issues") && (
-                              <div className="pt-1">
-                                <input
-                                  type="checkbox"
-                                  checked={isBulkSelected(item)}
-                                  onChange={() => toggleBulkSelection(item)}
-                                  className="h-4 w-4 rounded border-slate-300"
-                                />
-                              </div>
+                            {issue.category && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                {issue.category}
+                              </span>
                             )}
 
-                            <div className="min-w-0 flex-1">
-                              <div className="mb-2 flex flex-wrap items-center gap-2">
-                                <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                  {item.kind === "post" ? "Post" : "Issue"}
-                                </span>
+                            {issue.district && (
+                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                                {issue.district}
+                              </span>
+                            )}
+                          </div>
 
-                                <span
-                                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(
-                                    item.severity
-                                  )}`}
-                                >
-                                  {item.severity} Risk
-                                </span>
+                          <div>
+                            <h3 className="text-lg font-semibold text-slate-900">
+                              {issue.title}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">
+                              {issue.description}
+                            </p>
+                          </div>
 
-                                <span className="inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                                  {item.riskScore} Score
-                                </span>
-
-                                <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">
-                                  {item.status}
-                                </span>
-
-                                {item.flaggedReason && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">
-                                    <Flag className="h-3.5 w-3.5" />
-                                    {item.flaggedReason}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="min-w-0">
-                                  <h3 className="text-base font-semibold text-slate-900">
-                                    {item.title}
-                                  </h3>
-                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                                    {item.body}
-                                  </p>
-                                </div>
-
-                                <button
-                                  onClick={() => {
-                                    setSelectedId(item.id);
-                                    setSelectedKind(item.kind);
-                                  }}
-                                  className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  View
-                                </button>
-                              </div>
-
-                              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                                <span className="inline-flex items-center gap-1.5">
-                                  <MessageSquare className="h-4 w-4" />
-                                  {item.ownerName}
-                                </span>
-
-                                <span className="inline-flex items-center gap-1.5">
-                                  <Layers3 className="h-4 w-4" />
-                                  {item.district || "No district"}
-                                </span>
-
-                                <span className="inline-flex items-center gap-1.5">
-                                  <Clock3 className="h-4 w-4" />
-                                  {formatDate(item.createdAt)}
-                                </span>
-
-                                {assignedModerator && (
-                                  <span className="inline-flex items-center gap-1.5">
-                                    <UserCheck className="h-4 w-4" />
-                                    Assigned: {assignedModerator.full_name || assignedModerator.email}
-                                  </span>
-                                )}
-                              </div>
-
-                              {item.kind === "post" && (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  <button
-                                    onClick={() => assignToMe(item)}
-                                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                                  >
-                                    Assign to me
-                                  </button>
-
-                                  <button
-                                    onClick={() => handlePostModeration(item.id, "approve", actionNotes)}
-                                    disabled={savingId === item.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                                  >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Approve
-                                  </button>
-
-                                  <button
-                                    onClick={() => handlePostModeration(item.id, "escalate", actionNotes)}
-                                    disabled={savingId === item.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                                  >
-                                    <AlertTriangle className="h-4 w-4" />
-                                    Escalate
-                                  </button>
-
-                                  <button
-                                    onClick={() => handlePostModeration(item.id, "remove", actionNotes)}
-                                    disabled={savingId === item.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                    Remove
-                                  </button>
-                                </div>
-                              )}
-
-                              {item.kind === "issue" && (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  <button
-                                    onClick={() => handleIssueDecision(item.id, "approve")}
-                                    disabled={savingId === item.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                                  >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Approve
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleIssueDecision(item.id, "escalate")}
-                                    disabled={savingId === item.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                                  >
-                                    <AlertTriangle className="h-4 w-4" />
-                                    Escalate
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleIssueDecision(item.id, "remove")}
-                                    disabled={savingId === item.id}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                    Remove
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                          <div className="text-xs text-slate-500">
+                            Posted on {formatDate(issue.created_at)}
                           </div>
                         </div>
-                      );
-                    })
-                  )}
+
+                        <div className="flex flex-wrap xl:flex-col gap-2 xl:min-w-[180px]">
+                          <button
+                            onClick={() => updateIssueStatus(issue.id, "approved")}
+                            disabled={actionLoadingId === issue.id}
+                            className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                          >
+                            {actionLoadingId === issue.id
+                              ? "Updating..."
+                              : "Approve"}
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              updateIssueStatus(issue.id, "under_review")
+                            }
+                            disabled={actionLoadingId === issue.id}
+                            className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-600 disabled:opacity-60"
+                          >
+                            {actionLoadingId === issue.id
+                              ? "Updating..."
+                              : "Escalate"}
+                          </button>
+
+                          <button
+                            onClick={() => updateIssueStatus(issue.id, "removed")}
+                            disabled={actionLoadingId === issue.id}
+                            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                          >
+                            {actionLoadingId === issue.id
+                              ? "Updating..."
+                              : "Remove"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </section>
-
-            <aside className="space-y-6">
-              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-indigo-600" />
-                  <h2 className="text-lg font-semibold text-slate-900">Selected item</h2>
-                </div>
-
-                {!selectedItem ? (
-                  <p className="text-sm text-slate-500">
-                    Select a post or issue to inspect more details.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                          {selectedItem.kind}
-                        </span>
-                        <span
-                          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(
-                            selectedItem.severity
-                          )}`}
-                        >
-                          {selectedItem.severity}
-                        </span>
-                      </div>
-                      <h3 className="text-base font-semibold text-slate-900">
-                        {selectedItem.title}
-                      </h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                        {selectedItem.body}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                      <div className="flex items-center justify-between">
-                        <span>Status</span>
-                        <span className="font-semibold capitalize">{selectedItem.status}</span>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span>Recommended action</span>
-                        <span className="font-semibold">{selectedItem.recommendedAction}</span>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span>Risk score</span>
-                        <span className="font-semibold">{selectedItem.riskScore}</span>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span>Created</span>
-                        <span className="font-semibold">{formatDate(selectedItem.createdAt)}</span>
-                      </div>
-                    </div>
-
-                    {selectedItem.aiBreakdown && (
-                      <div className="rounded-2xl bg-slate-50 p-4">
-                        <h4 className="mb-3 text-sm font-semibold text-slate-900">
-                          AI breakdown
-                        </h4>
-                        <div className="space-y-2 text-sm text-slate-700">
-                          <div className="flex items-center justify-between">
-                            <span>Toxicity</span>
-                            <span className="font-semibold">
-                              {selectedItem.aiBreakdown.toxicity ?? 0}%
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Spam</span>
-                            <span className="font-semibold">
-                              {selectedItem.aiBreakdown.spam ?? 0}%
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Misinformation</span>
-                            <span className="font-semibold">
-                              {selectedItem.aiBreakdown.misinformation ?? 0}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-indigo-600" />
-                  <h2 className="text-lg font-semibold text-slate-900">Post action history</h2>
-                </div>
-
-                {!selectedItem || selectedItem.kind !== "post" ? (
-                  <p className="text-sm text-slate-500">
-                    Select a post to view recent moderation history.
-                  </p>
-                ) : recentActionsForSelectedPost.length === 0 ? (
-                  <p className="text-sm text-slate-500">No moderation actions yet for this post.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {recentActionsForSelectedPost.map((row) => {
-                      const moderator = row.moderator_id ? profilesMap[row.moderator_id] : undefined;
-                      return (
-                        <div key={row.id} className="rounded-2xl bg-slate-50 p-3 text-sm">
-                          <p className="font-semibold capitalize text-slate-900">{row.action}</p>
-                          <p className="mt-1 text-slate-600">
-                            {moderator?.full_name || moderator?.email || "Unknown moderator"}
-                          </p>
-                          <p className="mt-1 text-slate-500">{formatDate(row.created_at)}</p>
-                          {row.notes && <p className="mt-2 text-slate-700">{row.notes}</p>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            </aside>
-          </div>
-        </main>
-      </div>
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
   );
 }
