@@ -399,11 +399,7 @@ export default function LoginPage() {
               <h2 className="mt-2 text-2xl font-bold text-slate-900">
                 Log in to Civix250
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Choose your preferred login option below. Citizens can sign in
-                normally, while government and public officials can use the
-                official registration path for role-based access.
-              </p>
+              
             </div>
 
             <div className="mb-4 rounded-3xl border border-green-200 bg-green-50 p-3.5">
