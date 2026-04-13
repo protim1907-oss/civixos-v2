@@ -9,7 +9,6 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: "🏠" },
   { label: "Public Feed", href: "/feed", icon: "📢" },
   { label: "Create Post", href: "/create-post", icon: "✍️" },
-  { label: "My Representatives", href: "/my-representatives", icon: "🏛️" },
   { label: "Policy Pulse", href: "/policy-pulse", icon: "📊" },
 ];
 
