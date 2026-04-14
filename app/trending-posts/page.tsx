@@ -1,15 +1,6 @@
 import Link from "next/link";
 import { XMLParser } from "fast-xml-parser";
 import { createClient } from "@/lib/supabase/server";
-import {
-  TrendingUp,
-  Newspaper,
-  MapPinned,
-  Clock3,
-  Activity,
-  ExternalLink,
-} from "lucide-react";
-import TrendingNewsActions from "@/components/trending/TrendingNewsActions";
 
 type FeedItem = {
   title: string;
@@ -22,536 +13,625 @@ type FeedItem = {
 type RegionInfo = {
   stateName: string;
   districtLabel: string;
+  districtNumber?: number | null;
   feedLabel: string;
   query: string;
 };
 
-function displayState(value: string | null | undefined) {
-  const normalized = (value || "").trim().toUpperCase();
+type IssueSummary = {
+  title: string;
+  summary: string;
+};
 
-  switch (normalized) {
-    case "NH":
-    case "NEW HAMPSHIRE":
-      return "New Hampshire";
-    case "TX":
-    case "TEXAS":
-      return "Texas";
-    case "CA":
-    case "CALIFORNIA":
-      return "California";
-    case "FL":
-    case "FLORIDA":
-      return "Florida";
-    default:
-      return value || "Your State";
-  }
-}
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+  district: string | null;
+  state: string | null;
+  city: string | null;
+  zip_code: string | null;
+};
 
-function displayDistrict(value: string | null | undefined) {
-  const normalized = (value || "").trim().toUpperCase();
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "",
+  textNodeName: "text",
+});
 
-  switch (normalized) {
-    case "NH":
-      return "New Hampshire";
-    case "NH-01":
-      return "New Hampshire 1st Congressional District";
-    case "NH-02":
-      return "New Hampshire 2nd Congressional District";
-    case "TX":
-      return "Texas";
-    case "TX-12":
-      return "Texas 12th District";
-    case "TX-20":
-      return "Texas 20th District";
-    case "CA":
-      return "California";
-    case "FL":
-      return "Florida";
-    default:
-      return value || "Your District";
-  }
-}
-
-function inferRegionFromUserMetadata(
-  userMetadata: Record<string, any> | undefined
-): RegionInfo {
-  const rawDistrict =
-    userMetadata?.district ||
-    userMetadata?.district_name ||
-    userMetadata?.district_id ||
-    userMetadata?.state ||
-    "District 12";
-
-  const value = String(rawDistrict).toLowerCase();
-
-  if (value.includes("new hampshire") || value === "nh" || value.startsWith("nh-")) {
-    return {
-      stateName: "New Hampshire",
-      districtLabel: displayDistrict(String(rawDistrict)),
-      feedLabel: "New Hampshire News",
-      query: "New Hampshire",
-    };
-  }
-
-  if (value.includes("texas") || value === "tx" || value.startsWith("tx-")) {
-    return {
-      stateName: "Texas",
-      districtLabel: displayDistrict(String(rawDistrict)),
-      feedLabel: "Texas News",
-      query: "Texas",
-    };
-  }
-
-  if (value.includes("california") || value === "ca" || value.startsWith("ca-")) {
-    return {
-      stateName: "California",
-      districtLabel: displayDistrict(String(rawDistrict)),
-      feedLabel: "California News",
-      query: "California",
-    };
-  }
-
-  if (value.includes("florida") || value === "fl" || value.startsWith("fl-")) {
-    return {
-      stateName: "Florida",
-      districtLabel: displayDistrict(String(rawDistrict)),
-      feedLabel: "Florida News",
-      query: "Florida",
-    };
-  }
-
-  return {
-    stateName: displayState(String(rawDistrict)),
-    districtLabel: displayDistrict(String(rawDistrict)),
-    feedLabel: "State News",
-    query: String(rawDistrict),
-  };
-}
-
-async function getUserRegion(): Promise<RegionInfo> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    return inferRegionFromUserMetadata(user?.user_metadata);
-  } catch (error) {
-    console.error("Could not determine user region:", error);
-    return {
-      stateName: "Your State",
-      districtLabel: "District 12",
-      feedLabel: "State News",
-      query: "United States state news",
-    };
-  }
-}
-
-function buildGoogleNewsRssUrl(query: string) {
-  const rssQuery = `${query} when:7d`;
-  return `https://news.google.com/rss/search?q=${encodeURIComponent(
-    rssQuery
-  )}&hl=en-US&gl=US&ceid=US:en`;
-}
-
-function stripHtml(value?: string) {
-  if (!value) return "";
-  return value
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
+function normalizeText(value: unknown) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-async function getStateNews(region: RegionInfo): Promise<FeedItem[]> {
+function formatDate(dateStr?: string) {
+  if (!dateStr) return "Date unavailable";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function isWithinLast7Days(dateStr?: string) {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+
+  return date >= sevenDaysAgo && date <= now;
+}
+
+function dedupeFeedItems(items: FeedItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${normalizeText(item.title).toLowerCase()}|${String(item.link || "").trim()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function extractDomain(url: string) {
   try {
-    const res = await fetch(buildGoogleNewsRssUrl(region.query), {
-      next: { revalidate: 1800 },
+    const parsed = new URL(url);
+    return parsed.hostname.replace(/^www\./, "");
+  } catch {
+    return "News source";
+  }
+}
+
+function cleanGoogleNewsLink(url: string) {
+  try {
+    const parsed = new URL(url);
+    const target = parsed.searchParams.get("url");
+    return target || url;
+  } catch {
+    return url;
+  }
+}
+
+function inferRegionFromProfile(profile?: Partial<ProfileRow> | null, userMetadata?: Record<string, any>): RegionInfo {
+  const rawDistrict =
+    profile?.district ||
+    userMetadata?.district ||
+    userMetadata?.district_name ||
+    userMetadata?.district_id ||
+    "";
+
+  const rawState =
+    profile?.state ||
+    userMetadata?.state ||
+    userMetadata?.state_name ||
+    "";
+
+  const districtValue = String(rawDistrict || "").toLowerCase().trim();
+  const stateValue = String(rawState || "").toLowerCase().trim();
+
+  // New Hampshire special handling
+  if (
+    districtValue.includes("new hampshire") ||
+    districtValue === "nh" ||
+    districtValue.startsWith("nh-") ||
+    stateValue === "new hampshire" ||
+    stateValue === "nh"
+  ) {
+    const districtNumberMatch = districtValue.match(/(\d{1,2})/);
+    const districtNumber = districtNumberMatch ? Number(districtNumberMatch[1]) : null;
+
+    return {
+      stateName: "New Hampshire",
+      districtLabel: districtNumber ? `NH District ${districtNumber}` : "New Hampshire District",
+      districtNumber,
+      feedLabel: districtNumber ? `New Hampshire District ${districtNumber}` : "New Hampshire",
+      query: districtNumber
+        ? `"New Hampshire" district ${districtNumber} local government OR community OR policy OR housing OR transport OR education`
+        : `"New Hampshire" local government OR community OR policy OR housing OR transport OR education`,
+    };
+  }
+
+  // Texas example handling
+  if (
+    districtValue.includes("texas") ||
+    districtValue === "tx" ||
+    districtValue.startsWith("tx-") ||
+    stateValue === "texas" ||
+    stateValue === "tx"
+  ) {
+    const districtNumberMatch = districtValue.match(/(\d{1,2})/);
+    const districtNumber = districtNumberMatch ? Number(districtNumberMatch[1]) : null;
+
+    return {
+      stateName: "Texas",
+      districtLabel: districtNumber ? `TX District ${districtNumber}` : "Texas District",
+      districtNumber,
+      feedLabel: districtNumber ? `Texas District ${districtNumber}` : "Texas",
+      query: districtNumber
+        ? `"Texas" district ${districtNumber} local government OR community OR policy OR public safety OR infrastructure OR education`
+        : `"Texas" local government OR community OR policy OR public safety OR infrastructure OR education`,
+    };
+  }
+
+  // Generic fallback
+  const stateName = rawState ? String(rawState).trim() : "your state";
+  const districtLabel = rawDistrict ? String(rawDistrict).trim() : "your district";
+
+  return {
+    stateName,
+    districtLabel,
+    districtNumber: null,
+    feedLabel: districtLabel,
+    query: rawDistrict
+      ? `"${districtLabel}" local government OR community OR city council OR school board OR housing OR roads OR public safety`
+      : rawState
+      ? `"${stateName}" local government OR community OR city council OR school board OR housing OR roads OR public safety`
+      : `"local district" government OR community OR housing OR roads OR schools OR public safety`,
+  };
+}
+
+async function fetchGoogleNews(query: string): Promise<FeedItem[]> {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+
+  try {
+    const response = await fetch(url, {
+      next: { revalidate: 60 * 60 * 6 }, // 6 hours
       headers: {
         "User-Agent": "Mozilla/5.0",
       },
     });
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch feed: ${res.status}`);
-    }
+    if (!response.ok) return [];
 
-    const xml = await res.text();
-
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: "",
-      trimValues: true,
-    });
-
+    const xml = await response.text();
     const parsed = parser.parse(xml);
     const rawItems = parsed?.rss?.channel?.item ?? [];
-    const items = Array.isArray(rawItems) ? rawItems : [rawItems];
 
-    return items
-      .filter((item: any) => item?.title && item?.link)
-      .slice(0, 5)
-      .map((item: any) => ({
-        title: item.title,
-        link: item.link,
-        pubDate: item.pubDate,
-        description:
-          stripHtml(item.description) ||
-          `Latest news update for ${region.stateName}.`,
-        source: item?.source?.["#text"] || item?.source || "Google News",
-      }));
-  } catch (error) {
-    console.error(`${region.stateName} news fetch error:`, error);
+    const itemsArray = Array.isArray(rawItems) ? rawItems : [rawItems];
 
-    return [
-      {
-        title: `Unable to load live ${region.stateName} news right now`,
-        link: "/dashboard",
-        description:
-          "The live feed is temporarily unavailable. Please try again shortly.",
-        source: "System",
-      },
-    ];
+    return itemsArray
+      .map((item: any) => {
+        const link = cleanGoogleNewsLink(item.link || "");
+        return {
+          title: normalizeText(item.title),
+          link,
+          pubDate: item.pubDate,
+          description: normalizeText(item.description),
+          source: extractDomain(link),
+        };
+      })
+      .filter((item: FeedItem) => item.title && item.link);
+  } catch {
+    return [];
   }
 }
 
-function formatDate(dateString?: string) {
-  if (!dateString) return "Latest";
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return "Latest";
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+function scoreItemForRegion(item: FeedItem, region: RegionInfo) {
+  const haystack = `${item.title} ${item.description || ""}`.toLowerCase();
+  let score = 0;
 
-function getFreshnessLabel(dateString?: string) {
-  if (!dateString) return "Live";
+  if (haystack.includes(region.stateName.toLowerCase())) score += 4;
 
-  const published = new Date(dateString).getTime();
-  if (Number.isNaN(published)) return "Live";
+  if (region.districtNumber && haystack.includes(`district ${region.districtNumber}`)) score += 5;
+  if (region.districtNumber && haystack.includes(`${region.stateName.toLowerCase()} district ${region.districtNumber}`)) score += 5;
 
-  const diffHours = Math.floor((Date.now() - published) / (1000 * 60 * 60));
-
-  if (diffHours < 24) return "Today";
-  if (diffHours < 48) return "Yesterday";
-  if (diffHours < 24 * 7) return "This week";
-  return "Recent";
-}
-
-function getTopSource(news: FeedItem[]) {
-  if (!news.length) return "N/A";
-
-  const counts: Record<string, number> = {};
-  news.forEach((item) => {
-    const source = item.source || "Unknown";
-    counts[source] = (counts[source] || 0) + 1;
-  });
-
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-}
-
-function extractTrendingTopics(news: FeedItem[]) {
-  const text = news
-    .map((item) => `${item.title} ${item.description || ""}`)
-    .join(" ")
-    .toLowerCase();
-
-  const topicBank = [
-    "voting",
-    "election",
-    "education",
+  const civicKeywords = [
     "housing",
-    "healthcare",
-    "transportation",
-    "immigration",
-    "tax",
+    "school",
+    "education",
+    "roads",
+    "transport",
+    "transit",
+    "zoning",
     "budget",
-    "economy",
-    "jobs",
-    "community",
+    "council",
     "public safety",
-    "sports",
-    "climate",
-    "energy",
-    "technology",
+    "police",
+    "health",
+    "community",
     "infrastructure",
+    "tax",
+    "water",
+    "energy",
+    "environment",
+    "election",
+    "development",
   ];
 
-  const matched = topicBank.filter((topic) => text.includes(topic.toLowerCase()));
+  for (const keyword of civicKeywords) {
+    if (haystack.includes(keyword)) score += 1;
+  }
 
-  if (matched.length >= 3) return matched.slice(0, 3);
-  if (matched.length === 2) return [...matched, "community"];
-  if (matched.length === 1) return [matched[0], "community", "local updates"];
+  if (isWithinLast7Days(item.pubDate)) score += 3;
 
-  return ["community", "policy", "local updates"];
+  return score;
 }
 
-function getCitizenPulse(news: FeedItem[]) {
-  const titles = news.map((item) => item.title.toLowerCase()).join(" ");
+function keywordBucket(text: string) {
+  const t = text.toLowerCase();
 
-  if (
-    titles.includes("vote") ||
-    titles.includes("bill") ||
-    titles.includes("law") ||
-    titles.includes("policy") ||
-    titles.includes("governor")
-  ) {
-    return {
-      label: "High civic attention",
-      description:
-        "This news cycle shows strong public-interest activity around government actions and civic issues.",
-      tone: "bg-red-50 text-red-700 border-red-200",
-    };
+  if (/(housing|rent|zoning|home|homeless|real estate|affordability)/.test(t)) {
+    return "Housing and affordability";
+  }
+  if (/(school|student|teacher|education|college|campus)/.test(t)) {
+    return "Education and schools";
+  }
+  if (/(road|traffic|bridge|transport|transit|rail|bus|infrastructure|construction)/.test(t)) {
+    return "Transportation and infrastructure";
+  }
+  if (/(crime|police|public safety|fire|emergency|violence)/.test(t)) {
+    return "Public safety";
+  }
+  if (/(health|hospital|clinic|mental health|medicaid|healthcare)/.test(t)) {
+    return "Healthcare access";
+  }
+  if (/(budget|tax|spending|finance|funding)/.test(t)) {
+    return "Budget and taxes";
+  }
+  if (/(environment|water|climate|energy|storm|flood|pollution)/.test(t)) {
+    return "Environment and utilities";
+  }
+  if (/(election|vote|ballot|legislation|bill|policy|council)/.test(t)) {
+    return "Policy and governance";
   }
 
-  if (
-    titles.includes("school") ||
-    titles.includes("city") ||
-    titles.includes("community") ||
-    titles.includes("transport")
-  ) {
-    return {
-      label: "Moderate public discussion",
-      description:
-        "Stories suggest an active but balanced level of community discussion across the district.",
-      tone: "bg-amber-50 text-amber-700 border-amber-200",
-    };
+  return "Community issues";
+}
+
+function buildFallbackTopIssues(items: FeedItem[]): IssueSummary[] {
+  const bucketMap = new Map<string, { count: number; headlines: string[] }>();
+
+  for (const item of items) {
+    const bucket = keywordBucket(`${item.title} ${item.description || ""}`);
+    const current = bucketMap.get(bucket) || { count: 0, headlines: [] };
+    current.count += 1;
+    current.headlines.push(item.title);
+    bucketMap.set(bucket, current);
   }
 
-  return {
-    label: "General local activity",
-    description:
-      "The feed reflects a mix of local updates and community interest topics across the region.",
-    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  };
+  const top = [...bucketMap.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 3)
+    .map(([title, data]) => ({
+      title,
+      summary:
+        data.headlines.length > 0
+          ? `This issue appeared in ${data.count} recent story${data.count > 1 ? "ies" : "y"} this week, including: ${data.headlines
+              .slice(0, 2)
+              .join(" • ")}.`
+          : `This issue appeared in ${data.count} recent stories this week.`,
+    }));
+
+  while (top.length < 3) {
+    top.push({
+      title: `Issue ${top.length + 1}`,
+      summary: "Not enough district-specific stories were available this week to generate a stronger summary.",
+    });
+  }
+
+  return top;
+}
+
+async function generateAISummary(items: FeedItem[], region: RegionInfo): Promise<IssueSummary[]> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey || items.length === 0) {
+    return buildFallbackTopIssues(items);
+  }
+
+  try {
+    const headlinesBlock = items
+      .slice(0, 15)
+      .map(
+        (item, index) =>
+          `${index + 1}. ${item.title}${item.description ? ` — ${item.description}` : ""}`
+      )
+      .join("\n");
+
+    const prompt = `
+You are summarizing local civic news for ${region.feedLabel}.
+
+Based on the headlines below, identify the top 3 civic/public issues this week.
+Return ONLY valid JSON in this exact shape:
+{
+  "issues": [
+    { "title": "Issue name", "summary": "1-2 sentence summary" },
+    { "title": "Issue name", "summary": "1-2 sentence summary" },
+    { "title": "Issue name", "summary": "1-2 sentence summary" }
+  ]
+}
+
+Focus on public-interest themes like housing, transportation, education, public safety, infrastructure, environment, healthcare, local policy, or community concerns.
+Be specific to the district/state context and keep summaries concise.
+
+Headlines:
+${headlinesBlock}
+`.trim();
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.3,
+        messages: [
+          {
+            role: "system",
+            content: "You are a precise civic news summarizer that returns clean JSON only.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return buildFallbackTopIssues(items);
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+
+    if (!content) {
+      return buildFallbackTopIssues(items);
+    }
+
+    const parsed = JSON.parse(content);
+    const issues = Array.isArray(parsed?.issues) ? parsed.issues : [];
+
+    const cleaned = issues
+      .slice(0, 3)
+      .map((issue: any) => ({
+        title: normalizeText(issue?.title || "Issue"),
+        summary: normalizeText(issue?.summary || "Summary unavailable."),
+      }))
+      .filter((issue: IssueSummary) => issue.title && issue.summary);
+
+    if (cleaned.length === 3) return cleaned;
+
+    return buildFallbackTopIssues(items);
+  } catch {
+    return buildFallbackTopIssues(items);
+  }
+}
+
+async function getCurrentUserProfile() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { user: null, profile: null as ProfileRow | null };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role, district, state, city, zip_code")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return { user, profile: profile as ProfileRow | null };
 }
 
 export default async function TrendingPostsPage() {
-  const region = await getUserRegion();
-  const news = await getStateNews(region);
+  const { user, profile } = await getCurrentUserProfile();
 
-  const topSource = getTopSource(news);
-  const latestStoryDate = news[0]?.pubDate ? formatDate(news[0].pubDate) : "Latest";
-  const freshness = getFreshnessLabel(news[0]?.pubDate);
-  const trendingTopics = extractTrendingTopics(news);
-  const citizenPulse = getCitizenPulse(news);
+  const region = inferRegionFromProfile(profile, user?.user_metadata);
+
+  const searchQueries = [
+    region.query,
+    `"${region.stateName}" community issues OR local government OR infrastructure`,
+    `"${region.feedLabel}" housing OR education OR roads OR public safety`,
+  ];
+
+  const feedResults = await Promise.all(searchQueries.map((query) => fetchGoogleNews(query)));
+  const mergedItems = dedupeFeedItems(feedResults.flat());
+
+  const scored = mergedItems
+    .map((item) => ({
+      ...item,
+      score: scoreItemForRegion(item, region),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  const districtSpecificItems = scored.filter((item) => item.score >= 4);
+  const weeklyItems = districtSpecificItems.filter((item) => isWithinLast7Days(item.pubDate));
+  const newsToShow = (weeklyItems.length > 0 ? weeklyItems : districtSpecificItems).slice(0, 12);
+
+  const topIssues = await generateAISummary(newsToShow, region);
 
   return (
-    <main className="min-h-screen bg-slate-100">
-      <div className="w-full p-4 md:p-6 xl:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
-          <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-            <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-6 md:px-8">
-              <p className="text-sm font-medium text-blue-100/80">Trending Posts</p>
-
-              <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">
-                Top stories in {region.stateName}
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">
+                Trending Posts
+              </p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                {region.feedLabel} News & Community Signals
               </h1>
-
-              <p className="mt-3 text-sm text-blue-100/80 md:text-base">
-                Current district:{" "}
-                <span className="font-semibold text-white">{region.districtLabel}</span>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                Daily-refreshed civic headlines and issue summaries tailored to your district.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-4 md:p-6">
-              <div className="rounded-3xl bg-red-500 p-5 text-white">
-                <p>Stories</p>
-                <p className="text-2xl font-bold">{news.length}</p>
-              </div>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
 
-              <div className="rounded-3xl bg-purple-500 p-5 text-white">
-                <p>Source</p>
-                <p className="text-lg font-bold">{topSource}</p>
-              </div>
-
-              <div className="rounded-3xl bg-blue-500 p-5 text-white">
-                <p>Latest</p>
-                <p className="text-lg font-bold">{latestStoryDate}</p>
-              </div>
-
-              <div className="rounded-3xl bg-green-500 p-5 text-white">
-                <p>Coverage</p>
-                <p className="text-lg font-bold">{region.stateName}</p>
-              </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                District
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{region.districtLabel}</p>
             </div>
-          </section>
 
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="space-y-4">
-                {news.map((item, index) => (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Stories this week
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{weeklyItems.length}</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Last refresh
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">
+                {new Intl.DateTimeFormat("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                }).format(new Date())}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <section className="mb-8">
+          <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-[1px] shadow-lg">
+            <div className="rounded-3xl bg-white p-6">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
+                    AI Summarization
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                    Top 3 issues this week
+                  </h2>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {topIssues.map((issue, index) => (
                   <div
-                    key={`${item.link}-${index}`}
-                    className="rounded-3xl border border-slate-300 p-6 transition hover:bg-slate-50"
+                    key={`${issue.title}-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
                   >
-                    <div className="flex gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 font-bold text-red-600">
-                        {index + 1}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
-
-                        <p className="mt-2 text-sm leading-6 text-gray-600">
-                          {item.description}
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                            <Clock3 className="h-4 w-4" />
-                            {formatDate(item.pubDate)}
-                          </span>
-
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-                            <Newspaper className="h-4 w-4" />
-                            {item.source || "News Source"}
-                          </span>
-                        </div>
-
-                        <div className="mt-4">
-                          <a
-                            href={item.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600"
-                          >
-                            Read full story
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </div>
-
-                        <TrendingNewsActions title={item.title} link={item.link} />
-                      </div>
+                    <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
+                      {index + 1}
                     </div>
+                    <h3 className="text-lg font-semibold text-slate-900">{issue.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{issue.summary}</p>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        </section>
 
-            <aside className="space-y-4">
-              <div className="sticky top-6 space-y-4">
-                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <MapPinned className="h-5 w-5 text-slate-700" />
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      District Snapshot
-                    </h3>
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Recent stories</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Showing the most relevant civic headlines for {region.feedLabel}.
+              </p>
+            </div>
+          </div>
+
+          {newsToShow.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-900">
+                No district-specific stories found yet
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Try again later after more local stories are indexed.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-2">
+              {newsToShow.map((item, index) => (
+                <article
+                  key={`${item.link}-${index}`}
+                  className="group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                      {item.source || "News"}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                      {formatDate(item.pubDate)}
+                    </span>
                   </div>
 
-                  <div className="mt-4 space-y-3 text-sm">
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-slate-600">State</span>
-                      <span className="font-semibold text-slate-900">
-                        {region.stateName}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-slate-600">District</span>
-                      <span className="font-semibold text-slate-900">
-                        {region.districtLabel}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-slate-600">Stories tracked</span>
-                      <span className="font-semibold text-slate-900">{news.length}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-slate-600">Freshness</span>
-                      <span className="font-semibold text-slate-900">{freshness}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-slate-700" />
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      What’s Trending
-                    </h3>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {trendingTopics.map((topic) => (
-                      <span
-                        key={topic}
-                        className="rounded-full bg-indigo-50 px-3 py-1.5 text-sm font-medium capitalize text-indigo-700"
-                      >
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
-
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
-                    These topic signals are inferred from recent headlines and summaries
-                    in your district feed.
-                  </p>
-                </div>
-
-                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-slate-700" />
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      Citizen Pulse
-                    </h3>
-                  </div>
-
-                  <div
-                    className={`mt-4 rounded-2xl border px-4 py-4 ${citizenPulse.tone}`}
+                  <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
                   >
-                    <p className="font-semibold">{citizenPulse.label}</p>
-                    <p className="mt-2 text-sm leading-6">{citizenPulse.description}</p>
-                  </div>
-                </div>
-
-                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <Newspaper className="h-5 w-5 text-slate-700" />
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      Quick Actions
+                    <h3 className="text-xl font-bold leading-snug text-slate-900 transition group-hover:text-blue-700">
+                      {item.title}
                     </h3>
+                  </a>
+
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                    {item.description || "Read more about this district-related civic update."}
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Read story
+                    </a>
+
+                    <button
+                      type="button"
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Comment
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Upvote
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Share
+                    </button>
                   </div>
-
-                  <div className="mt-4 space-y-3">
-                    <Link
-                      href="/feed"
-                      className="flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      View District Feed
-                    </Link>
-
-                    <Link
-                      href="/create-post"
-                      className="flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Create Post
-                    </Link>
-
-                    <Link
-                      href="/my-representatives"
-                      className="flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Contact Representatives
-                    </Link>
-
-                    <Link
-                      href="/dashboard"
-                      className="flex items-center justify-center rounded-2xl bg-amber-500 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Back to Dashboard
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </aside>
-          </section>
-        </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
-} 
+}
