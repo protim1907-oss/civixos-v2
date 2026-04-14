@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { XMLParser } from "fast-xml-parser";
 import { createClient } from "@/lib/supabase/server";
-import TrendingStoryActions from "@/components/trending/TrendingStoryActions";
+import TrendingStoryActions from "@/components/trending/TrendingNewsActions";
 
 type FeedItem = {
   id: string;
