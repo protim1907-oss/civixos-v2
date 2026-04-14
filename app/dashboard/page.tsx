@@ -1,6 +1,5 @@
 "use client";
-const [myComments, setMyComments] = useState<any[]>([]);
-const [myUpvotes, setMyUpvotes] = useState<any[]>([]);
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,13 +11,14 @@ import {
   Filter,
   TrendingUp,
   AlertTriangle,
-  CheckCircle2,
   FileText,
   BarChart3,
   MapPinned,
   Activity,
   MessageSquare,
   RefreshCw,
+  ThumbsUp,
+  MessageCircle,
 } from "lucide-react";
 
 type Issue = {
@@ -71,6 +71,20 @@ type FeedItem = {
   href: string;
 };
 
+type MyCommentRow = {
+  id: string;
+  comment_text: string;
+  story_title: string | null;
+  created_at: string;
+};
+
+type MyUpvoteRow = {
+  id: string;
+  story_title: string | null;
+  story_link: string | null;
+  created_at: string;
+};
+
 function getDistrictMappingFromEmail(email?: string | null) {
   const normalized = (email || "").trim().toLowerCase();
 
@@ -103,6 +117,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const [issues, setIssues] = useState<Issue[]>([]);
   const [posts, setPosts] = useState<PostRow[]>([]);
@@ -113,7 +128,39 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [currentDistrict, setCurrentDistrict] = useState("District 12");
-  const [loggingOut, setLoggingOut] = useState(false);
+
+  const [myComments, setMyComments] = useState<MyCommentRow[]>([]);
+  const [myUpvotes, setMyUpvotes] = useState<MyUpvoteRow[]>([]);
+
+  async function loadMyActivity(userId: string) {
+    const [commentsRes, upvotesRes] = await Promise.all([
+      supabase
+        .from("news_comments")
+        .select("id, comment_text, story_title, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+
+      supabase
+        .from("news_interactions")
+        .select("id, story_title, story_link, created_at")
+        .eq("user_id", userId)
+        .eq("interaction_type", "upvote")
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
+
+    if (commentsRes.error) {
+      console.error("My comments load error:", commentsRes.error);
+    }
+
+    if (upvotesRes.error) {
+      console.error("My upvotes load error:", upvotesRes.error);
+    }
+
+    setMyComments((commentsRes.data as MyCommentRow[]) || []);
+    setMyUpvotes((upvotesRes.data as MyUpvoteRow[]) || []);
+  }
 
   async function syncDistrictFromEmail() {
     const {
@@ -127,9 +174,7 @@ export default function DashboardPage() {
     if (!mapped) return false;
 
     const currentDistrictValue =
-      user.user_metadata?.district_id ||
-      user.user_metadata?.district ||
-      "";
+      user.user_metadata?.district_id || user.user_metadata?.district || "";
 
     const currentStateValue = user.user_metadata?.state || "";
 
@@ -166,9 +211,7 @@ export default function DashboardPage() {
       } = await supabase.auth.getSession();
 
       const guestUser =
-        typeof window !== "undefined"
-          ? localStorage.getItem("guest_user")
-          : null;
+        typeof window !== "undefined" ? localStorage.getItem("guest_user") : null;
 
       if (!session?.user && !guestUser) {
         router.replace("/login");
@@ -193,9 +236,7 @@ export default function DashboardPage() {
           const parsedGuest = JSON.parse(guestUser);
 
           const guestName =
-            parsedGuest?.name ||
-            parsedGuest?.full_name ||
-            "Guest Citizen";
+            parsedGuest?.name || parsedGuest?.full_name || "Guest Citizen";
 
           const guestDistrict =
             parsedGuest?.district ||
@@ -205,6 +246,8 @@ export default function DashboardPage() {
 
           setUserName(guestName);
           setCurrentDistrict(guestDistrict);
+          setMyComments([]);
+          setMyUpvotes([]);
 
           const [issuesRes, discussionsRes] = await Promise.all([
             supabase
@@ -215,6 +258,7 @@ export default function DashboardPage() {
               .eq("district", guestDistrict)
               .neq("status", "removed")
               .order("created_at", { ascending: false }),
+
             supabase
               .from("discussions")
               .select("id, title, topic, district, status")
@@ -278,14 +322,14 @@ export default function DashboardPage() {
       const typedProfile = profile as ProfileRow | null;
 
       if (typedProfile?.role === "admin") {
-  router.replace("/admin");
-  return;
-}
+        router.replace("/admin");
+        return;
+      }
 
-if (typedProfile?.role === "moderator") {
-  router.replace("/moderator");
-  return;
-}
+      if (typedProfile?.role === "moderator") {
+        router.replace("/moderator");
+        return;
+      }
 
       const displayName =
         typedProfile?.full_name ||
@@ -305,6 +349,8 @@ if (typedProfile?.role === "moderator") {
 
       setCurrentDistrict(resolvedDistrict);
 
+      await loadMyActivity(user.id);
+
       const [issuesRes, discussionsRes] = await Promise.all([
         supabase
           .from("issues")
@@ -314,6 +360,7 @@ if (typedProfile?.role === "moderator") {
           .eq("district", resolvedDistrict)
           .neq("status", "removed")
           .order("created_at", { ascending: false }),
+
         supabase
           .from("discussions")
           .select("id, title, topic, district, status")
@@ -385,13 +432,27 @@ if (typedProfile?.role === "moderator") {
           await loadDashboard("refresh");
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news_comments" },
+        async () => {
+          await loadDashboard("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news_interactions" },
+        async () => {
+          await loadDashboard("refresh");
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, supabase]);
+  }, [router]);
 
   async function handleLogout() {
     try {
@@ -504,7 +565,9 @@ if (typedProfile?.role === "moderator") {
   }, [feedItems, search, statusFilter, categoryFilter, sortBy]);
 
   const openCount = issues.filter(
-    (i) => normalizeStatus(i.status) === "open" || normalizeStatus(i.status) === "active"
+    (i) =>
+      normalizeStatus(i.status) === "open" ||
+      normalizeStatus(i.status) === "active"
   ).length;
 
   const underReviewCount = issues.filter(
@@ -530,6 +593,10 @@ if (typedProfile?.role === "moderator") {
     return new Date(dateString).toLocaleDateString();
   }
 
+  function formatActivityDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString();
+  }
+
   function getTopValue(values: string[]) {
     if (!values.length) return "N/A";
 
@@ -542,7 +609,9 @@ if (typedProfile?.role === "moderator") {
   }
 
   const topIssueCategory = useMemo(() => {
-    const categories = feedItems.map((i) => i.category || "General").filter(Boolean);
+    const categories = feedItems
+      .map((i) => i.category || "General")
+      .filter(Boolean);
     return getTopValue(categories);
   }, [feedItems]);
 
@@ -566,7 +635,8 @@ if (typedProfile?.role === "moderator") {
 
   const districtFeed = useMemo(() => {
     return feedItems.filter(
-      (item) => (item.district || currentDistrict || "District 12") === currentDistrict
+      (item) =>
+        (item.district || currentDistrict || "District 12") === currentDistrict
     );
   }, [feedItems, currentDistrict]);
 
@@ -602,9 +672,8 @@ if (typedProfile?.role === "moderator") {
                         Welcome back, {userName}
                       </h1>
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/80 md:text-base">
-                        Explore district activity, official announcements,
-                        community issues, and civic progress updates in{" "}
-                        {currentDistrict}.
+                        Explore district activity, community issues, and civic
+                        progress updates in {currentDistrict}.
                       </p>
                     </div>
 
@@ -619,7 +688,9 @@ if (typedProfile?.role === "moderator") {
                         disabled={refreshing}
                         className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-60"
                       >
-                        <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                        <RefreshCw
+                          className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                        />
                         Refresh
                       </button>
 
@@ -635,73 +706,17 @@ if (typedProfile?.role === "moderator") {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 p-4 md:grid-cols-3 md:p-6">
+                <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-3 md:p-6">
                   <div className="rounded-3xl bg-gradient-to-br from-green-500 to-emerald-400 p-5 text-white shadow-sm">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">Active Posts</p>
+                      <p className="text-sm font-medium text-white/85">
+                        Active Posts
+                      </p>
                       <AlertTriangle className="h-5 w-5 text-white/85" />
                     </div>
                     <p className="mt-4 text-3xl font-bold">{openCount}</p>
                   </div>
-{/* MY ACTIVITY */}
-<div className="mt-8">
-  <h2 className="text-2xl font-bold text-slate-900 mb-4">
-    My Activity
-  </h2>
 
-  <div className="grid gap-5 lg:grid-cols-2">
-    
-    {/* USER COMMENTS */}
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <h3 className="text-lg font-semibold text-slate-900 mb-3">
-        My Comments
-      </h3>
-
-      {myComments.length === 0 ? (
-        <p className="text-sm text-slate-500">No comments yet.</p>
-      ) : (
-        <div className="space-y-3">
-          {myComments.map((c) => (
-            <div key={c.id} className="border rounded-xl p-3 bg-slate-50">
-              <p className="text-sm font-semibold text-slate-800">
-                {c.story_title}
-              </p>
-              <p className="text-sm text-slate-600 mt-1">
-                {c.comment_text}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-
-    {/* USER UPVOTES */}
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <h3 className="text-lg font-semibold text-slate-900 mb-3">
-        My Upvotes
-      </h3>
-
-      {myUpvotes.length === 0 ? (
-        <p className="text-sm text-slate-500">No upvotes yet.</p>
-      ) : (
-        <div className="space-y-3">
-          {myUpvotes.map((u) => (
-            <a
-              key={u.id}
-              href={u.story_link}
-              target="_blank"
-              className="block border rounded-xl p-3 bg-slate-50 hover:bg-slate-100"
-            >
-              <p className="text-sm font-semibold text-slate-800">
-                {u.story_title}
-              </p>
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  </div>
-</div>
                   <div className="rounded-3xl bg-gradient-to-br from-violet-500 to-fuchsia-500 p-5 text-white shadow-sm">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-white/85">
@@ -714,10 +729,89 @@ if (typedProfile?.role === "moderator") {
 
                   <div className="rounded-3xl bg-gradient-to-br from-amber-400 to-orange-400 p-5 text-white shadow-sm">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">Total Posts</p>
+                      <p className="text-sm font-medium text-white/85">
+                        Total Posts
+                      </p>
                       <FileText className="h-5 w-5 text-white/85" />
                     </div>
                     <p className="mt-4 text-3xl font-bold">{totalCount}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-500">Personalized engagement</p>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                      My Activity
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                    <div className="mb-4 flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        My Comments
+                      </h3>
+                    </div>
+
+                    {myComments.length === 0 ? (
+                      <p className="text-sm text-slate-500">No comments yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {myComments.map((c) => (
+                          <div
+                            key={c.id}
+                            className="rounded-xl border border-slate-200 bg-white p-3"
+                          >
+                            <p className="text-sm font-semibold text-slate-800">
+                              {c.story_title || "Untitled Story"}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {c.comment_text}
+                            </p>
+                            <p className="mt-2 text-xs text-slate-400">
+                              {formatActivityDate(c.created_at)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                    <div className="mb-4 flex items-center gap-2">
+                      <ThumbsUp className="h-5 w-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        My Upvotes
+                      </h3>
+                    </div>
+
+                    {myUpvotes.length === 0 ? (
+                      <p className="text-sm text-slate-500">No upvotes yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {myUpvotes.map((u) => (
+                          <a
+                            key={u.id}
+                            href={u.story_link || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block rounded-xl border border-slate-200 bg-white p-3 transition hover:bg-slate-100"
+                          >
+                            <p className="text-sm font-semibold text-slate-800">
+                              {u.story_title || "Untitled Story"}
+                            </p>
+                            <p className="mt-2 text-xs text-slate-400">
+                              {formatActivityDate(u.created_at)}
+                            </p>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
@@ -729,13 +823,6 @@ if (typedProfile?.role === "moderator") {
                     className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 active:scale-[0.98]"
                   >
                     All Posts
-                  </Link>
-
-                  <Link
-                    href="/official-updates"
-                    className="rounded-2xl bg-green-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-[0.98]"
-                  >
-                    Official Updates
                   </Link>
 
                   <Link
@@ -755,7 +842,7 @@ if (typedProfile?.role === "moderator") {
               </section>
 
               <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-                <div className="xl:col-span-8 space-y-6">
+                <div className="space-y-6 xl:col-span-8">
                   <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                       <div>
@@ -806,13 +893,11 @@ if (typedProfile?.role === "moderator") {
                     </div>
 
                     <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-slate-500">Trending Issues</p>
-                          <h3 className="mt-1 text-xl font-bold text-slate-900 md:text-2xl">
-                            What’s trending in {currentDistrict}
-                          </h3>
-                        </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Trending Issues</p>
+                        <h3 className="mt-1 text-xl font-bold text-slate-900 md:text-2xl">
+                          What’s trending in {currentDistrict}
+                        </h3>
                       </div>
 
                       <div className="mt-5 space-y-3">
@@ -892,8 +977,8 @@ if (typedProfile?.role === "moderator") {
                             No posts found
                           </h3>
                           <p className="mt-4 text-lg text-slate-500">
-                            Try changing filters or create the first post for
-                            this district.
+                            Try changing filters or create the first post for this
+                            district.
                           </p>
                         </div>
                       ) : (
