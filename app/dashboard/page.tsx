@@ -1,5 +1,6 @@
 "use client";
-
+const [myComments, setMyComments] = useState<any[]>([]);
+const [myUpvotes, setMyUpvotes] = useState<any[]>([]);
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -642,7 +643,65 @@ if (typedProfile?.role === "moderator") {
                     </div>
                     <p className="mt-4 text-3xl font-bold">{openCount}</p>
                   </div>
+{/* MY ACTIVITY */}
+<div className="mt-8">
+  <h2 className="text-2xl font-bold text-slate-900 mb-4">
+    My Activity
+  </h2>
 
+  <div className="grid gap-5 lg:grid-cols-2">
+    
+    {/* USER COMMENTS */}
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <h3 className="text-lg font-semibold text-slate-900 mb-3">
+        My Comments
+      </h3>
+
+      {myComments.length === 0 ? (
+        <p className="text-sm text-slate-500">No comments yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {myComments.map((c) => (
+            <div key={c.id} className="border rounded-xl p-3 bg-slate-50">
+              <p className="text-sm font-semibold text-slate-800">
+                {c.story_title}
+              </p>
+              <p className="text-sm text-slate-600 mt-1">
+                {c.comment_text}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* USER UPVOTES */}
+    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <h3 className="text-lg font-semibold text-slate-900 mb-3">
+        My Upvotes
+      </h3>
+
+      {myUpvotes.length === 0 ? (
+        <p className="text-sm text-slate-500">No upvotes yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {myUpvotes.map((u) => (
+            <a
+              key={u.id}
+              href={u.story_link}
+              target="_blank"
+              className="block border rounded-xl p-3 bg-slate-50 hover:bg-slate-100"
+            >
+              <p className="text-sm font-semibold text-slate-800">
+                {u.story_title}
+              </p>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+</div>
                   <div className="rounded-3xl bg-gradient-to-br from-violet-500 to-fuchsia-500 p-5 text-white shadow-sm">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-white/85">
