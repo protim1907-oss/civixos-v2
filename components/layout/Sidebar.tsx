@@ -12,7 +12,10 @@ import {
   TrendingUp,
   UserCircle2,
   Activity,
+  BarChart3,
 } from "lucide-react";
+
+type BadgeColor = "red" | "green" | "blue" | "slate";
 
 type NavItem = {
   href: string;
@@ -20,7 +23,7 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   badge?: number | string | null;
-  badgeColor?: "red" | "green" | "blue" | "slate";
+  badgeColor?: BadgeColor;
 };
 
 function isActivePath(pathname: string, href: string, exact?: boolean) {
@@ -30,7 +33,7 @@ function isActivePath(pathname: string, href: string, exact?: boolean) {
   return pathname === cleanHref || pathname.startsWith(`${cleanHref}/`);
 }
 
-function getBadgeClasses(color: NavItem["badgeColor"]) {
+function getBadgeClasses(color: BadgeColor | undefined) {
   switch (color) {
     case "red":
       return "bg-red-500 text-white";
@@ -54,7 +57,12 @@ export default function Sidebar() {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("Sidebar user load error:", userError);
+      }
 
       let nextMyActivityCount = 0;
 
@@ -154,6 +162,11 @@ export default function Sidebar() {
       exact: true,
     },
     {
+      href: "/district-analytics",
+      label: "District Analytics",
+      icon: BarChart3,
+    },
+    {
       href: "/dashboard#activity",
       label: "My Activity",
       icon: Activity,
@@ -251,7 +264,8 @@ export default function Sidebar() {
               Civic engagement hub
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Follow district issues, track updates, and participate in local discussions.
+              Follow district issues, track updates, and participate in local
+              discussions.
             </p>
           </div>
         </div>
