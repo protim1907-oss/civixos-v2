@@ -1,170 +1,378 @@
 "use client";
 
-import { useState } from "react";
-import { MessageCircle, Share2, ThumbsUp, Send } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MessageCircle, ThumbsUp, Share2, Send } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+
+type CommentRow = {
+  id: string;
+  comment_text: string;
+  created_at: string;
+  user_id: string;
+  profiles?: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
+};
 
 type Props = {
+  storyId: string;
   title: string;
   link: string;
+  source: string;
 };
 
-type CommentItem = {
-  id: number;
-  author: string;
-  text: string;
-  createdAt: string;
-};
+export default function TrendingStoryActions({
+  storyId,
+  title,
+  link,
+  source,
+}: Props) {
+  const supabase = useMemo(() => createClient(), []);
 
-export default function TrendingNewsActions({ title, link }: Props) {
-  const [upvoted, setUpvoted] = useState(false);
-  const [upvotes, setUpvotes] = useState(12);
-  const [copied, setCopied] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [showComments, setShowComments] = useState(false);
+  const [upvoteCount, setUpvoteCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
+  const [shareCount, setShareCount] = useState(0);
+  const [hasUpvoted, setHasUpvoted] = useState(false);
+
+  const [comments, setComments] = useState<CommentRow[]>([]);
   const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [savingComment, setSavingComment] = useState(false);
+  const [togglingVote, setTogglingVote] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
-  async function handleShare() {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          url: link,
-        });
-      } else {
-        await navigator.clipboard.writeText(link);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1800);
-      }
-    } catch {
-      // user cancelled share or clipboard failed
+  async function loadCurrentUser() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setUserId(user?.id ?? null);
+    return user?.id ?? null;
+  }
+
+  async function loadCounts(currentUserId?: string | null) {
+    const [{ count: upvotes }, { count: commentsTotal }, { count: sharesTotal }] =
+      await Promise.all([
+        supabase
+          .from("news_interactions")
+          .select("*", { count: "exact", head: true })
+          .eq("story_id", storyId)
+          .eq("interaction_type", "upvote"),
+        supabase
+          .from("news_comments")
+          .select("*", { count: "exact", head: true })
+          .eq("story_id", storyId),
+        supabase
+          .from("news_interactions")
+          .select("*", { count: "exact", head: true })
+          .eq("story_id", storyId)
+          .eq("interaction_type", "share"),
+      ]);
+
+    setUpvoteCount(upvotes ?? 0);
+    setCommentCount(commentsTotal ?? 0);
+    setShareCount(sharesTotal ?? 0);
+
+    const effectiveUserId = currentUserId ?? userId;
+
+    if (effectiveUserId) {
+      const { data: existingVote } = await supabase
+        .from("news_interactions")
+        .select("id")
+        .eq("story_id", storyId)
+        .eq("interaction_type", "upvote")
+        .eq("user_id", effectiveUserId)
+        .maybeSingle();
+
+      setHasUpvoted(!!existingVote);
     }
   }
 
-  function handleUpvote() {
-    setUpvoted((prev) => {
-      const next = !prev;
-      setUpvotes((count) => (next ? count + 1 : count - 1));
-      return next;
-    });
+  async function loadComments() {
+    const { data, error } = await supabase
+      .from("news_comments")
+      .select(`
+        id,
+        comment_text,
+        created_at,
+        user_id,
+        profiles (
+          full_name,
+          email
+        )
+      `)
+      .eq("story_id", storyId)
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setComments((data as CommentRow[]) || []);
+    }
   }
 
-  function handleSubmitComment() {
-    const trimmed = commentText.trim();
-    if (!trimmed) return;
+  useEffect(() => {
+    let mounted = true;
 
-    const newComment: CommentItem = {
-      id: Date.now(),
-      author: "You",
-      text: trimmed,
-      createdAt: "Just now",
+    async function init() {
+      setLoading(true);
+      const currentUserId = await loadCurrentUser();
+      await Promise.all([loadCounts(currentUserId), loadComments()]);
+      if (mounted) setLoading(false);
+    }
+
+    init();
+
+    const interactionChannel = supabase
+      .channel(`story-interactions-${storyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "news_interactions",
+          filter: `story_id=eq.${storyId}`,
+        },
+        async () => {
+          await loadCounts();
+        }
+      )
+      .subscribe();
+
+    const commentChannel = supabase
+      .channel(`story-comments-${storyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "news_comments",
+          filter: `story_id=eq.${storyId}`,
+        },
+        async () => {
+          await Promise.all([loadCounts(), loadComments()]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(interactionChannel);
+      supabase.removeChannel(commentChannel);
     };
+  }, [storyId, supabase]);
 
-    setComments((prev) => [newComment, ...prev]);
-    setCommentText("");
-    setShowComments(true);
+  async function handleToggleUpvote() {
+    if (!userId) {
+      alert("Please sign in to upvote.");
+      return;
+    }
+
+    try {
+      setTogglingVote(true);
+
+      if (hasUpvoted) {
+        await supabase
+          .from("news_interactions")
+          .delete()
+          .eq("story_id", storyId)
+          .eq("interaction_type", "upvote")
+          .eq("user_id", userId);
+
+        setHasUpvoted(false);
+        setUpvoteCount((prev) => Math.max(0, prev - 1));
+      } else {
+        const { error } = await supabase.from("news_interactions").insert({
+          story_id: storyId,
+          story_title: title,
+          story_link: link,
+          interaction_type: "upvote",
+          user_id: userId,
+          metadata: { source },
+        });
+
+        if (!error) {
+          setHasUpvoted(true);
+          setUpvoteCount((prev) => prev + 1);
+        }
+      }
+    } finally {
+      setTogglingVote(false);
+    }
+  }
+
+  async function handleAddComment() {
+    if (!userId) {
+      alert("Please sign in to comment.");
+      return;
+    }
+
+    const text = commentText.trim();
+    if (!text) return;
+
+    try {
+      setSavingComment(true);
+
+      const { error } = await supabase.from("news_comments").insert({
+        story_id: storyId,
+        story_title: title,
+        story_link: link,
+        comment_text: text,
+        user_id: userId,
+      });
+
+      if (!error) {
+        setCommentText("");
+        setCommentsOpen(true);
+        await Promise.all([loadComments(), loadCounts()]);
+      }
+    } finally {
+      setSavingComment(false);
+    }
+  }
+
+  async function handleShare() {
+    try {
+      setSharing(true);
+
+      if (navigator.share) {
+        await navigator.share({
+          title,
+          text: `Interesting civic story from ${source}`,
+          url: link,
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(link);
+        alert("Story link copied.");
+      }
+
+      if (userId) {
+        await supabase.from("news_interactions").insert({
+          story_id: storyId,
+          story_title: title,
+          story_link: link,
+          interaction_type: "share",
+          user_id: userId,
+          metadata: { source },
+        });
+      }
+    } catch {
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(link);
+          alert("Story link copied.");
+        }
+      } catch {
+        // no-op
+      }
+    } finally {
+      setSharing(false);
+      await loadCounts();
+    }
+  }
+
+  function formatCommentDate(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
   }
 
   return (
-    <div className="mt-5">
-      <div className="flex flex-wrap items-center gap-3">
+    <div>
+      <div className="flex items-center gap-5 text-sm text-slate-600">
         <button
           type="button"
-          onClick={handleUpvote}
-          className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
-            upvoted
-              ? "border-blue-200 bg-blue-50 text-blue-700"
-              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          onClick={() => setCommentsOpen((prev) => !prev)}
+          className="inline-flex items-center gap-2 transition hover:text-blue-700"
+          aria-label="Comment"
+          title="Comment"
         >
-          <ThumbsUp className="h-4 w-4" />
-          Upvote
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-            {upvotes}
-          </span>
+          <MessageCircle className="h-5 w-5" />
+          <span>{commentCount}</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setShowComments((prev) => !prev)}
-          className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
-            showComments
-              ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          onClick={handleToggleUpvote}
+          disabled={togglingVote || loading}
+          className={`inline-flex items-center gap-2 transition ${
+            hasUpvoted ? "text-blue-700" : "text-slate-600 hover:text-blue-700"
           }`}
+          aria-label="Upvote"
+          title="Upvote"
         >
-          <MessageCircle className="h-4 w-4" />
-          Comment
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-            {comments.length}
-          </span>
+          <ThumbsUp className={`h-5 w-5 ${hasUpvoted ? "fill-current" : ""}`} />
+          <span>{upvoteCount}</span>
         </button>
 
         <button
           type="button"
           onClick={handleShare}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          disabled={sharing || loading}
+          className="inline-flex items-center gap-2 transition hover:text-blue-700"
+          aria-label="Share"
+          title="Share"
         >
-          <Share2 className="h-4 w-4" />
-          {copied ? "Link copied" : "Share"}
+          <Share2 className="h-5 w-5" />
+          <span>{shareCount}</span>
         </button>
       </div>
 
-      {showComments && (
+      {commentsOpen && (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-900">
-            Comment on this story
-          </p>
-          <p className="mt-1 text-xs text-slate-500">{title}</p>
-
-          <div className="mt-3 flex gap-2">
+          <div className="flex gap-2">
             <input
-              type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSubmitComment();
-                }
-              }}
-              placeholder="Write your comment..."
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400"
+              placeholder="Write a comment..."
+              className="h-11 flex-1 rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none ring-0 placeholder:text-slate-400 focus:border-blue-500"
             />
-
             <button
               type="button"
-              onClick={handleSubmitComment}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              onClick={handleAddComment}
+              disabled={savingComment || !commentText.trim()}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Post comment"
             >
               <Send className="h-4 w-4" />
-              Post
             </button>
           </div>
 
           <div className="mt-4 space-y-3">
             {comments.length === 0 ? (
-              <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-500">
-                No comments yet. Start the discussion.
-              </div>
+              <p className="text-sm text-slate-500">No comments yet.</p>
             ) : (
-              comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-slate-900">
-                      {comment.author}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {comment.createdAt}
-                    </span>
+              comments.map((comment) => {
+                const profile = Array.isArray(comment.profiles)
+                  ? comment.profiles[0]
+                  : comment.profiles;
+
+                return (
+                  <div
+                    key={comment.id}
+                    className="rounded-xl border border-slate-200 bg-white p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {profile?.full_name || profile?.email || "Citizen"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatCommentDate(comment.created_at)}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {comment.comment_text}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-700">
-                    {comment.text}
-                  </p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
