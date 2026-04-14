@@ -791,7 +791,7 @@ export default function MyRepresentativesPage() {
                               <button
                                 type="button"
                                 onClick={() => openChat(rep)}
-                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
+                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold leading-5 text-white transition hover:bg-blue-700"
                               >
                                 Chat with Representative
                               </button>
