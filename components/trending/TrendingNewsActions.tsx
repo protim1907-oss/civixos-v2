@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, ThumbsUp, Share2, Send } from "lucide-react";
+import { MessageCircle, ThumbsUp, Share2, Send, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+
+type ProfileRow = {
+  full_name: string | null;
+  email: string | null;
+};
 
 type CommentRow = {
   id: string;
   comment_text: string;
   created_at: string;
   user_id: string;
-  profiles?: {
-    full_name: string | null;
-    email: string | null;
-  } | null;
+  profiles: ProfileRow[] | null;
 };
 
 type Props = {
@@ -22,7 +24,7 @@ type Props = {
   source: string;
 };
 
-export default function TrendingStoryActions({
+export default function TrendingNewsActions({
   storyId,
   title,
   link,
@@ -48,68 +50,102 @@ export default function TrendingStoryActions({
   async function loadCurrentUser() {
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser();
 
-    setUserId(user?.id ?? null);
-    return user?.id ?? null;
+    if (error) {
+      console.error("Error loading current user:", error);
+      setUserId(null);
+      return null;
+    }
+
+    const currentUserId = user?.id ?? null;
+    setUserId(currentUserId);
+    return currentUserId;
   }
 
   async function loadCounts(currentUserId?: string | null) {
-    const [{ count: upvotes }, { count: commentsTotal }, { count: sharesTotal }] =
-      await Promise.all([
-        supabase
+    try {
+      const [{ count: upvotes }, { count: commentsTotal }, { count: sharesTotal }] =
+        await Promise.all([
+          supabase
+            .from("news_interactions")
+            .select("*", { count: "exact", head: true })
+            .eq("story_id", storyId)
+            .eq("interaction_type", "upvote"),
+          supabase
+            .from("news_comments")
+            .select("*", { count: "exact", head: true })
+            .eq("story_id", storyId),
+          supabase
+            .from("news_interactions")
+            .select("*", { count: "exact", head: true })
+            .eq("story_id", storyId)
+            .eq("interaction_type", "share"),
+        ]);
+
+      setUpvoteCount(upvotes ?? 0);
+      setCommentCount(commentsTotal ?? 0);
+      setShareCount(sharesTotal ?? 0);
+
+      const effectiveUserId = currentUserId ?? userId;
+
+      if (effectiveUserId) {
+        const { data: existingVote, error } = await supabase
           .from("news_interactions")
-          .select("*", { count: "exact", head: true })
+          .select("id")
           .eq("story_id", storyId)
-          .eq("interaction_type", "upvote"),
-        supabase
-          .from("news_comments")
-          .select("*", { count: "exact", head: true })
-          .eq("story_id", storyId),
-        supabase
-          .from("news_interactions")
-          .select("*", { count: "exact", head: true })
-          .eq("story_id", storyId)
-          .eq("interaction_type", "share"),
-      ]);
+          .eq("interaction_type", "upvote")
+          .eq("user_id", effectiveUserId)
+          .maybeSingle();
 
-    setUpvoteCount(upvotes ?? 0);
-    setCommentCount(commentsTotal ?? 0);
-    setShareCount(sharesTotal ?? 0);
-
-    const effectiveUserId = currentUserId ?? userId;
-
-    if (effectiveUserId) {
-      const { data: existingVote } = await supabase
-        .from("news_interactions")
-        .select("id")
-        .eq("story_id", storyId)
-        .eq("interaction_type", "upvote")
-        .eq("user_id", effectiveUserId)
-        .maybeSingle();
-
-      setHasUpvoted(!!existingVote);
+        if (error) {
+          console.error("Error checking existing vote:", error);
+          setHasUpvoted(false);
+        } else {
+          setHasUpvoted(!!existingVote);
+        }
+      } else {
+        setHasUpvoted(false);
+      }
+    } catch (error) {
+      console.error("Error loading counts:", error);
     }
   }
 
   async function loadComments() {
-    const { data, error } = await supabase
-      .from("news_comments")
-      .select(`
-        id,
-        comment_text,
-        created_at,
-        user_id,
-        profiles (
-          full_name,
-          email
-        )
-      `)
-      .eq("story_id", storyId)
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("news_comments")
+        .select(`
+          id,
+          comment_text,
+          created_at,
+          user_id,
+          profiles (
+            full_name,
+            email
+          )
+        `)
+        .eq("story_id", storyId)
+        .order("created_at", { ascending: false });
 
-    if (!error) {
-      setComments((data as CommentRow[]) || []);
+      if (error) {
+        console.error("Error loading comments:", error);
+        return;
+      }
+
+      const rows: CommentRow[] = (data ?? []).map((item: any) => ({
+        id: item.id,
+        comment_text: item.comment_text,
+        created_at: item.created_at,
+        user_id: item.user_id,
+        profiles: Array.isArray(item.profiles) ? item.profiles : item.profiles ? [item.profiles] : [],
+      }));
+
+      setComments(rows);
+    } catch (error) {
+      console.error("Unexpected error loading comments:", error);
     }
   }
 
@@ -117,10 +153,13 @@ export default function TrendingStoryActions({
     let mounted = true;
 
     async function init() {
-      setLoading(true);
-      const currentUserId = await loadCurrentUser();
-      await Promise.all([loadCounts(currentUserId), loadComments()]);
-      if (mounted) setLoading(false);
+      try {
+        setLoading(true);
+        const currentUserId = await loadCurrentUser();
+        await Promise.all([loadCounts(currentUserId), loadComments()]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
 
     init();
@@ -174,12 +213,17 @@ export default function TrendingStoryActions({
       setTogglingVote(true);
 
       if (hasUpvoted) {
-        await supabase
+        const { error } = await supabase
           .from("news_interactions")
           .delete()
           .eq("story_id", storyId)
           .eq("interaction_type", "upvote")
           .eq("user_id", userId);
+
+        if (error) {
+          console.error("Error removing upvote:", error);
+          return;
+        }
 
         setHasUpvoted(false);
         setUpvoteCount((prev) => Math.max(0, prev - 1));
@@ -193,11 +237,16 @@ export default function TrendingStoryActions({
           metadata: { source },
         });
 
-        if (!error) {
-          setHasUpvoted(true);
-          setUpvoteCount((prev) => prev + 1);
+        if (error) {
+          console.error("Error adding upvote:", error);
+          return;
         }
+
+        setHasUpvoted(true);
+        setUpvoteCount((prev) => prev + 1);
       }
+    } catch (error) {
+      console.error("Unexpected upvote error:", error);
     } finally {
       setTogglingVote(false);
     }
@@ -223,11 +272,16 @@ export default function TrendingStoryActions({
         user_id: userId,
       });
 
-      if (!error) {
-        setCommentText("");
-        setCommentsOpen(true);
-        await Promise.all([loadComments(), loadCounts()]);
+      if (error) {
+        console.error("Error adding comment:", error);
+        return;
       }
+
+      setCommentText("");
+      setCommentsOpen(true);
+      await Promise.all([loadComments(), loadCounts()]);
+    } catch (error) {
+      console.error("Unexpected comment error:", error);
     } finally {
       setSavingComment(false);
     }
@@ -249,7 +303,7 @@ export default function TrendingStoryActions({
       }
 
       if (userId) {
-        await supabase.from("news_interactions").insert({
+        const { error } = await supabase.from("news_interactions").insert({
           story_id: storyId,
           story_title: title,
           story_link: link,
@@ -257,15 +311,21 @@ export default function TrendingStoryActions({
           user_id: userId,
           metadata: { source },
         });
+
+        if (error) {
+          console.error("Error saving share interaction:", error);
+        }
       }
-    } catch {
+    } catch (error) {
+      console.error("Share error:", error);
+
       try {
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(link);
           alert("Story link copied.");
         }
-      } catch {
-        // no-op
+      } catch (clipboardError) {
+        console.error("Clipboard fallback failed:", clipboardError);
       }
     } finally {
       setSharing(false);
@@ -276,6 +336,7 @@ export default function TrendingStoryActions({
   function formatCommentDate(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
+
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
       day: "numeric",
@@ -304,11 +365,15 @@ export default function TrendingStoryActions({
           disabled={togglingVote || loading}
           className={`inline-flex items-center gap-2 transition ${
             hasUpvoted ? "text-blue-700" : "text-slate-600 hover:text-blue-700"
-          }`}
+          } ${togglingVote || loading ? "opacity-60" : ""}`}
           aria-label="Upvote"
           title="Upvote"
         >
-          <ThumbsUp className={`h-5 w-5 ${hasUpvoted ? "fill-current" : ""}`} />
+          {togglingVote ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <ThumbsUp className={`h-5 w-5 ${hasUpvoted ? "fill-current" : ""}`} />
+          )}
           <span>{upvoteCount}</span>
         </button>
 
@@ -316,11 +381,13 @@ export default function TrendingStoryActions({
           type="button"
           onClick={handleShare}
           disabled={sharing || loading}
-          className="inline-flex items-center gap-2 transition hover:text-blue-700"
+          className={`inline-flex items-center gap-2 transition hover:text-blue-700 ${
+            sharing || loading ? "opacity-60" : ""
+          }`}
           aria-label="Share"
           title="Share"
         >
-          <Share2 className="h-5 w-5" />
+          {sharing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
           <span>{shareCount}</span>
         </button>
       </div>
@@ -341,7 +408,7 @@ export default function TrendingStoryActions({
               className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               title="Post comment"
             >
-              <Send className="h-4 w-4" />
+              {savingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </div>
 
@@ -352,7 +419,7 @@ export default function TrendingStoryActions({
               comments.map((comment) => {
                 const profile = Array.isArray(comment.profiles)
                   ? comment.profiles[0]
-                  : comment.profiles;
+                  : null;
 
                 return (
                   <div
