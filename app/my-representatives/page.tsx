@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
+import { MessageCircle, Send, X } from "lucide-react";
 
 type Representative = {
   id: string;
@@ -25,6 +26,13 @@ type Representative = {
   district_id: string | null;
   is_primary: boolean | null;
   is_active: boolean | null;
+};
+
+type ChatMessage = {
+  id: string;
+  sender: "user" | "rep";
+  text: string;
+  created_at: string;
 };
 
 function getDisplayName(rep: Representative) {
@@ -361,6 +369,17 @@ function DynamicRepresentativePhoto({
   );
 }
 
+function buildWelcomeMessage(rep: Representative): ChatMessage {
+  return {
+    id: `welcome-${rep.id}`,
+    sender: "rep",
+    text: `You are now connected to the office of ${getDisplayName(
+      rep
+    )}. Share your question or issue clearly and respectfully.`,
+    created_at: new Date().toISOString(),
+  };
+}
+
 export default function MyRepresentativesPage() {
   const supabase = createClient();
 
@@ -370,6 +389,13 @@ export default function MyRepresentativesPage() {
   const [loading, setLoading] = useState(true);
   const [representatives, setRepresentatives] = useState<Representative[]>([]);
   const [loadError, setLoadError] = useState("");
+
+  const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>(
+    {}
+  );
 
   useEffect(() => {
     async function loadPage() {
@@ -542,6 +568,58 @@ export default function MyRepresentativesPage() {
         )}.`;
   }, [loading, primaryRepresentative, userDistrict]);
 
+  const currentMessages = useMemo(() => {
+    if (!selectedRep) return [];
+    return chatHistory[selectedRep.id] || [buildWelcomeMessage(selectedRep)];
+  }, [selectedRep, chatHistory]);
+
+  function openChat(rep: Representative) {
+    setSelectedRep(rep);
+    setChatOpen(true);
+
+    setChatHistory((prev) => {
+      if (prev[rep.id]?.length) return prev;
+      return {
+        ...prev,
+        [rep.id]: [buildWelcomeMessage(rep)],
+      };
+    });
+  }
+
+  function closeChat() {
+    setChatOpen(false);
+    setMessageText("");
+  }
+
+  function handleSendMessage() {
+    if (!selectedRep) return;
+
+    const text = messageText.trim();
+    if (!text) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: "user",
+      text,
+      created_at: new Date().toISOString(),
+    };
+
+    const autoReply: ChatMessage = {
+      id: `rep-${Date.now() + 1}`,
+      sender: "rep",
+      text:
+        "Thank you for your message. Your concern has been captured in this chat window. For formal outreach, please also use the official email or website links shown on this page.",
+      created_at: new Date().toISOString(),
+    };
+
+    setChatHistory((prev) => ({
+      ...prev,
+      [selectedRep.id]: [...(prev[selectedRep.id] || []), userMessage, autoReply],
+    }));
+
+    setMessageText("");
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-100">
       <Sidebar />
@@ -595,12 +673,13 @@ export default function MyRepresentativesPage() {
 
                 {primaryRepresentative ? (
                   <div className="mt-6 grid gap-3">
-                    <a
-                      href={primaryRepresentative.chat_href || "#"}
+                    <button
+                      type="button"
+                      onClick={() => openChat(primaryRepresentative)}
                       className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                     >
                       Chat with Representative
-                    </a>
+                    </button>
 
                     <a
                       href={getDisplayEmailHref(primaryRepresentative)}
@@ -709,12 +788,13 @@ export default function MyRepresentativesPage() {
                             </div>
 
                             <div className="mt-6 space-y-3">
-                              <a
-                                href={rep.chat_href || "#"}
+                              <button
+                                type="button"
+                                onClick={() => openChat(rep)}
                                 className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
                               >
                                 Chat with Representative
-                              </a>
+                              </button>
 
                               <a
                                 href={getDisplayEmailHref(rep)}
@@ -774,12 +854,13 @@ export default function MyRepresentativesPage() {
                             </div>
 
                             <div className="mt-6 space-y-3">
-                              <a
-                                href={rep.chat_href || "#"}
+                              <button
+                                type="button"
+                                onClick={() => openChat(rep)}
                                 className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
                               >
                                 Chat with Representative
-                              </a>
+                              </button>
 
                               <a
                                 href={getDisplayEmailHref(rep)}
@@ -810,6 +891,85 @@ export default function MyRepresentativesPage() {
           </section>
         </div>
       </main>
+
+      {chatOpen && selectedRep ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/30 p-4 md:items-center md:p-6">
+          <div className="flex h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl md:h-[80vh]">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-4 text-white">
+              <div className="min-w-0">
+                <p className="text-sm text-slate-300">Representative Chat</p>
+                <h3 className="truncate text-lg font-semibold">
+                  {getDisplayName(selectedRep)}
+                </h3>
+                <p className="text-sm text-slate-300">
+                  {getDisplayOffice(selectedRep)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeChat}
+                className="rounded-full p-2 transition hover:bg-white/10"
+                aria-label="Close chat"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-5">
+              {currentMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${
+                    message.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
+                      message.sender === "user"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-slate-800 ring-1 ring-slate-200"
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-200 bg-white p-4">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder={`Message ${getDisplayName(selectedRep)}...`}
+                  className="h-12 flex-1 rounded-2xl border border-slate-300 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendMessage}
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white transition hover:bg-blue-700"
+                  aria-label="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                This opens an in-app chat window. You can later connect it to
+                Supabase messages or a representative inbox.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
