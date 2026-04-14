@@ -130,7 +130,16 @@ function isNewHampshireContext(userState: string, userDistrict: string) {
     district.startsWith("NH-")
   );
 }
+function isPlaceholderRepresentative(rep: Representative) {
+  const name = getDisplayName(rep).trim().toLowerCase();
+  const office = getDisplayOffice(rep).trim().toLowerCase();
 
+  return (
+    name.includes("example senator") ||
+    name.includes("new hampshire example senator") ||
+    office.includes("example senator")
+  );
+}
 function buildFallbackRepresentativesForNewHampshire(): Representative[] {
   return [
     {
@@ -499,10 +508,12 @@ export default function MyRepresentativesPage() {
   }, [supabase, userDistrict, userState]);
 
   const visibleRepresentatives = useMemo(() => {
-    return representatives.filter((rep) =>
-      matchesDistrictRepresentative(rep, userDistrict, userState)
-    );
-  }, [representatives, userDistrict, userState]);
+  return representatives.filter(
+    (rep) =>
+      matchesDistrictRepresentative(rep, userDistrict, userState) &&
+      !isPlaceholderRepresentative(rep)
+  );
+}, [representatives, userDistrict, userState]);
 
   const primaryRepresentative = useMemo(() => {
     const normalizedUserDistrict = normalizeDistrict(userDistrict);
