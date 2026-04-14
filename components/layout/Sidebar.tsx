@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Newspaper,
@@ -20,49 +22,6 @@ type NavItem = {
   badge?: number | string | null;
   badgeColor?: "red" | "green" | "blue" | "slate";
 };
-
-const navItems: NavItem[] = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    exact: true,
-  },
-  {
-    href: "/dashboard#activity",
-    label: "My Activity",
-    icon: Activity,
-    badge: 3,
-    badgeColor: "red",
-  },
-  {
-    href: "/feed",
-    label: "District Feed",
-    icon: Newspaper,
-  },
-  {
-    href: "/official-updates",
-    label: "Official Updates",
-    icon: Megaphone,
-    badge: "New",
-    badgeColor: "green",
-  },
-  {
-    href: "/create-post",
-    label: "Create Post",
-    icon: MessageSquareText,
-  },
-  {
-    href: "/trending-posts",
-    label: "Trending Posts",
-    icon: TrendingUp,
-  },
-  {
-    href: "/my-representatives",
-    label: "My Representative",
-    icon: UserCircle2,
-  },
-];
 
 function isActivePath(pathname: string, href: string, exact?: boolean) {
   const cleanHref = href.split("#")[0];
@@ -86,6 +45,149 @@ function getBadgeClasses(color: NavItem["badgeColor"]) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [myActivityCount, setMyActivityCount] = useState<number>(0);
+  const [officialUpdatesCount, setOfficialUpdatesCount] = useState<number>(0);
+
+  async function loadBadgeCounts() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      let nextMyActivityCount = 0;
+
+      if (user?.id) {
+        const [
+          { count: commentCount, error: commentsError },
+          { count: upvoteCount, error: upvotesError },
+        ] = await Promise.all([
+          supabase
+            .from("news_comments")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id),
+
+          supabase
+            .from("news_interactions")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .eq("interaction_type", "upvote"),
+        ]);
+
+        if (commentsError) {
+          console.error("Sidebar comments count error:", commentsError);
+        }
+
+        if (upvotesError) {
+          console.error("Sidebar upvotes count error:", upvotesError);
+        }
+
+        nextMyActivityCount = (commentCount ?? 0) + (upvoteCount ?? 0);
+      }
+
+      setMyActivityCount(nextMyActivityCount);
+
+      const { count: updatesCount, error: updatesError } = await supabase
+        .from("official_updates")
+        .select("id", { count: "exact", head: true });
+
+      if (updatesError) {
+        console.error("Sidebar official updates count error:", updatesError);
+        setOfficialUpdatesCount(0);
+      } else {
+        setOfficialUpdatesCount(updatesCount ?? 0);
+      }
+    } catch (error) {
+      console.error("Sidebar badge load error:", error);
+    }
+  }
+
+  useEffect(() => {
+    loadBadgeCounts();
+
+    const commentsChannel = supabase
+      .channel("sidebar-news-comments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news_comments" },
+        async () => {
+          await loadBadgeCounts();
+        }
+      )
+      .subscribe();
+
+    const interactionsChannel = supabase
+      .channel("sidebar-news-interactions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news_interactions" },
+        async () => {
+          await loadBadgeCounts();
+        }
+      )
+      .subscribe();
+
+    const officialUpdatesChannel = supabase
+      .channel("sidebar-official-updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "official_updates" },
+        async () => {
+          await loadBadgeCounts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(commentsChannel);
+      supabase.removeChannel(interactionsChannel);
+      supabase.removeChannel(officialUpdatesChannel);
+    };
+  }, [supabase]);
+
+  const navItems: NavItem[] = [
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      exact: true,
+    },
+    {
+      href: "/dashboard#activity",
+      label: "My Activity",
+      icon: Activity,
+      badge: myActivityCount > 0 ? myActivityCount : null,
+      badgeColor: "red",
+    },
+    {
+      href: "/feed",
+      label: "District Feed",
+      icon: Newspaper,
+    },
+    {
+      href: "/official-updates",
+      label: "Official Updates",
+      icon: Megaphone,
+      badge: officialUpdatesCount > 0 ? officialUpdatesCount : null,
+      badgeColor: "green",
+    },
+    {
+      href: "/create-post",
+      label: "Create Post",
+      icon: MessageSquareText,
+    },
+    {
+      href: "/trending-posts",
+      label: "Trending Posts",
+      icon: TrendingUp,
+    },
+    {
+      href: "/my-representatives",
+      label: "My Representative",
+      icon: UserCircle2,
+    },
+  ];
 
   return (
     <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white lg:block">
