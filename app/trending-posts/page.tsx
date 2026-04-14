@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { XMLParser } from "fast-xml-parser";
 import { createClient } from "@/lib/supabase/server";
+import TrendingStoryActions from "@/components/trending/TrendingStoryActions";
 
 type FeedItem = {
+  id: string;
   title: string;
   link: string;
   pubDate?: string;
@@ -50,6 +52,20 @@ function normalizeText(value: unknown) {
     .trim();
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/https?:\/\//g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 120);
+}
+
+function buildStoryId(item: Omit<FeedItem, "id">) {
+  return slugify(`${item.title}-${item.link}`);
+}
+
 function formatDate(dateStr?: string) {
   if (!dateStr) return "Date unavailable";
   const date = new Date(dateStr);
@@ -74,7 +90,7 @@ function isWithinLast7Days(dateStr?: string) {
   return date >= sevenDaysAgo && date <= now;
 }
 
-function dedupeFeedItems(items: FeedItem[]) {
+function dedupeFeedItems(items: Omit<FeedItem, "id">[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
     const key = `${normalizeText(item.title).toLowerCase()}|${String(item.link || "").trim()}`;
@@ -103,7 +119,10 @@ function cleanGoogleNewsLink(url: string) {
   }
 }
 
-function inferRegionFromProfile(profile?: Partial<ProfileRow> | null, userMetadata?: Record<string, any>): RegionInfo {
+function inferRegionFromProfile(
+  profile?: Partial<ProfileRow> | null,
+  userMetadata?: Record<string, any>
+): RegionInfo {
   const rawDistrict =
     profile?.district ||
     userMetadata?.district ||
@@ -120,7 +139,6 @@ function inferRegionFromProfile(profile?: Partial<ProfileRow> | null, userMetada
   const districtValue = String(rawDistrict || "").toLowerCase().trim();
   const stateValue = String(rawState || "").toLowerCase().trim();
 
-  // New Hampshire special handling
   if (
     districtValue.includes("new hampshire") ||
     districtValue === "nh" ||
@@ -142,7 +160,6 @@ function inferRegionFromProfile(profile?: Partial<ProfileRow> | null, userMetada
     };
   }
 
-  // Texas example handling
   if (
     districtValue.includes("texas") ||
     districtValue === "tx" ||
@@ -164,7 +181,6 @@ function inferRegionFromProfile(profile?: Partial<ProfileRow> | null, userMetada
     };
   }
 
-  // Generic fallback
   const stateName = rawState ? String(rawState).trim() : "your state";
   const districtLabel = rawDistrict ? String(rawDistrict).trim() : "your district";
 
@@ -181,12 +197,12 @@ function inferRegionFromProfile(profile?: Partial<ProfileRow> | null, userMetada
   };
 }
 
-async function fetchGoogleNews(query: string): Promise<FeedItem[]> {
+async function fetchGoogleNews(query: string): Promise<Omit<FeedItem, "id">[]> {
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
 
   try {
     const response = await fetch(url, {
-      next: { revalidate: 60 * 60 * 6 }, // 6 hours
+      next: { revalidate: 60 * 60 * 6 },
       headers: {
         "User-Agent": "Mozilla/5.0",
       },
@@ -197,7 +213,6 @@ async function fetchGoogleNews(query: string): Promise<FeedItem[]> {
     const xml = await response.text();
     const parsed = parser.parse(xml);
     const rawItems = parsed?.rss?.channel?.item ?? [];
-
     const itemsArray = Array.isArray(rawItems) ? rawItems : [rawItems];
 
     return itemsArray
@@ -211,20 +226,24 @@ async function fetchGoogleNews(query: string): Promise<FeedItem[]> {
           source: extractDomain(link),
         };
       })
-      .filter((item: FeedItem) => item.title && item.link);
+      .filter((item: Omit<FeedItem, "id">) => item.title && item.link);
   } catch {
     return [];
   }
 }
 
-function scoreItemForRegion(item: FeedItem, region: RegionInfo) {
+function scoreItemForRegion(item: Omit<FeedItem, "id">, region: RegionInfo) {
   const haystack = `${item.title} ${item.description || ""}`.toLowerCase();
   let score = 0;
 
   if (haystack.includes(region.stateName.toLowerCase())) score += 4;
-
   if (region.districtNumber && haystack.includes(`district ${region.districtNumber}`)) score += 5;
-  if (region.districtNumber && haystack.includes(`${region.stateName.toLowerCase()} district ${region.districtNumber}`)) score += 5;
+  if (
+    region.districtNumber &&
+    haystack.includes(`${region.stateName.toLowerCase()} district ${region.districtNumber}`)
+  ) {
+    score += 5;
+  }
 
   const civicKeywords = [
     "housing",
@@ -254,7 +273,6 @@ function scoreItemForRegion(item: FeedItem, region: RegionInfo) {
   }
 
   if (isWithinLast7Days(item.pubDate)) score += 3;
-
   return score;
 }
 
@@ -289,7 +307,7 @@ function keywordBucket(text: string) {
   return "Community issues";
 }
 
-function buildFallbackTopIssues(items: FeedItem[]): IssueSummary[] {
+function buildFallbackTopIssues(items: Omit<FeedItem, "id">[]): IssueSummary[] {
   const bucketMap = new Map<string, { count: number; headlines: string[] }>();
 
   for (const item of items) {
@@ -307,10 +325,10 @@ function buildFallbackTopIssues(items: FeedItem[]): IssueSummary[] {
       title,
       summary:
         data.headlines.length > 0
-          ? `This issue appeared in ${data.count} recent story${data.count > 1 ? "ies" : "y"} this week, including: ${data.headlines
+          ? `This issue appeared in ${data.count} recent ${data.count > 1 ? "stories" : "story"} this week, including: ${data.headlines
               .slice(0, 2)
               .join(" • ")}.`
-          : `This issue appeared in ${data.count} recent stories this week.`,
+          : `This issue appeared in ${data.count} recent ${data.count > 1 ? "stories" : "story"} this week.`,
     }));
 
   while (top.length < 3) {
@@ -323,7 +341,10 @@ function buildFallbackTopIssues(items: FeedItem[]): IssueSummary[] {
   return top;
 }
 
-async function generateAISummary(items: FeedItem[], region: RegionInfo): Promise<IssueSummary[]> {
+async function generateAISummary(
+  items: Omit<FeedItem, "id">[],
+  region: RegionInfo
+): Promise<IssueSummary[]> {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey || items.length === 0) {
@@ -382,16 +403,11 @@ ${headlinesBlock}
       cache: "no-store",
     });
 
-    if (!response.ok) {
-      return buildFallbackTopIssues(items);
-    }
+    if (!response.ok) return buildFallbackTopIssues(items);
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return buildFallbackTopIssues(items);
-    }
+    if (!content) return buildFallbackTopIssues(items);
 
     const parsed = JSON.parse(content);
     const issues = Array.isArray(parsed?.issues) ? parsed.issues : [];
@@ -405,7 +421,6 @@ ${headlinesBlock}
       .filter((issue: IssueSummary) => issue.title && issue.summary);
 
     if (cleaned.length === 3) return cleaned;
-
     return buildFallbackTopIssues(items);
   } catch {
     return buildFallbackTopIssues(items);
@@ -431,6 +446,13 @@ async function getCurrentUserProfile() {
   return { user, profile: profile as ProfileRow | null };
 }
 
+const borderAccentClasses = [
+  "border-l-[6px] border-[#f59e0b]", // yellow
+  "border-l-[6px] border-[#3b82f6]", // blue
+  "border-l-[6px] border-[#ef4444]", // red
+  "border-l-[6px] border-[#22c55e]", // green
+];
+
 export default async function TrendingPostsPage() {
   const { user, profile } = await getCurrentUserProfile();
 
@@ -448,6 +470,7 @@ export default async function TrendingPostsPage() {
   const scored = mergedItems
     .map((item) => ({
       ...item,
+      id: buildStoryId(item),
       score: scoreItemForRegion(item, region),
     }))
     .sort((a, b) => b.score - a.score);
@@ -568,8 +591,10 @@ export default async function TrendingPostsPage() {
             <div className="grid gap-5 lg:grid-cols-2">
               {newsToShow.map((item, index) => (
                 <article
-                  key={`${item.link}-${index}`}
-                  className="group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+                  key={item.id}
+                  className={`group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md ${
+                    borderAccentClasses[index % borderAccentClasses.length]
+                  }`}
                 >
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -580,12 +605,7 @@ export default async function TrendingPostsPage() {
                     </span>
                   </div>
 
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block"
-                  >
+                  <a href={item.link} target="_blank" rel="noreferrer" className="block">
                     <h3 className="text-xl font-bold leading-snug text-slate-900 transition group-hover:text-blue-700">
                       {item.title}
                     </h3>
@@ -595,36 +615,13 @@ export default async function TrendingPostsPage() {
                     {item.description || "Read more about this district-related civic update."}
                   </p>
 
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    >
-                      Read story
-                    </a>
-
-                    <button
-                      type="button"
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Comment
-                    </button>
-
-                    <button
-                      type="button"
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Upvote
-                    </button>
-
-                    <button
-                      type="button"
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Share
-                    </button>
+                  <div className="mt-5">
+                    <TrendingStoryActions
+                      storyId={item.id}
+                      title={item.title}
+                      link={item.link}
+                      source={item.source || "News source"}
+                    />
                   </div>
                 </article>
               ))}
