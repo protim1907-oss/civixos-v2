@@ -9,6 +9,7 @@ import {
   MessageSquareText,
   TrendingUp,
   UserCircle2,
+  Activity,
 } from "lucide-react";
 
 type NavItem = {
@@ -16,6 +17,8 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
+  badge?: number | string | null;
+  badgeColor?: "red" | "green" | "blue" | "slate";
 };
 
 const navItems: NavItem[] = [
@@ -26,6 +29,13 @@ const navItems: NavItem[] = [
     exact: true,
   },
   {
+    href: "/dashboard#activity",
+    label: "My Activity",
+    icon: Activity,
+    badge: 3,
+    badgeColor: "red",
+  },
+  {
     href: "/feed",
     label: "District Feed",
     icon: Newspaper,
@@ -34,6 +44,8 @@ const navItems: NavItem[] = [
     href: "/official-updates",
     label: "Official Updates",
     icon: Megaphone,
+    badge: "New",
+    badgeColor: "green",
   },
   {
     href: "/create-post",
@@ -53,8 +65,23 @@ const navItems: NavItem[] = [
 ];
 
 function isActivePath(pathname: string, href: string, exact?: boolean) {
-  if (exact) return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const cleanHref = href.split("#")[0];
+
+  if (exact) return pathname === cleanHref;
+  return pathname === cleanHref || pathname.startsWith(`${cleanHref}/`);
+}
+
+function getBadgeClasses(color: NavItem["badgeColor"]) {
+  switch (color) {
+    case "red":
+      return "bg-red-500 text-white";
+    case "green":
+      return "bg-green-500 text-white";
+    case "blue":
+      return "bg-blue-500 text-white";
+    default:
+      return "bg-slate-200 text-slate-700";
+  }
 }
 
 export default function Sidebar() {
@@ -89,7 +116,7 @@ export default function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                     active
-                      ? "bg-slate-900 text-white shadow-sm"
+                      ? "border-l-4 border-blue-500 bg-slate-900 pl-3 text-white shadow-sm"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
@@ -98,7 +125,18 @@ export default function Sidebar() {
                       active ? "text-white" : "text-slate-500"
                     }`}
                   />
-                  <span>{item.label}</span>
+
+                  <span className="flex-1">{item.label}</span>
+
+                  {item.badge ? (
+                    <span
+                      className={`ml-auto rounded-full px-2 py-0.5 text-xs font-bold ${getBadgeClasses(
+                        item.badgeColor
+                      )}`}
+                    >
+                      {item.badge}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
