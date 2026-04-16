@@ -1,934 +1,497 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
-import { MessageCircle, Send, X } from "lucide-react";
+import {
+  Building2,
+  MapPinned,
+  MessageCircle,
+  ExternalLink,
+  Mail,
+  Shield,
+  Landmark,
+  X,
+  Send,
+  Loader2,
+  User2,
+} from "lucide-react";
 
-type Representative = {
+type ProfileRow = {
   id: string;
-  full_name: string;
-  office_title: string;
-  state: string;
-  district: string | null;
-  party: string | null;
-  photo_url: string | null;
+  full_name: string | null;
   email: string | null;
-  linkedin_url: string | null;
-  created_at?: string;
-  name: string | null;
-  office: string | null;
-  level: "Senate" | "Congress" | "State" | "Local" | null;
-  photo: string | null;
-  linkedin: string | null;
-  chat_href: string | null;
-  email_href: string | null;
-  district_id: string | null;
-  is_primary: boolean | null;
-  is_active: boolean | null;
+  role: string | null;
+  district: string | null;
+  state: string | null;
+};
+
+type Official = {
+  id: string;
+  name: string;
+  title: string;
+  officeLabel: string;
+  level: "federal" | "state";
+  district?: string;
+  state: string;
+  party?: string;
+  website: string;
+  contactUrl: string;
+  phone?: string;
+  badge: {
+    text: string;
+    tone: "red" | "green" | "blue" | "slate";
+  };
 };
 
 type ChatMessage = {
   id: string;
-  sender: "user" | "rep";
+  sender: "user" | "assistant";
   text: string;
-  created_at: string;
 };
 
-function getDisplayName(rep: Representative) {
-  return rep.name || rep.full_name;
+const DISTRICT_OFFICIALS: Record<string, Official> = {
+  "TX-35": {
+    id: "greg-casar",
+    name: "Greg Casar",
+    title: "U.S. Representative",
+    officeLabel: "Texas 35th Congressional District",
+    level: "federal",
+    district: "TX-35",
+    state: "Texas",
+    party: "Democrat",
+    website: "https://casar.house.gov",
+    contactUrl: "https://casar.house.gov/contact/offices",
+    phone: "(202) 225-5645",
+    badge: {
+      text: "House",
+      tone: "blue",
+    },
+  },
+};
+
+const TEXAS_STATEWIDE_LEADERS: Official[] = [
+  {
+    id: "ted-cruz",
+    name: "Ted Cruz",
+    title: "U.S. Senator",
+    officeLabel: "Texas",
+    level: "federal",
+    state: "Texas",
+    website: "https://www.cruz.senate.gov",
+    contactUrl: "https://www.cruz.senate.gov/contact/write-ted",
+    phone: "(512) 916-5834",
+    badge: {
+      text: "Senate",
+      tone: "red",
+    },
+  },
+  {
+    id: "greg-abbott",
+    name: "Greg Abbott",
+    title: "Governor of Texas",
+    officeLabel: "Statewide Office",
+    level: "state",
+    state: "Texas",
+    website: "https://gov.texas.gov",
+    contactUrl: "https://gov.texas.gov/contact",
+    phone: "(512) 463-2000",
+    badge: {
+      text: "State",
+      tone: "green",
+    },
+  },
+  {
+    id: "ken-paxton",
+    name: "Ken Paxton",
+    title: "Attorney General of Texas",
+    officeLabel: "Statewide Office",
+    level: "state",
+    state: "Texas",
+    website: "https://www.texasattorneygeneral.gov",
+    contactUrl: "https://www.texasattorneygeneral.gov/about-office",
+    badge: {
+      text: "State",
+      tone: "green",
+    },
+  },
+];
+
+function normalizeDistrict(rawValue: string | null | undefined): string {
+  if (!rawValue) return "TX-35";
+
+  const raw = String(rawValue).trim().toUpperCase();
+
+  if (raw === "TX-35") return "TX-35";
+  if (raw === "35") return "TX-35";
+  if (raw === "DISTRICT 35") return "TX-35";
+  if (raw === "TEXAS DISTRICT 35") return "TX-35";
+  if (raw === "TEXAS-35") return "TX-35";
+  if (raw === "TEXAS 35") return "TX-35";
+  if (raw === "CD-35") return "TX-35";
+  if (raw === "TX35") return "TX-35";
+
+  const match = raw.match(/TX[\s-]?(\d{1,2})/);
+  if (match?.[1]) return `TX-${match[1]}`;
+
+  const genericDistrict = raw.match(/DISTRICT[\s-]?(\d{1,2})/);
+  if (genericDistrict?.[1]) return `TX-${genericDistrict[1]}`;
+
+  return raw;
 }
 
-function getDisplayOffice(rep: Representative) {
-  return rep.office || rep.office_title;
-}
-
-function getDisplayWebsite(rep: Representative) {
-  return rep.linkedin || rep.linkedin_url || "#";
-}
-
-function getDisplayEmailHref(rep: Representative) {
-  if (rep.email_href) return rep.email_href;
-  if (rep.email) return `mailto:${rep.email}`;
-  return "#";
-}
-
-function getDisplayDistrict(rep: Representative) {
-  return rep.district_id || rep.district || null;
-}
-
-function getDisplayLevel(
-  rep: Representative
-): "Senate" | "Congress" | "State" | "Local" {
-  if (
-    rep.level === "Senate" ||
-    rep.level === "Congress" ||
-    rep.level === "State" ||
-    rep.level === "Local"
-  ) {
-    return rep.level;
-  }
-
-  const office = getDisplayOffice(rep).toLowerCase();
-
-  if (office.includes("senator")) return "Senate";
-  if (office.includes("representative")) return "Congress";
-  if (office.includes("governor") || office.includes("attorney general")) return "State";
-  return "Local";
-}
-
-function levelClasses(level: "Senate" | "Congress" | "State" | "Local") {
-  switch (level) {
-    case "Senate":
-      return "bg-red-50 text-red-700 border-red-200";
-    case "Congress":
-      return "bg-blue-50 text-blue-700 border-blue-200";
-    case "State":
-      return "bg-green-50 text-green-700 border-green-200";
-    case "Local":
-      return "bg-yellow-50 text-yellow-800 border-yellow-200";
+function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
+  switch (tone) {
+    case "red":
+      return "border-red-200 bg-red-50 text-red-600";
+    case "green":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "blue":
+      return "border-blue-200 bg-blue-50 text-blue-700";
     default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
+      return "border-slate-200 bg-slate-50 text-slate-700";
   }
 }
 
-function districtDisplayLabel(districtId: string) {
-  switch ((districtId || "").toUpperCase()) {
-    case "TX-20":
-      return "Texas 20th District";
-    case "TX-12":
-      return "Texas 12th District";
-    case "TX":
-      return "State of Texas";
-    case "NH":
-      return "New Hampshire";
-    case "NH-01":
-      return "New Hampshire 1st Congressional District";
-    case "NH-02":
-      return "New Hampshire 2nd Congressional District";
-    default:
-      return districtId || "Your District";
-  }
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
-function normalizeState(value: string | null | undefined) {
-  return (value || "").trim().toLowerCase();
-}
+function buildAutoReply(official: Official, userText: string) {
+  const text = userText.toLowerCase();
 
-function normalizeDistrict(value: string | null | undefined) {
-  return (value || "").trim().toUpperCase();
-}
-
-function isNewHampshireContext(userState: string, userDistrict: string) {
-  const state = normalizeState(userState);
-  const district = normalizeDistrict(userDistrict);
-
-  return (
-    state === "new hampshire" ||
-    state === "nh" ||
-    district === "NH" ||
-    district.startsWith("NH-")
-  );
-}
-function isPlaceholderRepresentative(rep: Representative) {
-  const name = getDisplayName(rep).trim().toLowerCase();
-  const office = getDisplayOffice(rep).trim().toLowerCase();
-
-  return (
-    name.includes("example senator") ||
-    name.includes("new hampshire example senator") ||
-    office.includes("example senator")
-  );
-}
-function buildFallbackRepresentativesForNewHampshire(): Representative[] {
-  return [
-    {
-      id: "nh-governor-kelly-ayotte",
-      full_name: "Kelly Ayotte",
-      office_title: "Governor of New Hampshire",
-      state: "New Hampshire",
-      district: "NH",
-      party: "Republican",
-      photo_url: null,
-      email: null,
-      linkedin_url: "https://www.governor.nh.gov/",
-      created_at: new Date().toISOString(),
-      name: "Kelly Ayotte",
-      office: "Governor of New Hampshire",
-      level: "State",
-      photo: null,
-      linkedin: "https://www.governor.nh.gov/",
-      chat_href: "#",
-      email_href: "https://www.governor.nh.gov/contact-governor-ayotte",
-      district_id: "NH",
-      is_primary: false,
-      is_active: true,
-    },
-    {
-      id: "nh-senate-jeanne-shaheen",
-      full_name: "Jeanne Shaheen",
-      office_title: "United States Senator",
-      state: "New Hampshire",
-      district: "NH",
-      party: "Democratic",
-      photo_url: null,
-      email: null,
-      linkedin_url: "https://www.shaheen.senate.gov/",
-      created_at: new Date().toISOString(),
-      name: "Jeanne Shaheen",
-      office: "United States Senator",
-      level: "Senate",
-      photo: null,
-      linkedin: "https://www.shaheen.senate.gov/",
-      chat_href: "#",
-      email_href: "https://www.shaheen.senate.gov/contact/contact-jeanne",
-      district_id: "NH",
-      is_primary: false,
-      is_active: true,
-    },
-    {
-      id: "nh-senate-maggie-hassan",
-      full_name: "Maggie Hassan",
-      office_title: "United States Senator",
-      state: "New Hampshire",
-      district: "NH",
-      party: "Democratic",
-      photo_url: null,
-      email: null,
-      linkedin_url: "https://www.hassan.senate.gov/",
-      created_at: new Date().toISOString(),
-      name: "Maggie Hassan",
-      office: "United States Senator",
-      level: "Senate",
-      photo: null,
-      linkedin: "https://www.hassan.senate.gov/",
-      chat_href: "#",
-      email_href: "https://www.hassan.senate.gov/contact/email",
-      district_id: "NH",
-      is_primary: false,
-      is_active: true,
-    },
-    {
-      id: "nh-house-chris-pappas",
-      full_name: "Chris Pappas",
-      office_title: "United States Representative",
-      state: "New Hampshire",
-      district: "NH-01",
-      party: "Democratic",
-      photo_url: null,
-      email: null,
-      linkedin_url: "https://pappas.house.gov/",
-      created_at: new Date().toISOString(),
-      name: "Chris Pappas",
-      office: "U.S. Representative for New Hampshire's 1st District",
-      level: "Congress",
-      photo: null,
-      linkedin: "https://pappas.house.gov/",
-      chat_href: "#",
-      email_href: "https://pappas.house.gov/contact",
-      district_id: "NH-01",
-      is_primary: true,
-      is_active: true,
-    },
-    {
-      id: "nh-house-maggie-goodlander",
-      full_name: "Maggie Goodlander",
-      office_title: "United States Representative",
-      state: "New Hampshire",
-      district: "NH-02",
-      party: "Democratic",
-      photo_url: null,
-      email: null,
-      linkedin_url: "https://goodlander.house.gov/",
-      created_at: new Date().toISOString(),
-      name: "Maggie Goodlander",
-      office: "U.S. Representative for New Hampshire's 2nd District",
-      level: "Congress",
-      photo: null,
-      linkedin: "https://goodlander.house.gov/",
-      chat_href: "#",
-      email_href: "https://goodlander.house.gov/contact",
-      district_id: "NH-02",
-      is_primary: true,
-      is_active: true,
-    },
-  ];
-}
-
-function mergeRepresentativesWithFallback(
-  dbRows: Representative[],
-  userState: string,
-  userDistrict: string
-) {
-  if (!isNewHampshireContext(userState, userDistrict)) {
-    return dbRows;
+  if (text.includes("meeting") || text.includes("appointment")) {
+    return `I can help you prepare a meeting request for ${official.name}. Use the official contact page for scheduling, and include your district, topic, and preferred dates.`;
   }
 
-  const fallbackRows = buildFallbackRepresentativesForNewHampshire();
-  const existingNames = new Set(
-    dbRows.map((rep) => getDisplayName(rep).trim().toLowerCase())
-  );
-
-  const missingFallbackRows = fallbackRows.filter(
-    (rep) => !existingNames.has(getDisplayName(rep).trim().toLowerCase())
-  );
-
-  return [...dbRows, ...missingFallbackRows];
-}
-
-function matchesDistrictRepresentative(
-  rep: Representative,
-  userDistrict: string,
-  userState: string
-) {
-  const repState = normalizeState(rep.state);
-  const normalizedState = normalizeState(userState);
-  const level = getDisplayLevel(rep);
-  const repDistrict = normalizeDistrict(getDisplayDistrict(rep));
-  const normalizedUserDistrict = normalizeDistrict(userDistrict);
-
-  if (repState !== normalizedState) return false;
-
-  if (isNewHampshireContext(userState, userDistrict)) {
-    if (level === "Senate" || level === "State") return true;
-
-    if (level === "Congress") {
-      if (normalizedUserDistrict === "NH") {
-        return repDistrict === "NH-01" || repDistrict === "NH-02";
-      }
-      return repDistrict === normalizedUserDistrict;
-    }
-
-    if (level === "Local") return repDistrict === normalizedUserDistrict;
-    return false;
+  if (text.includes("issue") || text.includes("problem") || text.includes("complaint")) {
+    return `Thanks for sharing that concern. A good next step is to summarize the issue in 3–4 sentences, explain who is affected, and include your ZIP code or district details before sending it to ${official.name}'s office.`;
   }
 
-  if (level === "Senate" || level === "State") return true;
-  if (level === "Congress") return repDistrict === normalizedUserDistrict;
-  if (level === "Local") return repDistrict === normalizedUserDistrict;
+  if (text.includes("funding") || text.includes("grant")) {
+    return `${official.name}'s office may be able to direct you to the correct federal or state resource. Use the official website or contact page to ask for constituent services or program guidance.`;
+  }
 
-  return false;
+  return `This is a demo constituent chat for ${official.name}. You can use it to draft a message, then send it through the official contact page.`;
 }
 
-function sortStatewideLeadership(reps: Representative[]) {
-  const order: Record<string, number> = {
-    "jeanne shaheen": 1,
-    "maggie hassan": 2,
-    "kelly ayotte": 3,
-  };
-
-  return [...reps].sort((a, b) => {
-    const aKey = getDisplayName(a).trim().toLowerCase();
-    const bKey = getDisplayName(b).trim().toLowerCase();
-    return (order[aKey] ?? 99) - (order[bKey] ?? 99);
-  });
-}
-
-function DynamicRepresentativePhoto({
-  name,
-  alt,
-  className,
-}: {
-  name: string;
-  alt: string;
-  className?: string;
-}) {
-  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    name
-  )}&background=e2e8f0&color=334155&size=300`;
-
-  const [src, setSrc] = useState(fallback);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadImage() {
-      try {
-        const res = await fetch(
-          `/api/representative-photo?name=${encodeURIComponent(name)}`
-        );
-        if (!res.ok) return;
-
-        const data = await res.json();
-        if (!cancelled && data?.imageUrl) {
-          setSrc(data.imageUrl);
-        }
-      } catch {
-        // keep fallback
-      }
-    }
-
-    loadImage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [name, fallback]);
-
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      referrerPolicy="no-referrer"
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).src = fallback;
-      }}
-    />
-  );
-}
-
-function buildWelcomeMessage(rep: Representative): ChatMessage {
-  return {
-    id: `welcome-${rep.id}`,
-    sender: "rep",
-    text: `You are now connected to the office of ${getDisplayName(
-      rep
-    )}. Share your question or issue clearly and respectfully.`,
-    created_at: new Date().toISOString(),
-  };
-}
-
-export default function MyRepresentativesPage() {
+export default function MyRepresentativePage() {
+  const router = useRouter();
   const supabase = createClient();
 
-  const [userDistrict, setUserDistrict] = useState("TX-20");
-  const [userState, setUserState] = useState("Texas");
-  const [userName, setUserName] = useState("Citizen");
   const [loading, setLoading] = useState(true);
-  const [representatives, setRepresentatives] = useState<Representative[]>([]);
-  const [loadError, setLoadError] = useState("");
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [district, setDistrict] = useState("TX-35");
 
-  const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
-  const [messageText, setMessageText] = useState("");
-  const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>(
-    {}
-  );
+  const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadPage() {
       try {
-        setLoadError("");
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-        const { data } = await supabase.auth.getSession();
-        const session = data?.session;
-
-        const guestUser =
-          typeof window !== "undefined"
-            ? localStorage.getItem("guest_user")
-            : null;
-
-        let district = "TX-20";
-        let state = "Texas";
-        let name = "Citizen";
-
-        if (session?.user) {
-          const user = session.user;
-
-          name =
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            user.email?.split("@")[0] ||
-            "Citizen";
-
-          district =
-            user.user_metadata?.district_id ||
-            user.user_metadata?.district ||
-            "TX-20";
-
-          state =
-            user.user_metadata?.state ||
-            (String(district).toUpperCase().startsWith("NH")
-              ? "New Hampshire"
-              : String(district).toUpperCase().startsWith("TX")
-              ? "Texas"
-              : "Texas");
-        } else if (guestUser) {
-          try {
-            const parsedGuest = JSON.parse(guestUser);
-            name = parsedGuest?.name || "Guest Citizen";
-            district = parsedGuest?.district_id || "TX-20";
-            state =
-              parsedGuest?.state ||
-              (String(district).toUpperCase().startsWith("NH")
-                ? "New Hampshire"
-                : "Texas");
-          } catch {
-            name = "Guest Citizen";
-            district = "TX-20";
-            state = "Texas";
-          }
+        if (authError || !user) {
+          router.push("/login");
+          return;
         }
 
-        setUserName(name);
-        setUserDistrict(district);
-        setUserState(state);
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, role, district, state")
+          .eq("id", user.id)
+          .single();
 
-        const { data: repData, error } = await supabase
-          .from("representatives")
-          .select("*")
-          .eq("is_active", true)
-          .order("is_primary", { ascending: false })
-          .order("full_name", { ascending: true });
+        if (!mounted) return;
 
-        if (error) {
-          console.error("Failed to load representatives:", error);
+        const mergedDistrict =
+          profileRow?.district ||
+          (user.user_metadata?.district as string | undefined) ||
+          (user.user_metadata?.district_name as string | undefined) ||
+          (user.user_metadata?.district_id as string | undefined) ||
+          "TX-35";
 
-          const fallbackOnly = mergeRepresentativesWithFallback([], state, district);
-          setRepresentatives(fallbackOnly);
-
-          if (!isNewHampshireContext(state, district)) {
-            setLoadError(error.message || "Failed to load representatives");
-          }
-        } else {
-          const merged = mergeRepresentativesWithFallback(
-            (repData as Representative[]) || [],
-            state,
-            district
-          );
-
-          setRepresentatives(merged);
-        }
+        setProfile(profileRow ?? null);
+        setDistrict(normalizeDistrict(mergedDistrict));
       } catch (error) {
-        console.error("Failed to load representative context:", error);
-
-        const fallbackOnly = mergeRepresentativesWithFallback([], userState, userDistrict);
-        setRepresentatives(fallbackOnly);
-
-        if (!isNewHampshireContext(userState, userDistrict)) {
-          setLoadError("Unexpected error while loading representatives");
-        }
+        console.error("Failed to load representative page:", error);
+        setDistrict("TX-35");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
     loadPage();
-  }, [supabase, userDistrict, userState]);
 
-  const visibleRepresentatives = useMemo(() => {
-  return representatives.filter(
-    (rep) =>
-      matchesDistrictRepresentative(rep, userDistrict, userState) &&
-      !isPlaceholderRepresentative(rep)
-  );
-}, [representatives, userDistrict, userState]);
+    return () => {
+      mounted = false;
+    };
+  }, [router, supabase]);
 
   const primaryRepresentative = useMemo(() => {
-    const normalizedUserDistrict = normalizeDistrict(userDistrict);
+    return DISTRICT_OFFICIALS[district] ?? null;
+  }, [district]);
 
-    if (normalizedUserDistrict === "NH") {
-      return undefined;
-    }
+  const statewideLeaders = useMemo(() => {
+    return district.startsWith("TX-") ? TEXAS_STATEWIDE_LEADERS : [];
+  }, [district]);
 
-    return (
-      visibleRepresentatives.find(
-        (rep) =>
-          getDisplayLevel(rep) === "Congress" &&
-          normalizeDistrict(getDisplayDistrict(rep)) === normalizedUserDistrict &&
-          rep.is_primary
-      ) ||
-      visibleRepresentatives.find(
-        (rep) =>
-          getDisplayLevel(rep) === "Congress" &&
-          normalizeDistrict(getDisplayDistrict(rep)) === normalizedUserDistrict
-      )
-    );
-  }, [visibleRepresentatives, userDistrict]);
+  const visibleRepresentativesCount =
+    (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
 
-  const senateRepresentatives = useMemo(() => {
-    return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "Senate");
-  }, [visibleRepresentatives]);
+  function openOfficialWebsite(official: Official) {
+    window.open(official.website, "_blank", "noopener,noreferrer");
+  }
 
-  const stateRepresentatives = useMemo(() => {
-    return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "State");
-  }, [visibleRepresentatives]);
+  function openOfficialContact(official: Official) {
+    window.open(official.contactUrl, "_blank", "noopener,noreferrer");
+  }
 
-  const districtRepresentatives = useMemo(() => {
-    return visibleRepresentatives.filter((rep) => getDisplayLevel(rep) === "Congress");
-  }, [visibleRepresentatives]);
-
-  const statewideLeadership = useMemo(() => {
-    return sortStatewideLeadership([...senateRepresentatives, ...stateRepresentatives]);
-  }, [senateRepresentatives, stateRepresentatives]);
-
-  const primaryCardTitle = useMemo(() => {
-    if (normalizeDistrict(userDistrict) === "NH") {
-      return "New Hampshire district representatives";
-    }
-
-    return loading
-      ? "Loading representative..."
-      : primaryRepresentative
-      ? getDisplayName(primaryRepresentative)
-      : "Representative not assigned yet";
-  }, [loading, primaryRepresentative, userDistrict]);
-
-  const primaryCardSubtitle = useMemo(() => {
-    if (normalizeDistrict(userDistrict) === "NH") {
-      return "New Hampshire has two U.S. House districts. Both congressional representatives are shown on this page below.";
-    }
-
-    return loading
-      ? "Loading office details..."
-      : primaryRepresentative
-      ? getDisplayOffice(primaryRepresentative)
-      : `We are preparing representative information for ${districtDisplayLabel(
-          userDistrict
-        )}.`;
-  }, [loading, primaryRepresentative, userDistrict]);
-
-  const currentMessages = useMemo(() => {
-    if (!selectedRep) return [];
-    return chatHistory[selectedRep.id] || [buildWelcomeMessage(selectedRep)];
-  }, [selectedRep, chatHistory]);
-
-  function openChat(rep: Representative) {
-    setSelectedRep(rep);
+  function startChat(official: Official) {
+    setChatOfficial(official);
+    setChatMessages([
+      {
+        id: "welcome",
+        sender: "assistant",
+        text: `You are now drafting a constituent message for ${official.name}, ${official.title}. Describe your issue, request, or feedback and I’ll help format it.`,
+      },
+    ]);
+    setChatInput("");
     setChatOpen(true);
-
-    setChatHistory((prev) => {
-      if (prev[rep.id]?.length) return prev;
-      return {
-        ...prev,
-        [rep.id]: [buildWelcomeMessage(rep)],
-      };
-    });
   }
 
-  function closeChat() {
-    setChatOpen(false);
-    setMessageText("");
-  }
-
-  function handleSendMessage() {
-    if (!selectedRep) return;
-
-    const text = messageText.trim();
-    if (!text) return;
+  async function handleSendChat() {
+    if (!chatOfficial || !chatInput.trim() || chatSending) return;
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: "user",
-      text,
-      created_at: new Date().toISOString(),
+      text: chatInput.trim(),
     };
 
-    const autoReply: ChatMessage = {
-      id: `rep-${Date.now() + 1}`,
-      sender: "rep",
-      text:
-        "Thank you for your message. Your concern has been captured in this chat window. For formal outreach, please also use the official email or website links shown on this page.",
-      created_at: new Date().toISOString(),
-    };
+    setChatMessages((prev) => [...prev, userMessage]);
+    setChatInput("");
+    setChatSending(true);
 
-    setChatHistory((prev) => ({
-      ...prev,
-      [selectedRep.id]: [...(prev[selectedRep.id] || []), userMessage, autoReply],
-    }));
+    setTimeout(() => {
+      const reply: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        sender: "assistant",
+        text: buildAutoReply(chatOfficial, userMessage.text),
+      };
 
-    setMessageText("");
+      setChatMessages((prev) => [...prev, reply]);
+      setChatSending(false);
+    }, 700);
   }
 
-  return (
-    <div className="flex min-h-screen bg-slate-100">
-      <Sidebar />
-
-      <main className="flex-1 p-4 md:p-8">
-        <div className="space-y-8">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Citizen Dashboard</p>
-                <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-900">
-                  My Representatives
-                </h1>
-                <p className="mt-4 max-w-4xl text-lg text-slate-600">
-                  View and connect with representatives assigned to{" "}
-                  <span className="font-semibold text-slate-900">
-                    {districtDisplayLabel(userDistrict)}
-                  </span>{" "}
-                  in <span className="font-semibold text-slate-900">{userState}</span>.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <p className="text-sm text-slate-500">Signed in as</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">{userName}</p>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="mx-auto flex max-w-[1600px]">
+          <Sidebar />
+          <main className="flex-1 p-6 md:p-8">
+            <div className="flex h-[70vh] items-center justify-center">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                <span className="text-sm font-medium text-slate-600">
+                  Loading representative information...
+                </span>
               </div>
             </div>
-          </section>
-
-          {loadError ? (
-            <section className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm">
-              <p className="text-sm font-semibold text-red-700">Representative load error</p>
-              <p className="mt-2 text-sm text-red-700">{loadError}</p>
-              <p className="mt-2 text-sm text-red-600">
-                Most likely cause: your RLS/select policy is blocking reads from the
-                representatives table.
-              </p>
-            </section>
-          ) : null}
-
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.25fr]">
-            <div className="space-y-6">
-              <section className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-                <p className="text-sm font-medium text-blue-700">Primary District Representative</p>
-                <h2 className="mt-3 text-3xl font-bold text-slate-900">{primaryCardTitle}</h2>
-                <p className="mt-2 text-lg text-slate-700">{primaryCardSubtitle}</p>
-                <p className="mt-4 text-base leading-8 text-slate-600">
-                  Chat directly with the office serving your district, send a formal email, and monitor
-                  official communication relevant to your community.
-                </p>
-
-                {primaryRepresentative ? (
-                  <div className="mt-6 grid gap-3">
-                    <button
-                      type="button"
-                      onClick={() => openChat(primaryRepresentative)}
-                      className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      Chat with Representative
-                    </button>
-
-                    <a
-                      href={getDisplayEmailHref(primaryRepresentative)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-2xl bg-white px-5 py-3 text-center text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
-                    >
-                      Send Email
-                    </a>
-                  </div>
-                ) : (
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">
-                    {normalizeDistrict(userDistrict) === "NH"
-                      ? "New Hampshire statewide and congressional contacts are available below."
-                      : "Representative details unavailable."}
-                  </div>
-                )}
-              </section>
-
-              <section className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-1">
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm text-slate-500">District</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    {districtDisplayLabel(userDistrict)}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm text-slate-500">Primary Office</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    {primaryRepresentative
-                      ? getDisplayName(primaryRepresentative)
-                      : normalizeDistrict(userDistrict) === "NH"
-                      ? "NH Delegation"
-                      : "Pending"}
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm text-slate-500">Visible Representatives</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    {loading ? "..." : visibleRepresentatives.length}
-                  </p>
-                </div>
-              </section>
-            </div>
-
-            <div className="space-y-6">
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div>
-                  <p className="text-sm text-slate-500">District Delegation</p>
-                  <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                    Representatives for {districtDisplayLabel(userDistrict)}
-                  </h2>
-                  <p className="mt-3 max-w-4xl text-base text-slate-600">
-                    Federal, state, and statewide leaders relevant to your district are shown below.
-                  </p>
-                </div>
-
-                {!loading && visibleRepresentatives.length === 0 ? (
-                  <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
-                    <h3 className="text-2xl font-bold text-slate-900">No representatives found</h3>
-                    <p className="mt-3 text-slate-600">
-                      We could not find a representative mapping for{" "}
-                      {districtDisplayLabel(userDistrict)}.
-                    </p>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Total rows loaded from database: {representatives.length}
-                    </p>
-                  </div>
-                ) : null}
-
-                {districtRepresentatives.length > 0 ? (
-                  <div className="mt-8">
-                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Congressional Representation
-                    </p>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      {districtRepresentatives.map((rep) => {
-                        const level = getDisplayLevel(rep);
-                        return (
-                          <article
-                            key={rep.id}
-                            className="rounded-3xl border border-blue-200 bg-blue-50/40 p-6 shadow-sm transition hover:shadow-md"
-                          >
-                            <div className="flex flex-col items-center text-center">
-                              <DynamicRepresentativePhoto
-                                name={getDisplayName(rep)}
-                                alt={getDisplayName(rep)}
-                                className="h-28 w-28 rounded-full object-cover ring-4 ring-white"
-                              />
-
-                              <div
-                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(level)}`}
-                              >
-                                {level}
-                              </div>
-
-                              <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                                {getDisplayName(rep)}
-                              </h2>
-                              <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
-                              <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                                {districtDisplayLabel(getDisplayDistrict(rep) || "")}
-                              </p>
-                            </div>
-
-                            <div className="mt-6 space-y-3">
-                              <button
-                                type="button"
-                                onClick={() => openChat(rep)}
-                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold leading-5 text-white transition hover:bg-blue-700"
-                              >
-                                Chat with Representative
-                              </button>
-
-                              <a
-                                href={getDisplayEmailHref(rep)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
-                              >
-                                Send Email
-                              </a>
-
-                              <a
-                                href={getDisplayWebsite(rep)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full rounded-2xl bg-white px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-100"
-                              >
-                                Official Website
-                              </a>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-
-                {statewideLeadership.length > 0 ? (
-                  <div className="mt-8">
-                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Statewide Leadership
-                    </p>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                      {statewideLeadership.map((rep) => {
-                        const level = getDisplayLevel(rep);
-                        return (
-                          <article
-                            key={rep.id}
-                            className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-                          >
-                            <div className="flex flex-col items-center text-center">
-                              <DynamicRepresentativePhoto
-                                name={getDisplayName(rep)}
-                                alt={getDisplayName(rep)}
-                                className="h-28 w-28 rounded-full object-cover ring-4 ring-slate-100"
-                              />
-
-                              <div
-                                className={`mt-5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${levelClasses(level)}`}
-                              >
-                                {level}
-                              </div>
-
-                              <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                                {getDisplayName(rep)}
-                              </h2>
-                              <p className="mt-2 text-sm text-slate-600">{getDisplayOffice(rep)}</p>
-                            </div>
-
-                            <div className="mt-6 space-y-3">
-                              <button
-                                type="button"
-                                onClick={() => openChat(rep)}
-                                className="block w-full rounded-2xl bg-blue-600 px-4 py-3 text-center text-base font-semibold text-white transition hover:bg-blue-700"
-                              >
-                                Chat with Representative
-                              </button>
-
-                              <a
-                                href={getDisplayEmailHref(rep)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                              >
-                                Send Email
-                              </a>
-
-                              <a
-                                href={getDisplayWebsite(rep)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-center text-base font-semibold text-slate-800 transition hover:bg-slate-200"
-                              >
-                                Official Website
-                              </a>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </section>
-            </div>
-          </section>
+          </main>
         </div>
-      </main>
+      </div>
+    );
+  }
 
-      {chatOpen && selectedRep ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/30 p-4 md:items-center md:p-6">
-          <div className="flex h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl md:h-[80vh]">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-4 text-white">
-              <div className="min-w-0">
-                <p className="text-sm text-slate-300">Representative Chat</p>
-                <h3 className="truncate text-lg font-semibold">
-                  {getDisplayName(selectedRep)}
-                </h3>
-                <p className="text-sm text-slate-300">
-                  {getDisplayOffice(selectedRep)}
+  const titleName = profile?.full_name?.split(" ")[0] || "Citizen";
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto flex max-w-[1600px]">
+        <Sidebar />
+
+        <main className="flex-1 p-6 md:p-8">
+          <div className="mb-6 flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
+              Civix250 Representative Hub
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              My Representative
+            </h1>
+            <p className="max-w-3xl text-sm text-slate-600">
+              Federal, state, and statewide leaders relevant to your district are shown
+              below. You can review office details, open official websites, and draft a
+              constituent message.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1.2fr]">
+            <section className="space-y-6">
+              <div className="rounded-[28px] border border-blue-200 bg-gradient-to-br from-blue-50 to-slate-100 p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-700">
+                  District Assignment
+                </p>
+
+                <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                  {primaryRepresentative
+                    ? `${primaryRepresentative.name} is assigned to ${district}`
+                    : "Representative assignment pending"}
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-base leading-8 text-slate-700">
+                  {primaryRepresentative
+                    ? `${primaryRepresentative.name} currently serves ${primaryRepresentative.officeLabel}. You can chat with the office, open the official website, or use the contact page to submit a formal message.`
+                    : `We are preparing representative information for ${district}.`}
+                </p>
+
+                <div className="mt-6 rounded-2xl border border-white/80 bg-white/90 px-5 py-4 text-sm text-slate-700 shadow-sm">
+                  {primaryRepresentative
+                    ? `${primaryRepresentative.title} • ${primaryRepresentative.officeLabel}`
+                    : "Representative details unavailable."}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <MapPinned className="h-5 w-5 text-slate-500" />
+                    <span className="text-sm text-slate-500">District</span>
+                  </div>
+                  <div className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
+                    {district}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Building2 className="h-5 w-5 text-slate-500" />
+                    <span className="text-sm text-slate-500">Primary Office</span>
+                  </div>
+                  <div className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+                    {primaryRepresentative ? primaryRepresentative.name : "Pending"}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <User2 className="h-5 w-5 text-slate-500" />
+                    <span className="text-sm text-slate-500">Visible Representatives</span>
+                  </div>
+                  <div className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
+                    {visibleRepresentativesCount}
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-slate-500" />
+                    <span className="text-sm text-slate-500">Citizen</span>
+                  </div>
+                  <div className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+                    {titleName}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-6">
+              {primaryRepresentative && (
+                <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                        Assigned District Representative
+                      </p>
+                      <h3 className="mt-2 text-2xl font-bold text-slate-900">
+                        {primaryRepresentative.officeLabel}
+                      </h3>
+                    </div>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${getBadgeClasses(
+                        primaryRepresentative.badge.tone
+                      )}`}
+                    >
+                      {primaryRepresentative.badge.text}
+                    </span>
+                  </div>
+
+                  <OfficialCard
+                    official={primaryRepresentative}
+                    featured
+                    onChat={startChat}
+                    onEmail={openOfficialContact}
+                    onWebsite={openOfficialWebsite}
+                  />
+                </div>
+              )}
+
+              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Statewide Leadership
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-slate-900">Texas</h3>
+
+                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {statewideLeaders.map((official) => (
+                    <OfficialCard
+                      key={official.id}
+                      official={official}
+                      onChat={startChat}
+                      onEmail={openOfficialContact}
+                      onWebsite={openOfficialWebsite}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+
+      {chatOpen && chatOfficial && (
+        <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-900/40 p-4 sm:p-6">
+          <div className="flex h-[78vh] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Constituent Chat
+                </p>
+                <h4 className="mt-1 text-xl font-bold text-slate-900">
+                  {chatOfficial.name}
+                </h4>
+                <p className="mt-1 text-sm text-slate-600">
+                  {chatOfficial.title} • {chatOfficial.officeLabel}
                 </p>
               </div>
 
               <button
-                type="button"
-                onClick={closeChat}
-                className="rounded-full p-2 transition hover:bg-white/10"
+                onClick={() => setChatOpen(false)}
+                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                 aria-label="Close chat"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-5">
-              {currentMessages.map((message) => (
+            <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 px-5 py-5">
+              {chatMessages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${
@@ -936,51 +499,127 @@ export default function MyRepresentativesPage() {
                   }`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-7 shadow-sm ${
                       message.sender === "user"
                         ? "bg-blue-600 text-white"
-                        : "bg-white text-slate-800 ring-1 ring-slate-200"
+                        : "border border-slate-200 bg-white text-slate-700"
                     }`}
                   >
                     {message.text}
                   </div>
                 </div>
               ))}
+
+              {chatSending && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Drafting response...
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-slate-200 bg-white p-4">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder={`Message ${getDisplayName(selectedRep)}...`}
-                  className="h-12 flex-1 rounded-2xl border border-slate-300 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendMessage}
-                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white transition hover:bg-blue-700"
-                  aria-label="Send message"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
+              <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
+                This is a Civix250 drafting assistant. For formal outreach, use the
+                official contact page after preparing your message.
               </div>
 
-              <p className="mt-3 text-xs leading-5 text-slate-500">
-                This opens an in-app chat window. You can later connect it to
-                Supabase messages or a representative inbox.
-              </p>
+              <div className="flex items-end gap-3">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  rows={3}
+                  placeholder={`Write a message for ${chatOfficial.name}...`}
+                  className="min-h-[92px] flex-1 resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  onClick={handleSendChat}
+                  disabled={!chatInput.trim() || chatSending}
+                  className="inline-flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
+    </div>
+  );
+}
+
+function OfficialCard({
+  official,
+  featured = false,
+  onChat,
+  onEmail,
+  onWebsite,
+}: {
+  official: Official;
+  featured?: boolean;
+  onChat: (official: Official) => void;
+  onEmail: (official: Official) => void;
+  onWebsite: (official: Official) => void;
+}) {
+  return (
+    <div
+      className={`rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm ${
+        featured ? "md:p-7" : ""
+      }`}
+    >
+      <div className="flex flex-col items-center text-center">
+        <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-3xl font-bold text-slate-700 shadow-inner">
+          {getInitials(official.name)}
+        </div>
+
+        <span
+          className={`mt-5 rounded-full border px-3 py-1 text-xs font-semibold ${getBadgeClasses(
+            official.badge.tone
+          )}`}
+        >
+          {official.badge.text}
+        </span>
+
+        <h4 className="mt-5 text-3xl font-bold tracking-tight text-slate-900">
+          {official.name}
+        </h4>
+
+        <p className="mt-2 text-lg text-slate-700">{official.title}</p>
+        <p className="mt-1 text-base text-slate-500">{official.officeLabel}</p>
+
+        {official.phone ? (
+          <p className="mt-3 text-sm font-medium text-slate-600">{official.phone}</p>
+        ) : null}
+
+        <div className="mt-6 flex w-full flex-col gap-3">
+          <button
+            onClick={() => onChat(official)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-4 text-base font-semibold text-white transition hover:bg-blue-700"
+          >
+            <MessageCircle className="h-5 w-5" />
+            Chat with Representative
+          </button>
+
+          <button
+            onClick={() => onEmail(official)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+          >
+            <Mail className="h-5 w-5" />
+            Send Email
+          </button>
+
+          <button
+            onClick={() => onWebsite(official)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+          >
+            <ExternalLink className="h-5 w-5" />
+            Official Website
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
