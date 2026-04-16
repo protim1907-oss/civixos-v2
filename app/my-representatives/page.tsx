@@ -788,11 +788,7 @@ function OfficialCard({
     setImgSrc(official.imageUrl || "");
   }, [official.imageUrl]);
 
-  const proxiedSrc = imgSrc
-    ? imgSrc.startsWith("http")
-      ? `/api/official-image?src=${encodeURIComponent(imgSrc)}`
-      : imgSrc
-    : "";
+  const displaySrc = imgSrc || "";
 
   return (
     <div
@@ -802,9 +798,9 @@ function OfficialCard({
     >
       <div className="flex h-full flex-col items-center text-center">
         <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
-          {proxiedSrc ? (
-            <img
-              src={proxiedSrc}
+          {displaySrc ? (
+  <img
+    src={displaySrc}
               alt={official.name}
               className="h-full w-full object-cover"
               loading="lazy"
