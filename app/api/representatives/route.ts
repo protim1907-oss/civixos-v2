@@ -47,51 +47,75 @@ type OfficialCard = {
   };
 };
 
+function normalizePhotoUrl(url?: string) {
+  if (!url) return "";
+
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("http://")) {
+    return trimmed.replace("http://", "https://");
+  }
+
+  return trimmed;
+}
+
 function pickBadge(role?: string, officeName?: string) {
   const roleText = role || "";
-  const office = officeName || "";
+  const office = (officeName || "").toLowerCase();
 
-  if (roleText === "legislatorUpperBody" || office.toLowerCase().includes("senator")) {
+  if (roleText === "legislatorUpperBody" || office.includes("senator")) {
     return { text: "Senate", tone: "red" as const };
   }
 
-  if (roleText === "legislatorLowerBody" || office.toLowerCase().includes("representative")) {
+  if (
+    roleText === "legislatorLowerBody" ||
+    office.includes("representative") ||
+    office.includes("house")
+  ) {
     return { text: "House", tone: "blue" as const };
   }
 
   return { text: "State", tone: "green" as const };
 }
 
-function levelFromOffice(office: CivicOffice): "federal" | "state" {
+function getLevel(office: CivicOffice): "federal" | "state" {
   const divisionId = office.divisionId || "";
+  const levels = office.levels || [];
+
+  if (levels.includes("country")) return "federal";
+  if (levels.includes("administrativeArea1")) return "state";
+
   if (divisionId.includes("/country:us")) {
-    if (divisionId.includes("/state:") && !divisionId.includes("/cd:")) {
-      return "state";
-    }
+    if (divisionId.includes("/cd:")) return "federal";
+    if (divisionId.includes("/sld")) return "state";
+    if (divisionId.includes("/state:")) return "state";
     return "federal";
   }
+
   return "state";
 }
 
-function firstUrl(official?: CivicOfficial) {
-  return official?.urls?.[0] || "";
+function getFirstUrl(official?: CivicOfficial) {
+  return official?.urls?.find(Boolean) || "";
 }
 
-function firstPhone(official?: CivicOfficial) {
-  return official?.phones?.[0] || "";
+function getFirstPhone(official?: CivicOfficial) {
+  return official?.phones?.find(Boolean) || "";
 }
 
-function firstEmail(official?: CivicOfficial) {
-  return official?.emails?.[0] || "";
+function getFirstEmail(official?: CivicOfficial) {
+  return official?.emails?.find(Boolean) || "";
 }
 
 function buildContactUrl(official?: CivicOfficial) {
-  const email = firstEmail(official);
+  const email = getFirstEmail(official);
   if (email) return `mailto:${email}`;
-  return firstUrl(official);
+  return getFirstUrl(official);
 }
 
-function mapOfficeToCards(data: CivicResponse) {
+function mapOfficeToCards(data: CivicResponse): OfficialCard[] {
   const offices = data.offices || [];
   const officials = data.officials || [];
 
@@ -100,24 +124,24 @@ function mapOfficeToCards(data: CivicResponse) {
   for (const office of offices) {
     const indices = office.officialIndices || [];
     const role = office.roles?.[0];
-    const level = levelFromOffice(office);
     const badge = pickBadge(role, office.name);
+    const level = getLevel(office);
 
     for (const idx of indices) {
       const person = officials[idx];
       if (!person?.name) continue;
 
       cards.push({
-        id: `${office.divisionId || "office"}-${idx}`,
+        id: `${office.divisionId || office.name || "office"}-${idx}`,
         name: person.name,
         title: office.name || "Public Official",
-        officeLabel: office.divisionId || "",
+        officeLabel: office.name || "Public Office",
         level,
-        website: firstUrl(person),
+        website: getFirstUrl(person),
         contactUrl: buildContactUrl(person),
-        phone: firstPhone(person),
-        email: firstEmail(person),
-        imageUrl: person.photoUrl || "/officials/fallback-avatar.jpg",
+        phone: getFirstPhone(person),
+        email: getFirstEmail(person),
+        imageUrl: normalizePhotoUrl(person.photoUrl),
         badge,
       });
     }
@@ -126,19 +150,33 @@ function mapOfficeToCards(data: CivicResponse) {
   return cards;
 }
 
+function scoreDistrictRepresentative(card: OfficialCard) {
+  const title = card.title.toLowerCase();
+  let score = 0;
+
+  if (card.badge.text === "House") score += 10;
+  if (title.includes("united states house")) score += 8;
+  if (title.includes("representative")) score += 7;
+  if (title.includes("congress")) score += 5;
+  if (card.level === "federal") score += 4;
+  if (title.includes("senator")) score -= 10;
+  if (title.includes("governor")) score -= 10;
+  if (title.includes("attorney general")) score -= 10;
+
+  return score;
+}
+
 function pickDistrictRepresentative(cards: OfficialCard[]) {
-  return (
-    cards.find(
-      (c) =>
-        c.badge.text === "House" &&
-        c.title.toLowerCase().includes("representative")
-    ) || null
-  );
+  const ranked = [...cards]
+    .filter((card) => scoreDistrictRepresentative(card) > 0)
+    .sort((a, b) => scoreDistrictRepresentative(b) - scoreDistrictRepresentative(a));
+
+  return ranked[0] || null;
 }
 
 function pickStatewide(cards: OfficialCard[]) {
-  return cards.filter((c) => {
-    const title = c.title.toLowerCase();
+  return cards.filter((card) => {
+    const title = card.title.toLowerCase();
     return (
       title.includes("senator") ||
       title.includes("governor") ||
@@ -158,25 +196,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const key = process.env.GOOGLE_CIVIC_API_KEY;
-    if (!key) {
+    const apiKey = process.env.GOOGLE_CIVIC_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
         { error: "Missing GOOGLE_CIVIC_API_KEY." },
         { status: 500 }
       );
     }
 
-    const url = new URL(
-      "https://www.googleapis.com/civicinfo/v2/representatives"
-    );
+    const url = new URL("https://www.googleapis.com/civicinfo/v2/representatives");
     url.searchParams.set("address", address);
     url.searchParams.set("includeOffices", "true");
-    url.searchParams.set("key", key);
+    url.searchParams.set("key", apiKey);
 
     const response = await fetch(url.toString(), {
       method: "GET",
-      headers: { Accept: "application/json" },
-      next: { revalidate: 86400 }, // 24h
+      headers: {
+        Accept: "application/json",
+      },
+      next: { revalidate: 86400 },
     });
 
     if (!response.ok) {
@@ -188,15 +226,14 @@ export async function GET(req: NextRequest) {
     }
 
     const data = (await response.json()) as CivicResponse;
-    const cards = mapOfficeToCards(data);
-
-    const districtRepresentative = pickDistrictRepresentative(cards);
-    const statewideLeaders = pickStatewide(cards);
+    const allOfficials = mapOfficeToCards(data);
+    const districtRepresentative = pickDistrictRepresentative(allOfficials);
+    const statewideLeaders = pickStatewide(allOfficials);
 
     return NextResponse.json({
       districtRepresentative,
       statewideLeaders,
-      allOfficials: cards,
+      allOfficials,
     });
   } catch (error) {
     console.error("Civic representatives route failed:", error);
