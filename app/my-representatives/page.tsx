@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { resolveOfficialImage } from "@/lib/official-images";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   Building2,
@@ -54,6 +55,25 @@ type ChatMessage = {
   text: string;
 };
 
+const TED_CRUZ_IMAGE =
+  "https://upload.wikimedia.org/wikipedia/commons/9/94/Ted_Cruz%2C_official_portrait%2C_113th_Congress.jpg";
+
+const GREG_ABBOTT_IMAGE =
+  "https://upload.wikimedia.org/wikipedia/commons/5/5f/Greg_Abbott_2015.jpg";
+
+const KEN_PAXTON_IMAGE =
+  "https://upload.wikimedia.org/wikipedia/commons/1/1a/Ken_Paxton_2018.jpg";
+
+function getOfficialOverrideImage(name: string): string | null {
+  const normalized = name.toLowerCase();
+
+  if (normalized.includes("ted cruz")) return TED_CRUZ_IMAGE;
+  if (normalized.includes("greg abbott")) return GREG_ABBOTT_IMAGE;
+  if (normalized.includes("ken paxton")) return KEN_PAXTON_IMAGE;
+
+  return null;
+}
+
 const DISTRICT_OFFICIALS: Record<string, Official> = {
   "TX-35": {
     id: "greg-casar",
@@ -67,7 +87,10 @@ const DISTRICT_OFFICIALS: Record<string, Official> = {
     website: "https://casar.house.gov",
     contactUrl: "https://casar.house.gov/contact/offices",
     phone: "(202) 225-5645",
-    imageUrl: "/officials/greg-casar.jpg",
+    imageUrl: resolveOfficialImage({
+      name: "Greg Casar",
+      remoteImageUrl: "/officials/greg-casar.jpg",
+    }),
     badge: {
       text: "House",
       tone: "blue",
@@ -86,7 +109,10 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     website: "https://www.cruz.senate.gov",
     contactUrl: "https://www.cruz.senate.gov/contact/write-ted",
     phone: "(512) 916-5834",
-    imageUrl: "/officials/ted-cruz.jpg",
+    imageUrl: resolveOfficialImage({
+      name: "Ted Cruz",
+      remoteImageUrl: TED_CRUZ_IMAGE,
+    }),
     badge: {
       text: "Senate",
       tone: "red",
@@ -102,7 +128,10 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     website: "https://gov.texas.gov/",
     contactUrl: "https://gov.texas.gov/contact",
     phone: "(512) 463-2000",
-    imageUrl: "/officials/greg-abbott.jpg",
+    imageUrl: resolveOfficialImage({
+      name: "Greg Abbott",
+      remoteImageUrl: GREG_ABBOTT_IMAGE,
+    }),
     badge: {
       text: "State",
       tone: "green",
@@ -117,7 +146,10 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     state: "Texas",
     website: "https://www.texasattorneygeneral.gov/",
     contactUrl: "https://www.texasattorneygeneral.gov/about-office",
-    imageUrl: "/officials/ken-paxton.jpg",
+    imageUrl: resolveOfficialImage({
+      name: "Ken Paxton",
+      remoteImageUrl: KEN_PAXTON_IMAGE,
+    }),
     badge: {
       text: "State",
       tone: "green",
@@ -256,6 +288,7 @@ function mapCivicOfficial(
   if (!input?.name || !input?.title) return null;
 
   const stateName = normalizeStateName(profile?.state);
+  const overrideImage = getOfficialOverrideImage(input.name);
 
   return {
     id:
@@ -270,7 +303,12 @@ function mapCivicOfficial(
     website: input.website || "#",
     contactUrl: input.contactUrl || input.website || "#",
     phone: input.phone || undefined,
-    imageUrl: input.imageUrl || "",
+    imageUrl: resolveOfficialImage({
+      name: input.name,
+      title: input.title,
+      state: stateName,
+      remoteImageUrl: overrideImage || input.imageUrl || "",
+    }),
     badge: {
       text: input.badge?.text || "Office",
       tone: input.badge?.tone || "slate",
@@ -752,7 +790,7 @@ function OfficialCard({
 
   const proxiedSrc = imgSrc
     ? imgSrc.startsWith("http")
-      ? `/api/civic/image?src=${encodeURIComponent(imgSrc)}`
+      ? `/api/official-image?src=${encodeURIComponent(imgSrc)}`
       : imgSrc
     : "";
 
