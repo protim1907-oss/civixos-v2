@@ -14,11 +14,8 @@ function slugify(value: string) {
 
 const LOCAL_IMAGE_MAP: Record<string, string> = {
   "greg-casar": "/officials/greg-casar.jpg",
-  "ted-cruz": "/officials/ted-cruz.jpg",
   "greg-abbott": "/officials/greg-abbott.jpg",
-  "ken-paxton": "/officials/ken-paxton.jpg",
   "chris-pappas": "/officials/chris-pappas.jpg",
-  "maggie-hassan": "/officials/maggie-hassan.jpg",
   "jeanne-shaheen": "/officials/jeanne-shaheen.jpg",
   "kelly-ayotte": "/officials/kelly-ayotte.jpg",
 };
@@ -27,16 +24,24 @@ export function resolveOfficialImage(input: OfficialImageLookupInput): string {
   const name = (input.name || "").trim();
   const remote = (input.remoteImageUrl || "").trim();
 
-  if (name) {
-    const slug = slugify(name);
-    const local = LOCAL_IMAGE_MAP[slug];
-    if (local) return local;
-
-    const guessedLocal = `/officials/${slug}.jpg`;
-    return remote || guessedLocal;
+  if (!name) {
+    return remote || "";
   }
 
-  return remote || "/officials/fallback-avatar.jpg";
+  const slug = slugify(name);
+
+  // Only use local files that are explicitly present.
+  if (LOCAL_IMAGE_MAP[slug]) {
+    return LOCAL_IMAGE_MAP[slug];
+  }
+
+  // Otherwise use official remote image from API if available.
+  if (remote) {
+    return remote;
+  }
+
+  // Do NOT guess a local file path that may not exist.
+  return "";
 }
 
 export function isRemoteImage(src: string) {
