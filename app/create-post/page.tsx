@@ -356,7 +356,7 @@ export default function CreatePostPage() {
       setSuccess("Post created successfully.");
 
       setTimeout(() => {
-        router.push("/district-feed");
+        router.push("/feed");
       }, 700);
     } catch (err) {
       console.error("Create post submit error:", err);
