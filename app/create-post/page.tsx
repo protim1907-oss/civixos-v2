@@ -2,606 +2,525 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
 import Sidebar from "@/components/layout/Sidebar";
+import { createClient } from "@/lib/supabase/client";
 
-type AiReview = {
-  severity: "Low" | "Medium" | "High";
-  category: string;
-  suggestedTitle: string;
-  summary: string;
-  recommendedAction: "Approve" | "Review" | "Block";
-  toxicityScore: number;
-  spamScore: number;
-  misinformationScore: number;
-  overallScore: number;
-  flaggedReason?: string | null;
-};
-
-type DiscussionRow = {
+type ProfileRow = {
   id: string;
-  title: string;
-  topic: string | null;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
   district: string | null;
-  created_by: string | null;
-  representative_id: string | null;
-  status: string;
-  created_at: string;
-  updated_at: string;
+  state: string | null;
 };
+
+type CategoryOption =
+  | "Infrastructure"
+  | "Public Safety"
+  | "Healthcare"
+  | "Education"
+  | "Transportation"
+  | "Environment"
+  | "Housing"
+  | "Community";
+
+function prettifyDistrictLabel(district: string | null, state: string | null) {
+  if (!district && !state) return "Your district";
+
+  if (!district) return `${state ?? "Your state"} district`;
+
+  const normalized = district.trim().toUpperCase();
+
+  if (/^[A-Z]{2}-\d+$/.test(normalized)) {
+    const [stateCode, districtNumber] = normalized.split("-");
+    return `${state ?? stateCode} Congressional District ${districtNumber} (${normalized})`;
+  }
+
+  return district;
+}
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function inferCategory(title: string, description: string): CategoryOption {
+  const text = `${title} ${description}`.toLowerCase();
+
+  if (
+    text.includes("road") ||
+    text.includes("pothole") ||
+    text.includes("drain") ||
+    text.includes("waterlogging") ||
+    text.includes("bridge") ||
+    text.includes("sidewalk")
+  ) {
+    return "Infrastructure";
+  }
+
+  if (
+    text.includes("crime") ||
+    text.includes("police") ||
+    text.includes("unsafe") ||
+    text.includes("violence") ||
+    text.includes("harassment")
+  ) {
+    return "Public Safety";
+  }
+
+  if (
+    text.includes("hospital") ||
+    text.includes("clinic") ||
+    text.includes("health") ||
+    text.includes("mental health")
+  ) {
+    return "Healthcare";
+  }
+
+  if (
+    text.includes("school") ||
+    text.includes("teacher") ||
+    text.includes("student") ||
+    text.includes("education")
+  ) {
+    return "Education";
+  }
+
+  if (
+    text.includes("bus") ||
+    text.includes("traffic") ||
+    text.includes("train") ||
+    text.includes("transit")
+  ) {
+    return "Transportation";
+  }
+
+  if (
+    text.includes("pollution") ||
+    text.includes("waste") ||
+    text.includes("garbage") ||
+    text.includes("air quality") ||
+    text.includes("park")
+  ) {
+    return "Environment";
+  }
+
+  if (
+    text.includes("rent") ||
+    text.includes("housing") ||
+    text.includes("shelter") ||
+    text.includes("homeless")
+  ) {
+    return "Housing";
+  }
+
+  return "Community";
+}
+
+function inferSentiment(description: string): "negative" | "neutral" | "positive" {
+  const text = description.toLowerCase();
+
+  const negativeSignals = [
+    "issue",
+    "problem",
+    "unsafe",
+    "danger",
+    "bad",
+    "poor",
+    "flood",
+    "waterlogging",
+    "overflow",
+    "broken",
+    "delay",
+    "complaint",
+    "failure",
+  ];
+
+  const positiveSignals = [
+    "improved",
+    "good",
+    "great",
+    "successful",
+    "clean",
+    "safe",
+    "resolved",
+    "helpful",
+  ];
+
+  const negativeCount = negativeSignals.filter((word) => text.includes(word)).length;
+  const positiveCount = positiveSignals.filter((word) => text.includes(word)).length;
+
+  if (negativeCount > positiveCount) return "negative";
+  if (positiveCount > negativeCount) return "positive";
+  return "neutral";
+}
+
+function generateAiSummary(title: string, description: string) {
+  const cleanTitle = normalizeWhitespace(title);
+  const cleanDescription = normalizeWhitespace(description);
+
+  if (!cleanDescription) return cleanTitle;
+
+  const firstSentence =
+    cleanDescription.split(/[.!?]/).map((s) => s.trim()).find(Boolean) ?? cleanDescription;
+
+  return `${cleanTitle}: ${firstSentence}`;
+}
+
+function improveTitle(title: string, districtLabel: string) {
+  const cleaned = normalizeWhitespace(title);
+  if (!cleaned) return "";
+
+  const withoutDistrictNoise = cleaned
+    .replace(/\btexas district \d+\b/i, "")
+    .replace(/\bcalifornia district \d+\b/i, "")
+    .replace(/\bdistrict \d+\b/i, "")
+    .replace(/\s+-\s+/g, " ")
+    .trim();
+
+  const normalized =
+    withoutDistrictNoise.length > 0 ? withoutDistrictNoise : cleaned;
+
+  return normalized.length <= 100 ? normalized : normalized.slice(0, 100).trim();
+}
+
+function improveDescription(description: string) {
+  const cleaned = normalizeWhitespace(description);
+  if (!cleaned) return "";
+
+  const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+
+  if (/[.!?]$/.test(capitalized)) return capitalized;
+  return `${capitalized}.`;
+}
 
 export default function CreatePostPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
-  const [user, setUser] = useState<User | null>(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<CategoryOption>("Community");
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [aiNote, setAiNote] = useState("");
 
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [aiReview, setAiReview] = useState<AiReview | null>(null);
+  const districtLabel = prettifyDistrictLabel(profile?.district ?? null, profile?.state ?? null);
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadAuth() {
-      setCheckingAuth(true);
+    async function loadUserAndProfile() {
+      try {
+        setLoading(true);
+        setError("");
 
-      const { data } = await supabase.auth.getSession();
-      const session = data?.session;
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-      if (!mounted) return;
+        if (authError || !user) {
+          router.replace("/login");
+          return;
+        }
 
-      setUser(session?.user ?? null);
-      setCheckingAuth(false);
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, role, district, state")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          setError("We could not load your profile. Please try again.");
+          return;
+        }
+
+        if (!mounted) return;
+
+        setProfile(profileData as ProfileRow);
+
+        if (!profileData?.district) {
+          setError("Your account does not have a district assigned yet. Please update your profile before posting.");
+        }
+      } catch (err) {
+        console.error("Create Post page load error:", err);
+        if (mounted) {
+          setError("Something went wrong while loading the page.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
 
-    loadAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setUser(session?.user ?? null);
-      setCheckingAuth(false);
-    });
+    loadUserAndProfile();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [router, supabase]);
 
-  const canReview = useMemo(() => {
-    return title.trim().length > 0 || description.trim().length > 0;
-  }, [title, description]);
-
-  function getSeverityFromOverallScore(score: number): "Low" | "Medium" | "High" {
-    if (score >= 70) return "High";
-    if (score >= 35) return "Medium";
-    return "Low";
-  }
-
-  function getCategoryFromText(combined: string) {
-    if (
-      combined.includes("drain") ||
-      combined.includes("overflow") ||
-      combined.includes("waterlogging") ||
-      combined.includes("flood") ||
-      combined.includes("sewage")
-    ) {
-      return {
-        category: "Drainage and flooding",
-        summary:
-          "This post appears to describe recurring drainage overflow and waterlogging that may require district attention.",
-      };
-    }
-
-    if (
-      combined.includes("road") ||
-      combined.includes("pothole") ||
-      combined.includes("traffic")
-    ) {
-      return {
-        category: "Transportation",
-        summary:
-          "This post appears related to road or traffic conditions that may require public works follow-up.",
-      };
-    }
-
-    if (
-      combined.includes("garbage") ||
-      combined.includes("waste") ||
-      combined.includes("trash")
-    ) {
-      return {
-        category: "Environment",
-        summary:
-          "This post appears related to sanitation, waste handling, or cleanup concerns in the district.",
-      };
-    }
-
-    if (
-      combined.includes("crime") ||
-      combined.includes("unsafe") ||
-      combined.includes("assault")
-    ) {
-      return {
-        category: "Safety",
-        summary:
-          "This post appears connected to resident safety and may require escalation or official review.",
-      };
-    }
-
-    return {
-      category: "General civic discussion",
-      summary:
-        "This post appears to describe a local civic concern or district discussion topic.",
-    };
-  }
-
-  function getDistrictForUser(currentUser: User) {
-    return (
-      currentUser.user_metadata?.district_id ||
-      currentUser.user_metadata?.district ||
-      currentUser.user_metadata?.district_name ||
-      "District 12"
-    );
-  }
-
-  async function getOrCreateDiscussion(currentUser: User, discussionTitle: string, topic: string) {
-    const district = getDistrictForUser(currentUser);
-
-    const { data: existingDiscussion, error: findError } = await supabase
-      .from("discussions")
-      .select("*")
-      .eq("district", district)
-      .eq("title", discussionTitle)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (findError) {
-      throw new Error(findError.message || "Failed to check existing discussion.");
-    }
-
-    if (existingDiscussion) {
-      return existingDiscussion as DiscussionRow;
-    }
-
-    const { data: newDiscussion, error: createError } = await supabase
-      .from("discussions")
-      .insert([
-        {
-          title: discussionTitle,
-          topic,
-          district,
-          created_by: currentUser.id,
-          status: "active",
-        },
-      ])
-      .select("*")
-      .single();
-
-    if (createError || !newDiscussion) {
-      throw new Error(createError?.message || "Failed to create discussion.");
-    }
-
-    return newDiscussion as DiscussionRow;
-  }
-
-  async function runAiReview() {
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-
-    if (!trimmedTitle && !trimmedDescription) {
-      setErrorMessage("Please add a title or description before using Review with AI.");
-      return;
-    }
-
-    setIsReviewing(true);
-
+  async function handleReviewWithAi() {
     try {
-      const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
-      const { category, summary } = getCategoryFromText(combined);
+      setReviewing(true);
+      setError("");
+      setSuccess("");
+      setAiNote("");
 
-      const response = await fetch("/api/moderate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: trimmedDescription,
-          content: `${trimmedTitle}\n\n${trimmedDescription}`,
-        }),
-      });
+      const cleanTitle = improveTitle(title, districtLabel);
+      const cleanDescription = improveDescription(description);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || "Failed to review content.");
+      if (!cleanTitle && !cleanDescription) {
+        setError("Add a title or description before reviewing with AI.");
+        return;
       }
 
-      const moderation = await response.json();
+      const inferredCategory = inferCategory(cleanTitle, cleanDescription);
 
-      const toxicityScore = Math.round(Number(moderation.toxicity || 0) * 100);
-      const spamScore = Math.round(Number(moderation.spam || 0) * 100);
-      const misinformationScore = Math.round(
-        Number(moderation.misinformation || 0) * 100
-      );
-
-      const overallScore = Math.round(
-        toxicityScore * 0.35 + spamScore * 0.25 + misinformationScore * 0.4
-      );
-
-      const severity = getSeverityFromOverallScore(overallScore);
-
-      setAiReview({
-        severity,
-        category,
-        suggestedTitle: trimmedTitle || "District civic discussion",
-        summary,
-        recommendedAction: moderation.recommendedAction ?? "Approve",
-        toxicityScore,
-        spamScore,
-        misinformationScore,
-        overallScore,
-        flaggedReason: moderation.flaggedReason ?? null,
-      });
-    } catch (error) {
-      console.error("AI review error:", error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to review content with AI."
-      );
+      setTitle(cleanTitle);
+      setDescription(cleanDescription);
+      setCategory(inferredCategory);
+      setAiNote("AI review applied: clarified wording and suggested a category.");
+    } catch (err) {
+      console.error("AI review error:", err);
+      setError("AI review could not be completed right now.");
     } finally {
-      setIsReviewing(false);
+      setReviewing(false);
     }
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-
-    if (!trimmedTitle || !trimmedDescription) {
-      setErrorMessage("Please complete both the title and description.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  async function handleCreatePost() {
     try {
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      const session = data?.session;
+      setSubmitting(true);
+      setError("");
+      setSuccess("");
+      setAiNote("");
 
-      if (sessionError) {
-        throw new Error("Could not verify your login session. Please refresh and try again.");
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/login");
+        return;
       }
 
-      const currentUser = session?.user ?? null;
+      const cleanTitle = normalizeWhitespace(title);
+      const cleanDescription = normalizeWhitespace(description);
 
-      if (!currentUser) {
-        throw new Error("You must be logged in to create a post.");
+      if (!cleanTitle) {
+        setError("Please enter a title.");
+        return;
       }
 
-      let finalReview = aiReview;
-
-      // Auto-run moderation if user did not click Review with AI
-      if (!finalReview) {
-        const combined = `${trimmedTitle} ${trimmedDescription}`.toLowerCase();
-        const { category, summary } = getCategoryFromText(combined);
-
-        const moderationRes = await fetch("/api/moderate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: trimmedTitle,
-            description: trimmedDescription,
-            content: `${trimmedTitle}\n\n${trimmedDescription}`,
-          }),
-        });
-
-        if (!moderationRes.ok) {
-          const errorData = await moderationRes.json().catch(() => null);
-          throw new Error(errorData?.error || "Failed to moderate post content.");
-        }
-
-        const moderation = await moderationRes.json();
-
-        const toxicityScore = Math.round(Number(moderation.toxicity || 0) * 100);
-        const spamScore = Math.round(Number(moderation.spam || 0) * 100);
-        const misinformationScore = Math.round(
-          Number(moderation.misinformation || 0) * 100
-        );
-
-        const overallScore = Math.round(
-          toxicityScore * 0.35 + spamScore * 0.25 + misinformationScore * 0.4
-        );
-
-        finalReview = {
-          severity: getSeverityFromOverallScore(overallScore),
-          category,
-          suggestedTitle: trimmedTitle || "District civic discussion",
-          summary,
-          recommendedAction: moderation.recommendedAction ?? "Approve",
-          toxicityScore,
-          spamScore,
-          misinformationScore,
-          overallScore,
-          flaggedReason: moderation.flaggedReason ?? null,
-        };
-
-        setAiReview(finalReview);
+      if (!cleanDescription) {
+        setError("Please enter a description.");
+        return;
       }
 
-      const discussion = await getOrCreateDiscussion(
-        currentUser,
-        trimmedTitle,
-        finalReview?.category ?? "General civic discussion"
-      );
-
-      const initialPostStatus =
-        finalReview?.recommendedAction === "Block" ? "removed" : "active";
-
-      const { data: newPost, error: postError } = await supabase
-        .from("posts")
-        .insert([
-          {
-            discussion_id: discussion.id,
-            author_id: currentUser.id,
-            content: `${trimmedTitle}\n\n${trimmedDescription}`,
-            status: initialPostStatus,
-          },
-        ])
-        .select("id, discussion_id, author_id, content, status, created_at, updated_at")
-        .single();
-
-      if (postError || !newPost) {
-        throw new Error(postError?.message || "Failed to create post.");
+      if (!profile?.district) {
+        setError("Your district could not be found. Please update your profile and try again.");
+        return;
       }
 
-      // Send flagged or blocked content to moderation queue
-      if (
-        finalReview?.recommendedAction === "Review" ||
-        finalReview?.recommendedAction === "Block"
-      ) {
-        const queueAction =
-          finalReview.recommendedAction === "Block" ? "remove" : "review";
+      const sentiment = inferSentiment(cleanDescription);
+      const aiSummary = generateAiSummary(cleanTitle, cleanDescription);
 
-        const { error: queueError } = await supabase.from("moderation_queue").insert([
-          {
-            post_id: newPost.id,
-            flagged_reason: finalReview.flaggedReason || "ai_flagged",
-            ai_recommended_action: queueAction,
-          },
-        ]);
+      const payload = {
+        user_id: user.id,
+        title: cleanTitle,
+        description: cleanDescription,
+        district: profile.district,
+        state: profile.state,
+        category,
+        sentiment,
+        ai_summary: aiSummary,
+        status: "active",
+      };
 
-        if (queueError) {
-          console.error("Moderation queue insert error:", queueError);
-        }
+      const { error: insertError } = await supabase.from("posts").insert([payload]);
+
+      if (insertError) {
+        console.error("Insert post error:", insertError);
+        setError(insertError.message || "We could not create your post.");
+        return;
       }
 
-      setSuccessMessage("Post created successfully.");
-      setTitle("");
-      setDescription("");
-      setAiReview(null);
+      setSuccess("Post created successfully.");
 
       setTimeout(() => {
-        router.push("/dashboard");
-      }, 1000);
-    } catch (error) {
-      console.error("Submit error:", error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to create post."
-      );
+        router.push("/district-feed");
+      }, 700);
+    } catch (err) {
+      console.error("Create post submit error:", err);
+      setError("Something went wrong while creating your post.");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   }
 
+  const isDisabled =
+    loading ||
+    submitting ||
+    !profile?.district ||
+    !normalizeWhitespace(title) ||
+    !normalizeWhitespace(description);
+
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <Sidebar />
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="flex min-h-screen">
+        <Sidebar />
 
-      <main className="flex-1 p-4 md:p-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 shadow-sm md:px-8 md:py-8">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Citizen Dashboard</p>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                  Create Post
-                </h1>
-                <p className="mt-3 text-lg text-slate-600 md:text-2xl">
-                  Start a civic discussion for your district.
-                </p>
-              </div>
+        <main className="flex-1 px-4 py-6 md:px-8 lg:px-12">
+          <div className="mx-auto max-w-6xl">
+            <div className="rounded-[32px] border border-slate-200 bg-white px-6 py-8 shadow-sm md:px-10 md:py-10">
+              {loading ? (
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-slate-500">Citizen Dashboard</p>
+                  <div className="h-12 w-72 animate-pulse rounded-xl bg-slate-100" />
+                  <div className="h-8 w-[32rem] max-w-full animate-pulse rounded-xl bg-slate-100" />
+                  <div className="mt-8 h-14 animate-pulse rounded-2xl bg-slate-100" />
+                  <div className="h-64 animate-pulse rounded-3xl bg-slate-100" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Citizen Dashboard</p>
+                      <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-950 md:text-6xl">
+                        Create Post
+                      </h1>
+                      <p className="mt-4 max-w-3xl text-xl text-slate-600 md:text-2xl">
+                        Start a civic discussion for your district.
+                      </p>
+                    </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                AI moderation and community discussion intake
-              </div>
+                    <div className="inline-flex h-fit rounded-full border border-slate-200 bg-slate-50 px-6 py-4 text-sm font-medium text-slate-500">
+                      AI moderation and community discussion intake
+                    </div>
+                  </div>
+
+                  <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <p className="text-sm text-slate-500">Posting in</p>
+                    <p className="mt-1 text-base font-semibold text-slate-900">{districtLabel}</p>
+                    {profile?.state && (
+                      <p className="mt-1 text-sm text-slate-500">State: {profile.state}</p>
+                    )}
+                  </div>
+
+                  <div className="mt-8 space-y-8">
+                    <div>
+                      <label htmlFor="title" className="mb-3 block text-lg font-medium text-slate-800">
+                        Title
+                      </label>
+                      <input
+                        id="title"
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder={`Example: Waterlogging issues affecting residents in ${profile?.district ?? "your district"}`}
+                        maxLength={120}
+                        className="w-full rounded-[28px] border border-slate-300 bg-slate-50 px-7 py-6 text-xl text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                      />
+                      <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
+                        <span>Use a specific title so others understand the issue quickly.</span>
+                        <span>{title.length}/120</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="category" className="mb-3 block text-lg font-medium text-slate-800">
+                        Category
+                      </label>
+                      <select
+                        id="category"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value as CategoryOption)}
+                        className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-5 py-4 text-lg text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
+                      >
+                        <option value="Infrastructure">Infrastructure</option>
+                        <option value="Public Safety">Public Safety</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Education">Education</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Environment">Environment</option>
+                        <option value="Housing">Housing</option>
+                        <option value="Community">Community</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="description" className="mb-3 block text-lg font-medium text-slate-800">
+                        Description
+                      </label>
+                      <textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Describe the issue clearly. Include where it is happening, how often it happens, who it affects, and what action residents would like local officials to consider."
+                        rows={8}
+                        maxLength={1500}
+                        className="w-full rounded-[32px] border border-slate-300 bg-slate-50 px-7 py-6 text-xl text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                      />
+                      <div className="mt-2 flex items-center justify-between text-sm text-slate-500">
+                        <span>Be clear and specific. This helps community members and officials respond faster.</span>
+                        <span>{description.length}/1500</span>
+                      </div>
+                    </div>
+
+                    {(error || success || aiNote) && (
+                      <div className="space-y-3">
+                        {error && (
+                          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {error}
+                          </div>
+                        )}
+                        {success && (
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                            {success}
+                          </div>
+                        )}
+                        {aiNote && (
+                          <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                            {aiNote}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        onClick={handleReviewWithAi}
+                        disabled={reviewing || submitting}
+                        className="inline-flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white px-7 text-lg font-semibold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {reviewing ? "Reviewing..." : "Review with AI"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleCreatePost}
+                        disabled={isDisabled}
+                        className="inline-flex h-14 items-center justify-center rounded-2xl bg-slate-950 px-7 text-lg font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {submitting ? "Creating..." : "Create Post"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-
-            <form onSubmit={handleSubmit} className="mt-8 space-y-7">
-              <div>
-                <label
-                  htmlFor="title"
-                  className="mb-3 block text-lg font-medium text-slate-700"
-                >
-                  Title
-                </label>
-                <input
-                  id="title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Waterlogging issues in Texas District 35"
-                  className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="description"
-                  className="mb-3 block text-lg font-medium text-slate-700"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  rows={5}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Residents in District 35 are reporting frequent drain overflows, poor road conditions, or other issues that need visibility..."
-                  className="w-full rounded-[20px] border border-slate-300 bg-slate-50 px-5 py-4 text-lg leading-relaxed text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white md:text-xl"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={runAiReview}
-                  disabled={!canReview || isReviewing}
-                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isReviewing ? "Reviewing..." : "Review with AI"}
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={checkingAuth || isSubmitting}
-                  className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSubmitting ? "Submitting..." : "Create Post"}
-                </button>
-              </div>
-
-              {checkingAuth && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-base text-slate-600">
-                  Checking login status...
-                </div>
-              )}
-
-              {!checkingAuth && !user && !errorMessage && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
-                  You must be logged in to create a post.
-                </div>
-              )}
-
-              {errorMessage && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base text-red-700">
-                  {errorMessage}
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-base text-emerald-700">
-                  {successMessage}
-                </div>
-              )}
-
-              {aiReview && (
-                <div className="rounded-[20px] border border-blue-200 bg-blue-50 p-5">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                      AI Review
-                    </span>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                      Severity: {aiReview.severity}
-                    </span>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                      Category: {aiReview.category}
-                    </span>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                      Action: {aiReview.recommendedAction}
-                    </span>
-                    {aiReview.flaggedReason ? (
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                        Reason: {aiReview.flaggedReason}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-xs font-semibold text-slate-500">Toxicity</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">
-                        {aiReview.toxicityScore}/100
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-xs font-semibold text-slate-500">Spam</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">
-                        {aiReview.spamScore}/100
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-xs font-semibold text-slate-500">Misinformation</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">
-                        {aiReview.misinformationScore}/100
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-xs font-semibold text-slate-500">Overall Score</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">
-                        {aiReview.overallScore}/100
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 space-y-3 text-sm text-slate-700">
-                    <div>
-                      <p className="font-semibold text-slate-900">Suggested title</p>
-                      <p>{aiReview.suggestedTitle}</p>
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-slate-900">Summary</p>
-                      <p>{aiReview.summary}</p>
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-slate-900">Recommended action</p>
-                      <p>{aiReview.recommendedAction}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (aiReview.suggestedTitle && !title.trim()) {
-                          setTitle(aiReview.suggestedTitle);
-                        }
-                      }}
-                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      Use suggested title
-                    </button>
-                  </div>
-                </div>
-              )}
-            </form>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
