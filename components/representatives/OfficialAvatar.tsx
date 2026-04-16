@@ -25,13 +25,11 @@ export default function OfficialAvatar({
   sizeClassName = "h-36 w-36",
 }: OfficialAvatarProps) {
   const [src, setSrc] = useState(imageUrl || "");
-  const [phase, setPhase] = useState<"primary" | "fallback-file" | "initials">(
-    "primary"
-  );
+  const [showInitials, setShowInitials] = useState(!imageUrl);
 
   useEffect(() => {
     setSrc(imageUrl || "");
-    setPhase("primary");
+    setShowInitials(!imageUrl);
   }, [imageUrl]);
 
   const displaySrc = useMemo(() => {
@@ -42,21 +40,15 @@ export default function OfficialAvatar({
   }, [src]);
 
   function handleError() {
-    if (phase === "primary") {
-      setSrc("/officials/fallback-avatar.jpg");
-      setPhase("fallback-file");
-      return;
-    }
-
     setSrc("");
-    setPhase("initials");
+    setShowInitials(true);
   }
 
   return (
     <div
       className={`flex items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner ${sizeClassName}`}
     >
-      {displaySrc ? (
+      {!showInitials && displaySrc ? (
         <img
           src={displaySrc}
           alt={name}
