@@ -26,7 +26,6 @@ type CategoryOption =
 
 function prettifyDistrictLabel(district: string | null, state: string | null) {
   if (!district && !state) return "Your district";
-
   if (!district) return `${state ?? "Your state"} district`;
 
   const normalized = district.trim().toUpperCase();
@@ -52,7 +51,10 @@ function inferCategory(title: string, description: string): CategoryOption {
     text.includes("drain") ||
     text.includes("waterlogging") ||
     text.includes("bridge") ||
-    text.includes("sidewalk")
+    text.includes("sidewalk") ||
+    text.includes("flood") ||
+    text.includes("pipeline") ||
+    text.includes("manhole")
   ) {
     return "Infrastructure";
   }
@@ -116,71 +118,21 @@ function inferCategory(title: string, description: string): CategoryOption {
   return "Community";
 }
 
-function inferSentiment(description: string): "negative" | "neutral" | "positive" {
-  const text = description.toLowerCase();
-
-  const negativeSignals = [
-    "issue",
-    "problem",
-    "unsafe",
-    "danger",
-    "bad",
-    "poor",
-    "flood",
-    "waterlogging",
-    "overflow",
-    "broken",
-    "delay",
-    "complaint",
-    "failure",
-  ];
-
-  const positiveSignals = [
-    "improved",
-    "good",
-    "great",
-    "successful",
-    "clean",
-    "safe",
-    "resolved",
-    "helpful",
-  ];
-
-  const negativeCount = negativeSignals.filter((word) => text.includes(word)).length;
-  const positiveCount = positiveSignals.filter((word) => text.includes(word)).length;
-
-  if (negativeCount > positiveCount) return "negative";
-  if (positiveCount > negativeCount) return "positive";
-  return "neutral";
-}
-
-function generateAiSummary(title: string, description: string) {
-  const cleanTitle = normalizeWhitespace(title);
-  const cleanDescription = normalizeWhitespace(description);
-
-  if (!cleanDescription) return cleanTitle;
-
-  const firstSentence =
-    cleanDescription.split(/[.!?]/).map((s) => s.trim()).find(Boolean) ?? cleanDescription;
-
-  return `${cleanTitle}: ${firstSentence}`;
-}
-
-function improveTitle(title: string, districtLabel: string) {
+function improveTitle(title: string) {
   const cleaned = normalizeWhitespace(title);
   if (!cleaned) return "";
 
   const withoutDistrictNoise = cleaned
     .replace(/\btexas district \d+\b/i, "")
     .replace(/\bcalifornia district \d+\b/i, "")
+    .replace(/\bnew hampshire district \d+\b/i, "")
     .replace(/\bdistrict \d+\b/i, "")
     .replace(/\s+-\s+/g, " ")
     .trim();
 
-  const normalized =
-    withoutDistrictNoise.length > 0 ? withoutDistrictNoise : cleaned;
+  const normalized = withoutDistrictNoise.length > 0 ? withoutDistrictNoise : cleaned;
 
-  return normalized.length <= 100 ? normalized : normalized.slice(0, 100).trim();
+  return normalized.length <= 120 ? normalized : normalized.slice(0, 120).trim();
 }
 
 function improveDescription(description: string) {
@@ -188,9 +140,7 @@ function improveDescription(description: string) {
   if (!cleaned) return "";
 
   const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-
-  if (/[.!?]$/.test(capitalized)) return capitalized;
-  return `${capitalized}.`;
+  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
 }
 
 export default function CreatePostPage() {
@@ -235,16 +185,19 @@ export default function CreatePostPage() {
           .from("profiles")
           .select("id, full_name, email, role, district, state")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError) {
-          setError("We could not load your profile. Please try again.");
+          console.error("Profile load error:", profileError);
+          if (mounted) {
+            setError("We could not load your profile. Please try again.");
+          }
           return;
         }
 
         if (!mounted) return;
 
-        setProfile(profileData as ProfileRow);
+        setProfile((profileData as ProfileRow | null) ?? null);
 
         if (!profileData?.district) {
           setError("Your account does not have a district assigned yet. Please update your profile before posting.");
@@ -273,7 +226,7 @@ export default function CreatePostPage() {
       setSuccess("");
       setAiNote("");
 
-      const cleanTitle = improveTitle(title, districtLabel);
+      const cleanTitle = improveTitle(title);
       const cleanDescription = improveDescription(description);
 
       if (!cleanTitle && !cleanDescription) {
@@ -330,25 +283,21 @@ export default function CreatePostPage() {
         return;
       }
 
-      const sentiment = inferSentiment(cleanDescription);
-      const aiSummary = generateAiSummary(cleanTitle, cleanDescription);
+      const normalizedDistrict = profile.district.trim().toUpperCase();
 
-      const payload = {
+      const issuePayload = {
         user_id: user.id,
         title: cleanTitle,
         description: cleanDescription,
-        district: profile.district,
-        state: profile.state,
+        district: normalizedDistrict,
         category,
-        sentiment,
-        ai_summary: aiSummary,
         status: "active",
       };
 
-      const { error: insertError } = await supabase.from("posts").insert([payload]);
+      const { error: insertError } = await supabase.from("issues").insert([issuePayload]);
 
       if (insertError) {
-        console.error("Insert post error:", insertError);
+        console.error("Insert issue error:", insertError);
         setError(insertError.message || "We could not create your post.");
         return;
       }
@@ -366,12 +315,19 @@ export default function CreatePostPage() {
     }
   }
 
-  const isDisabled =
-    loading ||
-    submitting ||
-    !profile?.district ||
-    !normalizeWhitespace(title) ||
-    !normalizeWhitespace(description);
+  const disableReason = loading
+    ? "Loading your profile..."
+    : submitting
+    ? "Creating your post..."
+    : !profile?.district
+    ? "Your district is missing from your profile."
+    : !normalizeWhitespace(title)
+    ? "Please enter a title."
+    : !normalizeWhitespace(description)
+    ? "Please enter a description."
+    : "";
+
+  const isDisabled = Boolean(disableReason);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -410,9 +366,9 @@ export default function CreatePostPage() {
                   <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
                     <p className="text-sm text-slate-500">Posting in</p>
                     <p className="mt-1 text-base font-semibold text-slate-900">{districtLabel}</p>
-                    {profile?.state && (
+                    {profile?.state ? (
                       <p className="mt-1 text-sm text-slate-500">State: {profile.state}</p>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="mt-8 space-y-8">
@@ -475,23 +431,31 @@ export default function CreatePostPage() {
                       </div>
                     </div>
 
-                    {(error || success || aiNote) && (
+                    {(disableReason || error || success || aiNote) && (
                       <div className="space-y-3">
-                        {error && (
+                        {disableReason && !error ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            {disableReason}
+                          </div>
+                        ) : null}
+
+                        {error ? (
                           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                             {error}
                           </div>
-                        )}
-                        {success && (
+                        ) : null}
+
+                        {success ? (
                           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                             {success}
                           </div>
-                        )}
-                        {aiNote && (
+                        ) : null}
+
+                        {aiNote ? (
                           <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
                             {aiNote}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
 
