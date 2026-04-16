@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,7 +11,6 @@ import {
   ExternalLink,
   Mail,
   Shield,
-  Landmark,
   X,
   Send,
   Loader2,
@@ -40,6 +38,7 @@ type Official = {
   website: string;
   contactUrl: string;
   phone?: string;
+  imageUrl: string;
   badge: {
     text: string;
     tone: "red" | "green" | "blue" | "slate";
@@ -65,6 +64,7 @@ const DISTRICT_OFFICIALS: Record<string, Official> = {
     website: "https://casar.house.gov",
     contactUrl: "https://casar.house.gov/contact/offices",
     phone: "(202) 225-5645",
+    imageUrl: "https://historycms.house.gov/uploadedImages/People/Listing/C/C001131.jpg",
     badge: {
       text: "House",
       tone: "blue",
@@ -83,6 +83,7 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     website: "https://www.cruz.senate.gov",
     contactUrl: "https://www.cruz.senate.gov/contact/write-ted",
     phone: "(512) 916-5834",
+    imageUrl: "https://www.cruz.senate.gov/imo/media/image/cruz_headshot.jpg",
     badge: {
       text: "Senate",
       tone: "red",
@@ -98,6 +99,7 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     website: "https://gov.texas.gov",
     contactUrl: "https://gov.texas.gov/contact",
     phone: "(512) 463-2000",
+    imageUrl: "https://gov.texas.gov/uploads/images/general/2024-GovernorAbbott-Portrait.jpg",
     badge: {
       text: "State",
       tone: "green",
@@ -112,6 +114,8 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     state: "Texas",
     website: "https://www.texasattorneygeneral.gov",
     contactUrl: "https://www.texasattorneygeneral.gov/about-office",
+    imageUrl:
+      "https://www.texasattorneygeneral.gov/sites/default/files/inline-images/ken_paxton_bio_thumb.jpg",
     badge: {
       text: "State",
       tone: "green",
@@ -155,15 +159,6 @@ function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
   }
 }
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
 function buildAutoReply(official: Official, userText: string) {
   const text = userText.toLowerCase();
 
@@ -171,7 +166,11 @@ function buildAutoReply(official: Official, userText: string) {
     return `I can help you prepare a meeting request for ${official.name}. Use the official contact page for scheduling, and include your district, topic, and preferred dates.`;
   }
 
-  if (text.includes("issue") || text.includes("problem") || text.includes("complaint")) {
+  if (
+    text.includes("issue") ||
+    text.includes("problem") ||
+    text.includes("complaint")
+  ) {
     return `Thanks for sharing that concern. A good next step is to summarize the issue in 3–4 sentences, explain who is affected, and include your ZIP code or district details before sending it to ${official.name}'s office.`;
   }
 
@@ -275,7 +274,7 @@ export default function MyRepresentativePage() {
     setChatOpen(true);
   }
 
-  async function handleSendChat() {
+  function handleSendChat() {
     if (!chatOfficial || !chatInput.trim() || chatSending) return;
 
     const userMessage: ChatMessage = {
@@ -303,7 +302,7 @@ export default function MyRepresentativePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <div className="mx-auto flex max-w-[1600px]">
+        <div className="mx-auto flex max-w-[1700px]">
           <Sidebar />
           <main className="flex-1 p-6 md:p-8">
             <div className="flex h-[70vh] items-center justify-center">
@@ -324,7 +323,7 @@ export default function MyRepresentativePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex max-w-[1600px]">
+      <div className="mx-auto flex max-w-[1700px]">
         <Sidebar />
 
         <main className="flex-1 p-6 md:p-8">
@@ -335,14 +334,14 @@ export default function MyRepresentativePage() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">
               My Representative
             </h1>
-            <p className="max-w-3xl text-sm text-slate-600">
+            <p className="max-w-4xl text-sm text-slate-600">
               Federal, state, and statewide leaders relevant to your district are shown
               below. You can review office details, open official websites, and draft a
               constituent message.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1.2fr]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.02fr_1.18fr]">
             <section className="space-y-6">
               <div className="rounded-[28px] border border-blue-200 bg-gradient-to-br from-blue-50 to-slate-100 p-6 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-700">
@@ -411,7 +410,7 @@ export default function MyRepresentativePage() {
               </div>
             </section>
 
-            <section className="space-y-6">
+            <section>
               {primaryRepresentative && (
                 <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="mb-5 flex items-center justify-between gap-3">
@@ -441,27 +440,28 @@ export default function MyRepresentativePage() {
                   />
                 </div>
               )}
-
-              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Statewide Leadership
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-slate-900">Texas</h3>
-
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-                  {statewideLeaders.map((official) => (
-                    <OfficialCard
-                      key={official.id}
-                      official={official}
-                      onChat={startChat}
-                      onEmail={openOfficialContact}
-                      onWebsite={openOfficialWebsite}
-                    />
-                  ))}
-                </div>
-              </div>
             </section>
           </div>
+
+          <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+              Statewide Leadership
+            </p>
+            <h3 className="mt-2 text-2xl font-bold text-slate-900">Texas</h3>
+
+            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {statewideLeaders.map((official) => (
+                <OfficialCard
+                  key={official.id}
+                  official={official}
+                  wide
+                  onChat={startChat}
+                  onEmail={openOfficialContact}
+                  onWebsite={openOfficialWebsite}
+                />
+              ))}
+            </div>
+          </section>
         </main>
       </div>
 
@@ -554,12 +554,14 @@ export default function MyRepresentativePage() {
 function OfficialCard({
   official,
   featured = false,
+  wide = false,
   onChat,
   onEmail,
   onWebsite,
 }: {
   official: Official;
   featured?: boolean;
+  wide?: boolean;
   onChat: (official: Official) => void;
   onEmail: (official: Official) => void;
   onWebsite: (official: Official) => void;
@@ -568,11 +570,17 @@ function OfficialCard({
     <div
       className={`rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm ${
         featured ? "md:p-7" : ""
-      }`}
+      } ${wide ? "h-full" : ""}`}
     >
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-3xl font-bold text-slate-700 shadow-inner">
-          {getInitials(official.name)}
+        <div className="h-36 w-36 overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
+          <img
+            src={official.imageUrl}
+            alt={official.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
         </div>
 
         <span
