@@ -125,38 +125,14 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
   },
 ];
 
-function normalizeDistrict(rawValue: string | null | undefined, state?: string | null): string {
-  if (!rawValue) {
-    return state?.toLowerCase().includes("texas") || state?.toUpperCase() === "TX"
-      ? "TX-35"
-      : "N/A";
-  }
-
-  const raw = String(rawValue).trim().toUpperCase();
-  const stateCode = normalizeStateCode(state);
-
-  if (/^[A-Z]{2}-\d{1,2}$/.test(raw)) return raw;
-  if (raw === "35" && stateCode) return `${stateCode}-35`;
-
-  const prefixedMatch = raw.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
-  if (prefixedMatch?.[1] && prefixedMatch?.[2]) {
-    return `${prefixedMatch[1]}-${Number(prefixedMatch[2])}`;
-  }
-
-  const numericMatch = raw.match(/(\d{1,2})/);
-  if (numericMatch?.[1] && stateCode) {
-    return `${stateCode}-${Number(numericMatch[1])}`;
-  }
-
-  return raw;
-}
-
 function normalizeStateCode(state?: string | null): string {
   const value = String(state || "").trim().toLowerCase();
 
   const map: Record<string, string> = {
     texas: "TX",
     tx: "TX",
+    "new hampshire": "NH",
+    nh: "NH",
     california: "CA",
     ca: "CA",
     florida: "FL",
@@ -172,17 +148,44 @@ function normalizeStateName(state?: string | null): string {
   const value = String(state || "").trim().toLowerCase();
 
   const map: Record<string, string> = {
-    tx: "Texas",
     texas: "Texas",
-    ca: "California",
+    tx: "Texas",
+    "new hampshire": "New Hampshire",
+    nh: "New Hampshire",
     california: "California",
-    fl: "Florida",
+    ca: "California",
     florida: "Florida",
-    ny: "New York",
+    fl: "Florida",
     "new york": "New York",
+    ny: "New York",
   };
 
   return map[value] || String(state || "").trim() || "State";
+}
+
+function normalizeDistrict(
+  rawValue: string | null | undefined,
+  state?: string | null
+): string {
+  const raw = String(rawValue || "").trim().toUpperCase();
+  const stateCode = normalizeStateCode(state);
+
+  if (!raw) return stateCode || "N/A";
+
+  if (/^[A-Z]{2}$/.test(raw)) return raw;
+  if (/^[A-Z]{2}-\d{1,2}$/.test(raw)) return raw;
+
+  const prefixedMatch = raw.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
+  if (prefixedMatch?.[1] && prefixedMatch?.[2]) {
+    return `${prefixedMatch[1]}-${Number(prefixedMatch[2])}`;
+  }
+
+  const numericMatch = raw.match(/(\d{1,2})/);
+  if (numericMatch?.[1] && stateCode) {
+    return `${stateCode}-${Number(numericMatch[1])}`;
+  }
+
+  return raw;
 }
 
 function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
@@ -245,13 +248,19 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function mapCivicOfficial(input: any, profile: ProfileRow | null, district: string): Official | null {
+function mapCivicOfficial(
+  input: any,
+  profile: ProfileRow | null,
+  district: string
+): Official | null {
   if (!input?.name || !input?.title) return null;
 
   const stateName = normalizeStateName(profile?.state);
 
   return {
-    id: input.id || `${input.name}-${input.title}`.replace(/\s+/g, "-").toLowerCase(),
+    id:
+      input.id ||
+      `${input.name}-${input.title}`.replace(/\s+/g, "-").toLowerCase(),
     name: input.name,
     title: input.title,
     officeLabel: input.officeLabel || district || "District Office",
@@ -278,7 +287,9 @@ export default function MyRepresentativePage() {
   const [district, setDistrict] = useState("TX-35");
   const [dynamicPrimaryRepresentative, setDynamicPrimaryRepresentative] =
     useState<Official | null>(null);
-  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<Official[]>([]);
+  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<
+    Official[]
+  >([]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
@@ -303,25 +314,34 @@ export default function MyRepresentativePage() {
 
         const { data: profileRow } = await supabase
           .from("profiles")
-          .select("id, full_name, email, role, district, state, city, zip_code, street_address")
+          .select(
+            "id, full_name, email, role, district, state, city, zip_code, street_address"
+          )
           .eq("id", user.id)
           .single();
 
         if (!mounted) return;
 
         const mergedProfile = profileRow ?? null;
+        const rawState =
+          mergedProfile?.state ||
+          (user.user_metadata?.state as string | undefined) ||
+          null;
+
         const mergedDistrict =
           mergedProfile?.district ||
           (user.user_metadata?.district as string | undefined) ||
           (user.user_metadata?.district_name as string | undefined) ||
           (user.user_metadata?.district_id as string | undefined) ||
+          rawState ||
           "TX-35";
 
-        const normalizedDistrict = normalizeDistrict(mergedDistrict, mergedProfile?.state);
+        const normalizedDistrict = normalizeDistrict(mergedDistrict, rawState);
 
         setProfile(mergedProfile);
         setDistrict(normalizedDistrict);
 
+        let loadedStatewide: Official[] = [];
         const address = buildAddress(mergedProfile);
 
         if (address) {
@@ -343,16 +363,55 @@ export default function MyRepresentativePage() {
               );
 
               const mappedStatewide = Array.isArray(json?.statewideLeaders)
-                ? json.statewideLeaders
-                    .map((item: any) => mapCivicOfficial(item, mergedProfile, normalizedDistrict))
-                    .filter(Boolean) as Official[]
+                ? (json.statewideLeaders
+                    .map((item: any) =>
+                      mapCivicOfficial(item, mergedProfile, normalizedDistrict)
+                    )
+                    .filter(Boolean) as Official[])
                 : [];
 
               setDynamicPrimaryRepresentative(mappedPrimary);
               setDynamicStatewideLeaders(mappedStatewide);
+              loadedStatewide = mappedStatewide;
             }
           } catch (civicError) {
             console.error("Failed to load Google Civic representatives:", civicError);
+          }
+        }
+
+        const stateForLookup =
+          mergedProfile?.state ||
+          (user.user_metadata?.state as string | undefined) ||
+          (normalizedDistrict.length === 2 ? normalizedDistrict : "");
+
+        if (stateForLookup && (!address || loadedStatewide.length === 0)) {
+          try {
+            const stateResponse = await fetch(
+              `/api/civic/statewide?state=${encodeURIComponent(stateForLookup)}`,
+              { cache: "no-store" }
+            );
+
+            if (stateResponse.ok) {
+              const stateJson = await stateResponse.json();
+
+              if (!mounted) return;
+
+              const fallbackStatewide = Array.isArray(
+                stateJson?.statewideLeaders
+              )
+                ? (stateJson.statewideLeaders
+                    .map((item: any) =>
+                      mapCivicOfficial(item, mergedProfile, normalizedDistrict)
+                    )
+                    .filter(Boolean) as Official[])
+                : [];
+
+              if (fallbackStatewide.length > 0) {
+                setDynamicStatewideLeaders(fallbackStatewide);
+              }
+            }
+          } catch (stateError) {
+            console.error("Failed to load statewide leaders:", stateError);
           }
         }
       } catch (error) {
@@ -514,7 +573,9 @@ export default function MyRepresentativePage() {
                 <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-3">
                     <User2 className="h-5 w-5 text-slate-500" />
-                    <span className="text-sm text-slate-500">Visible Representatives</span>
+                    <span className="text-sm text-slate-500">
+                      Visible Representatives
+                    </span>
                   </div>
                   <div className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
                     {visibleRepresentativesCount}
@@ -568,7 +629,9 @@ export default function MyRepresentativePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
               Statewide Leadership
             </p>
-            <h3 className="mt-2 text-2xl font-bold text-slate-900">{stateHeading}</h3>
+            <h3 className="mt-2 text-2xl font-bold text-slate-900">
+              {stateHeading}
+            </h3>
 
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
               {statewideLeaders.map((official) => (
