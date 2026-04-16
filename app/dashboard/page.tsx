@@ -111,6 +111,27 @@ function normalizeStatus(status?: string | null) {
   return (status || "").trim().toLowerCase();
 }
 
+function normalizeDistrict(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
+function formatDistrictLabel(value?: string | null) {
+  const normalized = (value || "").trim().toUpperCase();
+
+  switch (normalized) {
+    case "TX-35":
+      return "TX-35";
+    case "NH":
+      return "NH";
+    case "NH-01":
+      return "NH-01";
+    case "NH-02":
+      return "NH-02";
+    default:
+      return value || "No district assigned";
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -127,7 +148,7 @@ export default function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
-  const [currentDistrict, setCurrentDistrict] = useState("District 12");
+  const [currentDistrict, setCurrentDistrict] = useState("");
 
   const [myComments, setMyComments] = useState<MyCommentRow[]>([]);
   const [myUpvotes, setMyUpvotes] = useState<MyUpvoteRow[]>([]);
@@ -242,12 +263,19 @@ export default function DashboardPage() {
             parsedGuest?.district ||
             parsedGuest?.district_name ||
             parsedGuest?.district_id ||
-            "District 12";
+            "";
 
           setUserName(guestName);
           setCurrentDistrict(guestDistrict);
           setMyComments([]);
           setMyUpvotes([]);
+
+          if (!guestDistrict) {
+            setIssues([]);
+            setPosts([]);
+            setDiscussions([]);
+            return;
+          }
 
           const [issuesRes, discussionsRes] = await Promise.all([
             supabase
@@ -345,11 +373,18 @@ export default function DashboardPage() {
         user.user_metadata?.district ||
         user.user_metadata?.district_name ||
         user.user_metadata?.district_id ||
-        "District 12";
+        "";
 
       setCurrentDistrict(resolvedDistrict);
 
       await loadMyActivity(user.id);
+
+      if (!resolvedDistrict) {
+        setIssues([]);
+        setPosts([]);
+        setDiscussions([]);
+        return;
+      }
 
       const [issuesRes, discussionsRes] = await Promise.all([
         supabase
@@ -567,14 +602,15 @@ export default function DashboardPage() {
   const openCount = issues.filter(
     (i) =>
       normalizeStatus(i.status) === "open" ||
-      normalizeStatus(i.status) === "active"
+      normalizeStatus(i.status) === "active" ||
+      normalizeStatus(i.status) === "approved"
   ).length;
 
   const underReviewCount = issues.filter(
     (i) => normalizeStatus(i.status) === "under_review"
   ).length;
 
-  const totalCount = posts.filter(
+  const totalCount = issues.length + posts.filter(
     (p) => normalizeStatus(p.status) === "active"
   ).length;
 
@@ -584,6 +620,7 @@ export default function DashboardPage() {
     if (status === "resolved") return "Resolved";
     if (status === "escalated") return "Escalated";
     if (status === "active") return "Active";
+    if (status === "approved") return "Approved";
     if (status === "removed") return "Removed";
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
@@ -617,7 +654,7 @@ export default function DashboardPage() {
 
   const mostActiveDistrict = useMemo(() => {
     const districts = feedItems
-      .map((i) => i.district || currentDistrict || "District 12")
+      .map((i) => i.district || currentDistrict || "")
       .filter(Boolean);
     return getTopValue(districts);
   }, [feedItems, currentDistrict]);
@@ -636,7 +673,7 @@ export default function DashboardPage() {
   const districtFeed = useMemo(() => {
     return feedItems.filter(
       (item) =>
-        (item.district || currentDistrict || "District 12") === currentDistrict
+        normalizeDistrict(item.district) === normalizeDistrict(currentDistrict)
     );
   }, [feedItems, currentDistrict]);
 
@@ -673,14 +710,14 @@ export default function DashboardPage() {
                       </h1>
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/80 md:text-base">
                         Explore district activity, community issues, and civic
-                        progress updates in {currentDistrict}.
+                        progress updates in {formatDistrictLabel(currentDistrict)}.
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white backdrop-blur">
                         <span className="font-semibold">Current district:</span>{" "}
-                        {currentDistrict}
+                        {formatDistrictLabel(currentDistrict)}
                       </div>
 
                       <button
@@ -848,7 +885,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-sm text-slate-500">District Insights</p>
                         <h2 className="mt-2 text-2xl font-bold text-slate-900 md:text-3xl">
-                          Insights for {currentDistrict}
+                          Insights for {formatDistrictLabel(currentDistrict)}
                         </h2>
                         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 md:text-base">
                           Real-time signals based on issue activity, category
@@ -874,7 +911,7 @@ export default function DashboardPage() {
                           <p className="text-sm">Most Active District</p>
                         </div>
                         <p className="mt-3 text-2xl font-bold text-slate-900">
-                          {mostActiveDistrict}
+                          {formatDistrictLabel(mostActiveDistrict)}
                         </p>
                       </div>
 
@@ -896,7 +933,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-sm text-slate-500">Trending Issues</p>
                         <h3 className="mt-1 text-xl font-bold text-slate-900 md:text-2xl">
-                          What’s trending in {currentDistrict}
+                          What’s trending in {formatDistrictLabel(currentDistrict)}
                         </h3>
                       </div>
 
@@ -922,7 +959,7 @@ export default function DashboardPage() {
                                       {title}
                                     </p>
                                     <p className="text-sm text-slate-500">
-                                      Recurring item in {currentDistrict}
+                                      Recurring item in {formatDistrictLabel(currentDistrict)}
                                     </p>
                                   </div>
                                 </div>
