@@ -19,34 +19,33 @@ type Official = {
   };
 };
 
-type CongressListMember = {
+type CongressMember = {
   bioguideId?: string;
   district?: number | string | null;
   name?: string;
   partyName?: string;
   state?: string;
-  terms?: any;
-  updateDate?: string;
+  terms?: {
+    item?: Array<{ chamber?: string }>;
+  } | Array<{ chamber?: string }>;
+  depiction?: {
+    imageUrl?: string;
+  };
+  officialWebsiteUrl?: string;
   url?: string;
 };
 
-type CongressListResponse = {
-  members?: CongressListMember[];
-  pagination?: {
-    count?: number;
-    next?: string;
-  };
+type CongressMemberListResponse = {
+  members?: CongressMember[];
 };
 
-type CongressDetailResponse = {
+type CongressMemberDetailResponse = {
   member?: any;
 };
 
 type OpenStatesPerson = {
   id?: string;
   name?: string;
-  given_name?: string;
-  family_name?: string;
   image?: string;
   party?: string[];
   current_role?: {
@@ -113,53 +112,46 @@ function normalizeStateName(state?: string | null): string {
 
 function parseDistrictNumber(district?: string | null): number | null {
   const raw = String(district || "").trim().toUpperCase();
-  if (!raw) return null;
-  if (/^[A-Z]{2}$/.test(raw)) return null;
+  if (!raw || /^[A-Z]{2}$/.test(raw)) return null;
 
   const match = raw.match(/(\d{1,2})/);
-  if (!match?.[1]) return null;
-
-  return Number(match[1]);
+  return match?.[1] ? Number(match[1]) : null;
 }
 
-function getCurrentChambers(terms: any): string[] {
-  const items = Array.isArray(terms)
-    ? terms
-    : Array.isArray(terms?.item)
-    ? terms.item
-    : [];
+function normalizePhotoUrl(url?: string) {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("http://")) return trimmed.replace("http://", "https://");
+  return trimmed;
+}
 
-  return items
-    .map((term: any) => String(term?.chamber || ""))
+function getTermsArray(terms: CongressMember["terms"]) {
+  if (Array.isArray(terms)) return terms;
+  if (Array.isArray(terms?.item)) return terms.item;
+  return [];
+}
+
+function getChambers(member: CongressMember) {
+  return getTermsArray(member.terms)
+    .map((term) => String(term?.chamber || "").toLowerCase())
     .filter(Boolean);
 }
 
-function isSenator(member: CongressListMember): boolean {
-  return getCurrentChambers(member.terms).some((chamber) =>
-    chamber.toLowerCase().includes("senate")
-  );
+function isSenator(member: CongressMember) {
+  return getChambers(member).some((c) => c.includes("senate"));
 }
 
-function isHouseMember(member: CongressListMember): boolean {
-  return getCurrentChambers(member.terms).some((chamber) =>
-    chamber.toLowerCase().includes("house")
-  );
+function isHouseMember(member: CongressMember) {
+  return getChambers(member).some((c) => c.includes("house"));
 }
 
 function firstDefined<T>(...values: Array<T | null | undefined>): T | undefined {
-  return values.find((v) => v !== undefined && v !== null);
+  return values.find((value) => value !== undefined && value !== null);
 }
 
-async function fetchCongressCurrentMembers(stateCode: string) {
-  const apiKey = process.env.CONGRESS_API_KEY;
-  if (!apiKey) throw new Error("Missing CONGRESS_API_KEY");
-
-  const url = new URL("https://api.congress.gov/v3/member");
-  url.searchParams.set("api_key", apiKey);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "600");
-  url.searchParams.set("currentMember", "true");
-
+async function fetchCongressJson(url: URL) {
   const response = await fetch(url.toString(), {
     headers: { Accept: "application/json" },
     next: { revalidate: 86400 },
@@ -167,91 +159,95 @@ async function fetchCongressCurrentMembers(stateCode: string) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Congress member list failed: ${text}`);
+    throw new Error(`Congress API failed: ${text}`);
   }
 
-  const data = (await response.json()) as CongressListResponse;
-  const members = Array.isArray(data.members) ? data.members : [];
-
-  return members.filter(
-    (member) => String(member.state || "").toUpperCase() === stateCode
-  );
+  return response.json();
 }
 
-async function fetchCongressMemberDetail(member: CongressListMember) {
+async function fetchCongressMembersByState(stateCode: string) {
   const apiKey = process.env.CONGRESS_API_KEY;
   if (!apiKey) throw new Error("Missing CONGRESS_API_KEY");
 
-  const detailUrl =
-    member.url ||
-    (member.bioguideId
-      ? `https://api.congress.gov/v3/member/${member.bioguideId}`
-      : "");
+  const url = new URL(`https://api.congress.gov/v3/member/${stateCode}`);
+  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("currentMember", "true");
 
-  if (!detailUrl) return null;
+  const data = (await fetchCongressJson(url)) as CongressMemberListResponse;
+  return Array.isArray(data.members) ? data.members : [];
+}
 
-  const url = new URL(detailUrl);
+async function fetchCongressMembersByStateDistrict(
+  stateCode: string,
+  districtNumber: number
+) {
+  const apiKey = process.env.CONGRESS_API_KEY;
+  if (!apiKey) throw new Error("Missing CONGRESS_API_KEY");
+
+  const url = new URL(`https://api.congress.gov/v3/member/${stateCode}/${districtNumber}`);
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("format", "json");
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-    next: { revalidate: 86400 },
-  });
+  const data = (await fetchCongressJson(url)) as CongressMemberListResponse;
+  return Array.isArray(data.members) ? data.members : [];
+}
 
-  if (!response.ok) return null;
+async function fetchCongressMemberDetail(bioguideId?: string) {
+  if (!bioguideId) return null;
 
-  const data = (await response.json()) as CongressDetailResponse;
+  const apiKey = process.env.CONGRESS_API_KEY;
+  if (!apiKey) throw new Error("Missing CONGRESS_API_KEY");
+
+  const url = new URL(`https://api.congress.gov/v3/member/${bioguideId}`);
+  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("format", "json");
+
+  const data = (await fetchCongressJson(url)) as CongressMemberDetailResponse;
   return data.member || null;
 }
 
 function mapCongressToOfficial(
-  member: CongressListMember,
+  member: CongressMember,
   detail: any,
   stateName: string,
   districtCode?: string
 ): Official {
-  const chambers = getCurrentChambers(member.terms);
-  const chamber = chambers[0] || "";
-  const isSen = chamber.toLowerCase().includes("senate");
+  const senator = isSenator(member);
 
-  const imageUrl = firstDefined(
-    detail?.depiction?.imageUrl,
-    detail?.imageUrl,
-    detail?.image,
-    ""
-  ) as string;
+  const imageUrl = normalizePhotoUrl(
+    firstDefined(
+      detail?.depiction?.imageUrl,
+      member?.depiction?.imageUrl,
+      detail?.imageUrl,
+      ""
+    ) as string
+  );
 
-  const website = firstDefined(
-    detail?.officialWebsiteUrl,
-    detail?.website,
-    detail?.url,
-    "#"
-  ) as string;
+  const website = String(
+    firstDefined(detail?.officialWebsiteUrl, member?.officialWebsiteUrl, detail?.url, "#") || "#"
+  );
 
   const phone = firstDefined(
     detail?.phone,
     detail?.addressInformation?.phoneNumber,
-    detail?.contact?.phone,
-    undefined
+    detail?.contact?.phone
   ) as string | undefined;
 
   return {
     id: String(member.bioguideId || member.name || Math.random()),
     name: String(member.name || "Member of Congress"),
-    title: isSen ? "U.S. Senator" : "U.S. Representative",
-    officeLabel: isSen
-      ? stateName
-      : districtCode || `${stateName} Congressional District`,
+    title: senator ? "U.S. Senator" : "U.S. Representative",
+    officeLabel: senator ? stateName : districtCode || `${stateName} Congressional District`,
     level: "federal",
-    district: isSen ? undefined : districtCode,
+    district: senator ? undefined : districtCode,
     state: stateName,
     party: member.partyName || undefined,
     website,
     contactUrl: website,
     phone,
-    imageUrl: imageUrl || "",
-    badge: isSen
+    imageUrl,
+    badge: senator
       ? { text: "Senate", tone: "red" }
       : { text: "House", tone: "blue" },
   };
@@ -284,15 +280,11 @@ async function geocodeAddress(address: string) {
   };
 }
 
-async function fetchOpenStatesGovernorByState(
-  stateName: string,
-  address?: string
-): Promise<Official | null> {
+async function fetchGovernor(stateName: string, address?: string): Promise<Official | null> {
   const apiKey = process.env.OPENSTATES_API_KEY;
   if (!apiKey) throw new Error("Missing OPENSTATES_API_KEY");
 
   let url: URL;
-
   const geo = address ? await geocodeAddress(address) : null;
 
   if (geo) {
@@ -332,13 +324,11 @@ async function fetchOpenStatesGovernorByState(
   if (!governor) return null;
 
   const phone =
-    governor.offices?.find((o) => o.voice)?.voice ||
+    governor.offices?.find((office) => office.voice)?.voice ||
     governor.offices?.[0]?.voice ||
     undefined;
 
-  const website =
-    governor.links?.find((l) => l.url)?.url ||
-    "#";
+  const website = governor.links?.find((link) => link.url)?.url || "#";
 
   return {
     id: governor.id || `openstates-${governor.name}`,
@@ -351,7 +341,7 @@ async function fetchOpenStatesGovernorByState(
     website,
     contactUrl: website,
     phone,
-    imageUrl: governor.image || "",
+    imageUrl: normalizePhotoUrl(governor.image),
     badge: {
       text: "State",
       tone: "green",
@@ -360,69 +350,75 @@ async function fetchOpenStatesGovernorByState(
 }
 
 export async function GET(req: NextRequest) {
+  const state = req.nextUrl.searchParams.get("state");
+  const district = req.nextUrl.searchParams.get("district");
+  const address = req.nextUrl.searchParams.get("address");
+
+  if (!state) {
+    return NextResponse.json({ error: "Missing state parameter." }, { status: 400 });
+  }
+
+  const stateCode = normalizeStateCode(state);
+  const stateName = normalizeStateName(state);
+  const districtNumber = parseDistrictNumber(district);
+  const districtCode =
+    districtNumber !== null ? `${stateCode}-${districtNumber}` : stateCode;
+
+  let districtRepresentative: Official | null = null;
+  let senators: Official[] = [];
+  let governor: Official | null = null;
+  const errors: string[] = [];
+
   try {
-    const state = req.nextUrl.searchParams.get("state");
-    const district = req.nextUrl.searchParams.get("district");
-    const address = req.nextUrl.searchParams.get("address");
+    const stateMembers = await fetchCongressMembersByState(stateCode);
+    const senatorMembers = stateMembers.filter(isSenator).slice(0, 2);
 
-    if (!state) {
-      return NextResponse.json(
-        { error: "Missing state parameter." },
-        { status: 400 }
+    senators = await Promise.all(
+      senatorMembers.map(async (member) => {
+        const detail = await fetchCongressMemberDetail(member.bioguideId);
+        return mapCongressToOfficial(member, detail, stateName);
+      })
+    );
+  } catch (error: any) {
+    errors.push(`senators: ${error?.message || "failed"}`);
+  }
+
+  if (districtNumber !== null) {
+    try {
+      const districtMembers = await fetchCongressMembersByStateDistrict(
+        stateCode,
+        districtNumber
       );
-    }
+      const houseMember = districtMembers.find(isHouseMember) || districtMembers[0] || null;
 
-    const stateCode = normalizeStateCode(state);
-    const stateName = normalizeStateName(state);
-    const districtNumber = parseDistrictNumber(district);
-    const districtCode =
-      districtNumber !== null ? `${stateCode}-${districtNumber}` : stateCode;
-
-    const members = await fetchCongressCurrentMembers(stateCode);
-
-    const senatorMembers = members.filter(isSenator);
-    const houseMembers = members.filter(isHouseMember);
-
-    const districtHouseMember =
-      districtNumber !== null
-        ? houseMembers.find((m) => Number(m.district) === districtNumber) || null
-        : houseMembers.length === 1
-        ? houseMembers[0]
-        : null;
-
-    const districtRepresentative = districtHouseMember
-      ? mapCongressToOfficial(
-          districtHouseMember,
-          await fetchCongressMemberDetail(districtHouseMember),
+      if (houseMember) {
+        const detail = await fetchCongressMemberDetail(houseMember.bioguideId);
+        districtRepresentative = mapCongressToOfficial(
+          houseMember,
+          detail,
           stateName,
           districtCode
-        )
-      : null;
-
-    const senators: Official[] = [];
-    for (const senator of senatorMembers.slice(0, 2)) {
-      const detail = await fetchCongressMemberDetail(senator);
-      senators.push(mapCongressToOfficial(senator, detail, stateName));
+        );
+      }
+    } catch (error: any) {
+      errors.push(`districtRepresentative: ${error?.message || "failed"}`);
     }
-
-    const governor = await fetchOpenStatesGovernorByState(stateName, address || undefined);
-
-    const statewideLeaders = governor ? [...senators, governor] : senators;
-
-    return NextResponse.json({
-      districtRepresentative,
-      statewideLeaders,
-      meta: {
-        stateCode,
-        stateName,
-        districtCode,
-      },
-    });
-  } catch (error: any) {
-    console.error("representatives route failed:", error);
-    return NextResponse.json(
-      { error: error?.message || "Failed to load representatives." },
-      { status: 500 }
-    );
   }
+
+  try {
+    governor = await fetchGovernor(stateName, address || undefined);
+  } catch (error: any) {
+    errors.push(`governor: ${error?.message || "failed"}`);
+  }
+
+  return NextResponse.json({
+    districtRepresentative,
+    statewideLeaders: governor ? [...senators, governor] : senators,
+    meta: {
+      stateCode,
+      stateName,
+      districtCode,
+      errors,
+    },
+  });
 }
