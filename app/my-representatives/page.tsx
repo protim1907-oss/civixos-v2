@@ -64,7 +64,7 @@ const DISTRICT_OFFICIALS: Record<string, Official> = {
     website: "https://casar.house.gov",
     contactUrl: "https://casar.house.gov/contact/offices",
     phone: "(202) 225-5645",
-    imageUrl: "https://historycms.house.gov/uploadedImages/People/Listing/C/C001131.jpg",
+    imageUrl: "/officials/greg-casar.jpg",
     badge: {
       text: "House",
       tone: "blue",
@@ -83,7 +83,7 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     website: "https://www.cruz.senate.gov",
     contactUrl: "https://www.cruz.senate.gov/contact/write-ted",
     phone: "(512) 916-5834",
-    imageUrl: "https://www.cruz.senate.gov/imo/media/image/cruz_headshot.jpg",
+    imageUrl: "/officials/ted-cruz.jpg",
     badge: {
       text: "Senate",
       tone: "red",
@@ -96,10 +96,10 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     officeLabel: "Statewide Office",
     level: "state",
     state: "Texas",
-    website: "https://gov.texas.gov",
+    website: "https://gov.texas.gov/",
     contactUrl: "https://gov.texas.gov/contact",
     phone: "(512) 463-2000",
-    imageUrl: "https://gov.texas.gov/uploads/images/general/2024-GovernorAbbott-Portrait.jpg",
+    imageUrl: "/officials/greg-abbott.jpg",
     badge: {
       text: "State",
       tone: "green",
@@ -112,10 +112,9 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     officeLabel: "Statewide Office",
     level: "state",
     state: "Texas",
-    website: "https://www.texasattorneygeneral.gov",
+    website: "https://www.texasattorneygeneral.gov/",
     contactUrl: "https://www.texasattorneygeneral.gov/about-office",
-    imageUrl:
-      "https://www.texasattorneygeneral.gov/sites/default/files/inline-images/ken_paxton_bio_thumb.jpg",
+    imageUrl: "/officials/ken-paxton.jpg",
     badge: {
       text: "State",
       tone: "green",
@@ -137,11 +136,11 @@ function normalizeDistrict(rawValue: string | null | undefined): string {
   if (raw === "CD-35") return "TX-35";
   if (raw === "TX35") return "TX-35";
 
-  const match = raw.match(/TX[\s-]?(\d{1,2})/);
-  if (match?.[1]) return `TX-${match[1]}`;
+  const txMatch = raw.match(/TX[\s-]?(\d{1,2})/);
+  if (txMatch?.[1]) return `TX-${txMatch[1]}`;
 
-  const genericDistrict = raw.match(/DISTRICT[\s-]?(\d{1,2})/);
-  if (genericDistrict?.[1]) return `TX-${genericDistrict[1]}`;
+  const districtMatch = raw.match(/DISTRICT[\s-]?(\d{1,2})/);
+  if (districtMatch?.[1]) return `TX-${districtMatch[1]}`;
 
   return raw;
 }
@@ -163,7 +162,7 @@ function buildAutoReply(official: Official, userText: string) {
   const text = userText.toLowerCase();
 
   if (text.includes("meeting") || text.includes("appointment")) {
-    return `I can help you prepare a meeting request for ${official.name}. Use the official contact page for scheduling, and include your district, topic, and preferred dates.`;
+    return `I can help you prepare a meeting request for ${official.name}. Include your district, the issue you want to discuss, and a few available dates before sending it to the official office.`;
   }
 
   if (
@@ -171,14 +170,14 @@ function buildAutoReply(official: Official, userText: string) {
     text.includes("problem") ||
     text.includes("complaint")
   ) {
-    return `Thanks for sharing that concern. A good next step is to summarize the issue in 3–4 sentences, explain who is affected, and include your ZIP code or district details before sending it to ${official.name}'s office.`;
+    return `A strong message to ${official.name}'s office should clearly explain the issue, who is affected, where it is happening, and the action you want the office to take.`;
   }
 
   if (text.includes("funding") || text.includes("grant")) {
-    return `${official.name}'s office may be able to direct you to the correct federal or state resource. Use the official website or contact page to ask for constituent services or program guidance.`;
+    return `${official.name}'s office may be able to direct you to the correct federal or state resource. Use the official website or contact page to request constituent services or program guidance.`;
   }
 
-  return `This is a demo constituent chat for ${official.name}. You can use it to draft a message, then send it through the official contact page.`;
+  return `This is a Civix250 drafting assistant for ${official.name}. Share your concern or request, and then send the final version through the official contact page.`;
 }
 
 export default function MyRepresentativePage() {
@@ -253,14 +252,6 @@ export default function MyRepresentativePage() {
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
 
-  function openOfficialWebsite(official: Official) {
-    window.open(official.website, "_blank", "noopener,noreferrer");
-  }
-
-  function openOfficialContact(official: Official) {
-    window.open(official.contactUrl, "_blank", "noopener,noreferrer");
-  }
-
   function startChat(official: Official) {
     setChatOfficial(official);
     setChatMessages([
@@ -319,7 +310,7 @@ export default function MyRepresentativePage() {
     );
   }
 
-  const titleName = profile?.full_name?.split(" ")[0] || "Citizen";
+  const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -404,7 +395,7 @@ export default function MyRepresentativePage() {
                     <span className="text-sm text-slate-500">Citizen</span>
                   </div>
                   <div className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
-                    {titleName}
+                    {firstName}
                   </div>
                 </div>
               </div>
@@ -435,8 +426,6 @@ export default function MyRepresentativePage() {
                     official={primaryRepresentative}
                     featured
                     onChat={startChat}
-                    onEmail={openOfficialContact}
-                    onWebsite={openOfficialWebsite}
                   />
                 </div>
               )}
@@ -456,8 +445,6 @@ export default function MyRepresentativePage() {
                   official={official}
                   wide
                   onChat={startChat}
-                  onEmail={openOfficialContact}
-                  onWebsite={openOfficialWebsite}
                 />
               ))}
             </div>
@@ -556,30 +543,32 @@ function OfficialCard({
   featured = false,
   wide = false,
   onChat,
-  onEmail,
-  onWebsite,
 }: {
   official: Official;
   featured?: boolean;
   wide?: boolean;
   onChat: (official: Official) => void;
-  onEmail: (official: Official) => void;
-  onWebsite: (official: Official) => void;
 }) {
+  const [imgSrc, setImgSrc] = useState(official.imageUrl);
+
+  useEffect(() => {
+    setImgSrc(official.imageUrl);
+  }, [official.imageUrl]);
+
   return (
     <div
       className={`rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm ${
         featured ? "md:p-7" : ""
       } ${wide ? "h-full" : ""}`}
     >
-      <div className="flex flex-col items-center text-center">
+      <div className="flex h-full flex-col items-center text-center">
         <div className="h-36 w-36 overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
           <img
-            src={official.imageUrl}
+            src={imgSrc}
             alt={official.name}
             className="h-full w-full object-cover"
             loading="lazy"
-            referrerPolicy="no-referrer"
+            onError={() => setImgSrc("/officials/fallback-avatar.jpg")}
           />
         </div>
 
@@ -611,21 +600,25 @@ function OfficialCard({
             Chat with Representative
           </button>
 
-          <button
-            onClick={() => onEmail(official)}
+          <a
+            href={official.contactUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
           >
             <Mail className="h-5 w-5" />
             Send Email
-          </button>
+          </a>
 
-          <button
-            onClick={() => onWebsite(official)}
+          <a
+            href={official.website}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
           >
             <ExternalLink className="h-5 w-5" />
             Official Website
-          </button>
+          </a>
         </div>
       </div>
     </div>
