@@ -68,6 +68,16 @@ type ProfileRow = {
   full_name?: string | null;
   name?: string | null;
   email?: string | null;
+  district?: string | null;
+  state?: string | null;
+};
+
+type RepresentativeRow = {
+  id?: string;
+  name?: string | null;
+  representative_name?: string | null;
+  full_name?: string | null;
+  district?: string | null;
 };
 
 type CommentMap = Record<string, CommentRow[]>;
@@ -205,19 +215,11 @@ function inferCategory(title: string, description: string) {
     return "Public Safety";
   }
 
-  if (
-    text.includes("bus") ||
-    text.includes("traffic") ||
-    text.includes("crossing")
-  ) {
+  if (text.includes("bus") || text.includes("traffic") || text.includes("crossing")) {
     return "Transportation";
   }
 
-  if (
-    text.includes("garbage") ||
-    text.includes("trash") ||
-    text.includes("waste")
-  ) {
+  if (text.includes("garbage") || text.includes("trash") || text.includes("waste")) {
     return "Sanitation";
   }
 
@@ -230,6 +232,8 @@ function normalizeIssueStatus(value?: string | null): FeedPost["status"] {
   if (v === "resolved") return "Resolved";
   if (v === "escalated") return "Escalated";
   if (v === "removed") return "Removed";
+  if (v === "active") return "Active";
+  if (v === "approved") return "Active";
   return "Open";
 }
 
@@ -253,7 +257,7 @@ function getProfileDisplayName(profile?: ProfileRow | null) {
 
 export default function FeedPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
@@ -261,9 +265,8 @@ export default function FeedPage() {
   const [urgencyFilter, setUrgencyFilter] = useState("All");
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
-  const [currentDistrict, setCurrentDistrict] = useState("District 12");
-  const [currentRepresentative, setCurrentRepresentative] =
-    useState("Representative");
+  const [currentDistrict, setCurrentDistrict] = useState("");
+  const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
   const [loading, setLoading] = useState(true);
   const [debugMessage, setDebugMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -282,53 +285,72 @@ export default function FeedPage() {
         setLoading(true);
         setDebugMessage("");
 
-        const { data } = await supabase.auth.getSession();
-        const session = data?.session;
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
         const guestUser =
           typeof window !== "undefined" ? localStorage.getItem("guest_user") : null;
 
-        let district = "District 12";
+        let district = "";
         let signedInUserId: string | null = null;
 
-        if (!session?.user && guestUser) {
+        if (session?.user) {
+          signedInUserId = session.user.id;
+
+          const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("id, full_name, name, email, district, state")
+            .eq("id", session.user.id)
+            .maybeSingle();
+
+          if (profileError) {
+            console.error("Feed profile load error:", profileError);
+          }
+
+          district =
+            (profileData as ProfileRow | null)?.district ||
+            session.user.user_metadata?.district ||
+            session.user.user_metadata?.district_name ||
+            session.user.user_metadata?.district_id ||
+            "";
+        } else if (guestUser) {
           try {
             const parsedGuest = JSON.parse(guestUser);
             district =
               parsedGuest?.district ||
               parsedGuest?.district_name ||
               parsedGuest?.district_id ||
-              "District 12";
+              "";
           } catch (error) {
             console.error("Guest parse error:", error);
           }
         }
 
-        if (session?.user) {
-          signedInUserId = session.user.id;
-          district =
-            session.user.user_metadata?.district ||
-            session.user.user_metadata?.district_name ||
-            session.user.user_metadata?.district_id ||
-            "District 12";
-        }
-
         setCurrentUserId(signedInUserId);
         setCurrentDistrict(district);
+
+        if (!district) {
+          setFeedPosts([]);
+          setDebugMessage("No district is assigned to this account yet.");
+          return;
+        }
 
         const { data: repsData, error: repsError } = await supabase
           .from("representatives")
           .select("*")
-          .limit(100);
+          .eq("district", district)
+          .limit(5);
 
         if (repsError) {
           console.error("Representative load error:", repsError);
         }
 
+        const representativeRows = (repsData as RepresentativeRow[]) || [];
         const representativeName =
-          repsData?.[0]?.name ||
-          repsData?.[0]?.representative_name ||
-          repsData?.[0]?.full_name ||
+          representativeRows[0]?.name ||
+          representativeRows[0]?.representative_name ||
+          representativeRows[0]?.full_name ||
           "Representative";
 
         setCurrentRepresentative(representativeName);
@@ -386,10 +408,7 @@ export default function FeedPage() {
           { data: commentsData, error: commentsError },
         ] = await Promise.all([
           issueIds.length
-            ? supabase
-                .from("issue_votes")
-                .select("issue_id, user_id")
-                .in("issue_id", issueIds)
+            ? supabase.from("issue_votes").select("issue_id, user_id").in("issue_id", issueIds)
             : Promise.resolve({ data: [], error: null }),
           issueIds.length
             ? supabase
@@ -462,8 +481,7 @@ export default function FeedPage() {
           title: issue.title || "Untitled issue",
           description: issue.description || "No description provided.",
           district: issue.district || district,
-          category:
-            issue.category || inferCategory(issue.title || "", issue.description || ""),
+          category: issue.category || inferCategory(issue.title || "", issue.description || ""),
           urgency: inferUrgency(issue.title || "", issue.description || ""),
           status: normalizeIssueStatus(issue.status),
           upvotes: voteCounts[issue.id] || 0,
@@ -527,19 +545,15 @@ export default function FeedPage() {
         post.category.toLowerCase().includes(q);
 
       const matchesType = typeFilter === "All" || post.category === typeFilter;
-      const matchesStatus =
-        statusFilter === "All" || post.status === statusFilter;
-      const matchesUrgency =
-        urgencyFilter === "All" || post.urgency === urgencyFilter;
+      const matchesStatus = statusFilter === "All" || post.status === statusFilter;
+      const matchesUrgency = urgencyFilter === "All" || post.urgency === urgencyFilter;
 
       return matchesSearch && matchesType && matchesStatus && matchesUrgency;
     });
   }, [feedPosts, search, typeFilter, statusFilter, urgencyFilter]);
 
   const availableCategories = useMemo(() => {
-    const categories = Array.from(
-      new Set(feedPosts.map((post) => post.category).filter(Boolean))
-    );
+    const categories = Array.from(new Set(feedPosts.map((post) => post.category).filter(Boolean)));
     return ["All", ...categories];
   }, [feedPosts]);
 
@@ -595,9 +609,7 @@ export default function FeedPage() {
             ? {
                 ...post,
                 hasUpvoted: !post.hasUpvoted,
-                upvotes: post.hasUpvoted
-                  ? Math.max(0, post.upvotes - 1)
-                  : post.upvotes + 1,
+                upvotes: post.hasUpvoted ? Math.max(0, post.upvotes - 1) : post.upvotes + 1,
               }
             : post
         )
@@ -725,9 +737,7 @@ export default function FeedPage() {
 
       setFeedPosts((prev) =>
         prev.map((post) =>
-          post.id === itemId
-            ? { ...post, comments: post.comments + 1 }
-            : post
+          post.id === itemId ? { ...post, comments: post.comments + 1 } : post
         )
       );
 
@@ -791,9 +801,7 @@ export default function FeedPage() {
 
       setFeedPosts((prev) =>
         prev.map((post) =>
-          post.id === itemId
-            ? { ...post, comments: post.comments + 1 }
-            : post
+          post.id === itemId ? { ...post, comments: post.comments + 1 } : post
         )
       );
 
@@ -818,16 +826,13 @@ export default function FeedPage() {
           <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
             <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
             <p className="mt-2 text-slate-600">
-              Browse civic issues, track status, and connect with your
-              representative in{" "}
+              Browse civic issues, track status, and connect with your representative in{" "}
               <span className="font-semibold text-slate-900">
                 {displayDistrictName(currentDistrict)}
               </span>
               .
             </p>
-            {debugMessage ? (
-              <p className="mt-3 text-sm text-amber-600">{debugMessage}</p>
-            ) : null}
+            {debugMessage ? <p className="mt-3 text-sm text-amber-600">{debugMessage}</p> : null}
           </div>
 
           <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
@@ -896,9 +901,7 @@ export default function FeedPage() {
                 return (
                   <div
                     key={post.id}
-                    className={`rounded-2xl bg-white p-6 shadow-sm ${getStatusStyles(
-                      post.status
-                    )}`}
+                    className={`rounded-2xl bg-white p-6 shadow-sm ${getStatusStyles(post.status)}`}
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="flex-1">
@@ -932,9 +935,7 @@ export default function FeedPage() {
                           </span>
                         </div>
 
-                        <h2 className="text-xl font-bold text-slate-900">
-                          {post.title}
-                        </h2>
+                        <h2 className="text-xl font-bold text-slate-900">{post.title}</h2>
 
                         <p className="mt-3 text-slate-600">{post.description}</p>
 
@@ -969,9 +970,7 @@ export default function FeedPage() {
                             className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
                           >
                             <span className="text-base">↗</span>
-                            <span>
-                              {sharingIssueId === itemId ? "Sharing..." : "Share"}
-                            </span>
+                            <span>{sharingIssueId === itemId ? "Sharing..." : "Share"}</span>
                           </button>
 
                           <span>Representative: {post.representative}</span>
@@ -979,9 +978,7 @@ export default function FeedPage() {
 
                         {commentsOpen && (
                           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <h3 className="text-sm font-semibold text-slate-900">
-                              Comments
-                            </h3>
+                            <h3 className="text-sm font-semibold text-slate-900">Comments</h3>
 
                             <div className="mt-3 flex gap-3">
                               <input
@@ -1000,28 +997,20 @@ export default function FeedPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSubmitComment(itemId)}
-                                disabled={
-                                  submittingCommentFor === itemId ||
-                                  !draft.trim()
-                                }
+                                disabled={submittingCommentFor === itemId || !draft.trim()}
                                 className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                {submittingCommentFor === itemId
-                                  ? "Posting..."
-                                  : "Post"}
+                                {submittingCommentFor === itemId ? "Posting..." : "Post"}
                               </button>
                             </div>
 
                             <div className="mt-4 space-y-3">
                               {itemComments.length === 0 ? (
-                                <p className="text-sm text-slate-500">
-                                  No comments yet.
-                                </p>
+                                <p className="text-sm text-slate-500">No comments yet.</p>
                               ) : (
                                 itemComments.map((comment, idx) => {
                                   const commenterName =
-                                    (comment.user_id &&
-                                      commenterNames[comment.user_id]) ||
+                                    (comment.user_id && commenterNames[comment.user_id]) ||
                                     "Citizen";
 
                                   return (
@@ -1032,14 +1021,10 @@ export default function FeedPage() {
                                       <div className="font-semibold text-slate-900">
                                         {commenterName}
                                       </div>
-                                      <div className="mt-1">
-                                        {comment.content || "No comment text"}
-                                      </div>
+                                      <div className="mt-1">{comment.content || "No comment text"}</div>
                                       {comment.created_at ? (
                                         <div className="mt-1 text-xs text-slate-400">
-                                          {new Date(
-                                            comment.created_at
-                                          ).toLocaleString()}
+                                          {new Date(comment.created_at).toLocaleString()}
                                         </div>
                                       ) : null}
                                     </div>
@@ -1054,9 +1039,7 @@ export default function FeedPage() {
                       <div className="flex w-full flex-col gap-3 lg:w-64">
                         <button
                           onClick={() =>
-                            router.push(
-                              `/chat/${encodeURIComponent(post.representative)}`
-                            )
+                            router.push(`/chat/${encodeURIComponent(post.representative)}`)
                           }
                           className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
                         >
@@ -1065,9 +1048,7 @@ export default function FeedPage() {
 
                         <button
                           onClick={() =>
-                            router.push(
-                              `/chat/${encodeURIComponent(post.representative)}`
-                            )
+                            router.push(`/chat/${encodeURIComponent(post.representative)}`)
                           }
                           className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
@@ -1106,16 +1087,12 @@ export default function FeedPage() {
 
           {!loading && filteredPosts.length > 0 && (
             <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm">
-              Showing {filteredPosts.length} item
-              {filteredPosts.length === 1 ? "" : "s"} for{" "}
+              Showing {filteredPosts.length} item{filteredPosts.length === 1 ? "" : "s"} for{" "}
               <span className="font-semibold text-slate-700">
                 {displayDistrictName(currentDistrict)}
               </span>
               . Primary representative:{" "}
-              <span className="font-semibold text-slate-700">
-                {currentRepresentative}
-              </span>
-              .
+              <span className="font-semibold text-slate-700">{currentRepresentative}</span>.
             </div>
           )}
         </div>
