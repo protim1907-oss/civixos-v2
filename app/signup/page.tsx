@@ -174,17 +174,26 @@ export default function SignupPage() {
 
     setLoading(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedFullName = fullName.trim();
+    const normalizedState = state.trim();
+    const normalizedStreetAddress = streetAddress.trim();
+    const normalizedCity = city.trim();
+    const normalizedDistrict = selectedDistrict.trim();
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         data: {
-          full_name: fullName.trim(),
-          state: state.trim(),
-          street_address: streetAddress.trim(),
-          city: city.trim(),
+          full_name: normalizedFullName,
+          state: normalizedState,
+          street_address: normalizedStreetAddress,
+          city: normalizedCity,
           zip_code: normalizedZip,
-          district_id: selectedDistrict,
+          district: normalizedDistrict,
+          district_id: normalizedDistrict,
+          matched_address: matchedAddress || null,
           role: "citizen",
         },
       },
@@ -209,6 +218,27 @@ export default function SignupPage() {
       setError(error.message);
       setLoading(false);
       return;
+    }
+
+    const signedUpUser = data?.user;
+
+    if (signedUpUser?.id) {
+      const profilePayload = {
+        id: signedUpUser.id,
+        full_name: normalizedFullName,
+        email: normalizedEmail,
+        role: "citizen",
+        district: normalizedDistrict,
+        state: normalizedState,
+      };
+
+      const { error: profileUpsertError } = await supabase
+        .from("profiles")
+        .upsert(profilePayload, { onConflict: "id" });
+
+      if (profileUpsertError) {
+        console.error("Profile upsert error after signup:", profileUpsertError);
+      }
     }
 
     if (!data.session) {
@@ -352,7 +382,9 @@ export default function SignupPage() {
       {showDistrictConfirmation ? (
         <div className="mb-4 rounded-lg border bg-slate-50 px-4 py-4">
           <div className="flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium">Confirm your district</label>
+            <label className="block text-sm font-medium">
+              Confirm your district
+            </label>
             <button
               type="button"
               onClick={handleResolveDistrict}
@@ -395,7 +427,7 @@ export default function SignupPage() {
       <button
         onClick={handleSignup}
         disabled={loading}
-        className="w-full bg-black text-white py-3 rounded-lg"
+        className="w-full bg-black text-white py-3 rounded-lg disabled:opacity-60"
       >
         {loading ? "Creating..." : "Create account"}
       </button>
