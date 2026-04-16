@@ -24,6 +24,9 @@ type ProfileRow = {
   role: string | null;
   district: string | null;
   state: string | null;
+  city: string | null;
+  zip_code: string | null;
+  street_address?: string | null;
 };
 
 type Official = {
@@ -32,12 +35,10 @@ type Official = {
   title: string;
   officeLabel: string;
   level: "federal" | "state";
-  district?: string;
-  state: string;
-  party?: string;
   website: string;
   contactUrl: string;
   phone?: string;
+  email?: string;
   imageUrl: string;
   badge: {
     text: string;
@@ -50,100 +51,6 @@ type ChatMessage = {
   sender: "user" | "assistant";
   text: string;
 };
-
-const DISTRICT_OFFICIALS: Record<string, Official> = {
-  "TX-35": {
-    id: "greg-casar",
-    name: "Greg Casar",
-    title: "U.S. Representative",
-    officeLabel: "Texas 35th Congressional District",
-    level: "federal",
-    district: "TX-35",
-    state: "Texas",
-    party: "Democrat",
-    website: "https://casar.house.gov",
-    contactUrl: "https://casar.house.gov/contact/offices",
-    phone: "(202) 225-5645",
-    imageUrl: "/officials/greg-casar.jpg",
-    badge: {
-      text: "House",
-      tone: "blue",
-    },
-  },
-};
-
-const TEXAS_STATEWIDE_LEADERS: Official[] = [
-  {
-    id: "ted-cruz",
-    name: "Ted Cruz",
-    title: "U.S. Senator",
-    officeLabel: "Texas",
-    level: "federal",
-    state: "Texas",
-    website: "https://www.cruz.senate.gov",
-    contactUrl: "https://www.cruz.senate.gov/contact/write-ted",
-    phone: "(512) 916-5834",
-    imageUrl: "/officials/ted-cruz.jpg",
-    badge: {
-      text: "Senate",
-      tone: "red",
-    },
-  },
-  {
-    id: "greg-abbott",
-    name: "Greg Abbott",
-    title: "Governor of Texas",
-    officeLabel: "Statewide Office",
-    level: "state",
-    state: "Texas",
-    website: "https://gov.texas.gov/",
-    contactUrl: "https://gov.texas.gov/contact",
-    phone: "(512) 463-2000",
-    imageUrl: "/officials/greg-abbott.jpg",
-    badge: {
-      text: "State",
-      tone: "green",
-    },
-  },
-  {
-    id: "ken-paxton",
-    name: "Ken Paxton",
-    title: "Attorney General of Texas",
-    officeLabel: "Statewide Office",
-    level: "state",
-    state: "Texas",
-    website: "https://www.texasattorneygeneral.gov/",
-    contactUrl: "https://www.texasattorneygeneral.gov/about-office",
-    imageUrl: "/officials/ken-paxton.jpg",
-    badge: {
-      text: "State",
-      tone: "green",
-    },
-  },
-];
-
-function normalizeDistrict(rawValue: string | null | undefined): string {
-  if (!rawValue) return "TX-35";
-
-  const raw = String(rawValue).trim().toUpperCase();
-
-  if (raw === "TX-35") return "TX-35";
-  if (raw === "35") return "TX-35";
-  if (raw === "DISTRICT 35") return "TX-35";
-  if (raw === "TEXAS DISTRICT 35") return "TX-35";
-  if (raw === "TEXAS-35") return "TX-35";
-  if (raw === "TEXAS 35") return "TX-35";
-  if (raw === "CD-35") return "TX-35";
-  if (raw === "TX35") return "TX-35";
-
-  const txMatch = raw.match(/TX[\s-]?(\d{1,2})/);
-  if (txMatch?.[1]) return `TX-${txMatch[1]}`;
-
-  const districtMatch = raw.match(/DISTRICT[\s-]?(\d{1,2})/);
-  if (districtMatch?.[1]) return `TX-${districtMatch[1]}`;
-
-  return raw;
-}
 
 function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
   switch (tone) {
@@ -158,11 +65,26 @@ function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
   }
 }
 
+function buildAddress(profile: ProfileRow | null) {
+  if (!profile) return "";
+
+  const parts = [
+    profile.street_address || "",
+    profile.city || "",
+    profile.state || "",
+    profile.zip_code || "",
+  ]
+    .map((x) => x?.trim())
+    .filter(Boolean);
+
+  return parts.join(", ");
+}
+
 function buildAutoReply(official: Official, userText: string) {
   const text = userText.toLowerCase();
 
   if (text.includes("meeting") || text.includes("appointment")) {
-    return `I can help you prepare a meeting request for ${official.name}. Include your district, the issue you want to discuss, and a few available dates before sending it to the official office.`;
+    return `I can help you prepare a meeting request for ${official.name}. Include your district, the topic, and a few possible dates.`;
   }
 
   if (
@@ -170,14 +92,10 @@ function buildAutoReply(official: Official, userText: string) {
     text.includes("problem") ||
     text.includes("complaint")
   ) {
-    return `A strong message to ${official.name}'s office should clearly explain the issue, who is affected, where it is happening, and the action you want the office to take.`;
+    return `A strong message to ${official.name}'s office should explain the issue, where it is happening, who is affected, and the action you want the office to take.`;
   }
 
-  if (text.includes("funding") || text.includes("grant")) {
-    return `${official.name}'s office may be able to direct you to the correct federal or state resource. Use the official website or contact page to request constituent services or program guidance.`;
-  }
-
-  return `This is a Civix250 drafting assistant for ${official.name}. Share your concern or request, and then send the final version through the official contact page.`;
+  return `This is a Civix250 drafting assistant for ${official.name}. Share your concern or request, then send the final version through the official contact page.`;
 }
 
 export default function MyRepresentativePage() {
@@ -186,7 +104,8 @@ export default function MyRepresentativePage() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [district, setDistrict] = useState("TX-35");
+  const [districtRepresentative, setDistrictRepresentative] = useState<Official | null>(null);
+  const [statewideLeaders, setStatewideLeaders] = useState<Official[]>([]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
@@ -211,24 +130,33 @@ export default function MyRepresentativePage() {
 
         const { data: profileRow } = await supabase
           .from("profiles")
-          .select("id, full_name, email, role, district, state")
+          .select("id, full_name, email, role, district, state, city, zip_code, street_address")
           .eq("id", user.id)
           .single();
 
         if (!mounted) return;
 
-        const mergedDistrict =
-          profileRow?.district ||
-          (user.user_metadata?.district as string | undefined) ||
-          (user.user_metadata?.district_name as string | undefined) ||
-          (user.user_metadata?.district_id as string | undefined) ||
-          "TX-35";
+        const mergedProfile: ProfileRow | null = profileRow ?? null;
+        setProfile(mergedProfile);
 
-        setProfile(profileRow ?? null);
-        setDistrict(normalizeDistrict(mergedDistrict));
+        const address = buildAddress(mergedProfile);
+        if (!address) {
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(
+          `/api/civic/representatives?address=${encodeURIComponent(address)}`
+        );
+
+        const json = await res.json();
+
+        if (!mounted) return;
+
+        setDistrictRepresentative(json.districtRepresentative ?? null);
+        setStatewideLeaders(json.statewideLeaders ?? []);
       } catch (error) {
         console.error("Failed to load representative page:", error);
-        setDistrict("TX-35");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -241,16 +169,12 @@ export default function MyRepresentativePage() {
     };
   }, [router, supabase]);
 
-  const primaryRepresentative = useMemo(() => {
-    return DISTRICT_OFFICIALS[district] ?? null;
-  }, [district]);
-
-  const statewideLeaders = useMemo(() => {
-    return district.startsWith("TX-") ? TEXAS_STATEWIDE_LEADERS : [];
-  }, [district]);
-
   const visibleRepresentativesCount =
-    (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
+    (districtRepresentative ? 1 : 0) + statewideLeaders.length;
+
+  const firstName = useMemo(() => {
+    return profile?.full_name?.split(" ")[0] || "Citizen";
+  }, [profile]);
 
   function startChat(official: Official) {
     setChatOfficial(official);
@@ -310,8 +234,6 @@ export default function MyRepresentativePage() {
     );
   }
 
-  const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
-
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto flex max-w-[1700px]">
@@ -326,9 +248,7 @@ export default function MyRepresentativePage() {
               My Representative
             </h1>
             <p className="max-w-4xl text-sm text-slate-600">
-              Federal, state, and statewide leaders relevant to your district are shown
-              below. You can review office details, open official websites, and draft a
-              constituent message.
+              Representatives are loaded dynamically from your saved address.
             </p>
           </div>
 
@@ -340,20 +260,20 @@ export default function MyRepresentativePage() {
                 </p>
 
                 <h2 className="mt-3 text-3xl font-bold text-slate-900">
-                  {primaryRepresentative
-                    ? `${primaryRepresentative.name} is assigned to ${district}`
+                  {districtRepresentative
+                    ? `${districtRepresentative.name} is assigned to your district`
                     : "Representative assignment pending"}
                 </h2>
 
                 <p className="mt-3 max-w-2xl text-base leading-8 text-slate-700">
-                  {primaryRepresentative
-                    ? `${primaryRepresentative.name} currently serves ${primaryRepresentative.officeLabel}. You can chat with the office, open the official website, or use the contact page to submit a formal message.`
-                    : `We are preparing representative information for ${district}.`}
+                  {districtRepresentative
+                    ? `${districtRepresentative.name} currently serves as ${districtRepresentative.title}.`
+                    : "We could not load representative data for this address yet."}
                 </p>
 
                 <div className="mt-6 rounded-2xl border border-white/80 bg-white/90 px-5 py-4 text-sm text-slate-700 shadow-sm">
-                  {primaryRepresentative
-                    ? `${primaryRepresentative.title} • ${primaryRepresentative.officeLabel}`
+                  {districtRepresentative
+                    ? `${districtRepresentative.title}`
                     : "Representative details unavailable."}
                 </div>
               </div>
@@ -362,10 +282,10 @@ export default function MyRepresentativePage() {
                 <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-3">
                     <MapPinned className="h-5 w-5 text-slate-500" />
-                    <span className="text-sm text-slate-500">District</span>
+                    <span className="text-sm text-slate-500">State</span>
                   </div>
                   <div className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
-                    {district}
+                    {profile?.state || "N/A"}
                   </div>
                 </div>
 
@@ -375,7 +295,7 @@ export default function MyRepresentativePage() {
                     <span className="text-sm text-slate-500">Primary Office</span>
                   </div>
                   <div className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
-                    {primaryRepresentative ? primaryRepresentative.name : "Pending"}
+                    {districtRepresentative?.name ?? "Pending"}
                   </div>
                 </div>
 
@@ -402,7 +322,7 @@ export default function MyRepresentativePage() {
             </section>
 
             <section>
-              {primaryRepresentative && (
+              {districtRepresentative && (
                 <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="mb-5 flex items-center justify-between gap-3">
                     <div>
@@ -410,23 +330,19 @@ export default function MyRepresentativePage() {
                         Assigned District Representative
                       </p>
                       <h3 className="mt-2 text-2xl font-bold text-slate-900">
-                        {primaryRepresentative.officeLabel}
+                        {districtRepresentative.title}
                       </h3>
                     </div>
                     <span
                       className={`rounded-full border px-3 py-1 text-xs font-semibold ${getBadgeClasses(
-                        primaryRepresentative.badge.tone
+                        districtRepresentative.badge.tone
                       )}`}
                     >
-                      {primaryRepresentative.badge.text}
+                      {districtRepresentative.badge.text}
                     </span>
                   </div>
 
-                  <OfficialCard
-                    official={primaryRepresentative}
-                    featured
-                    onChat={startChat}
-                  />
+                  <OfficialCard official={districtRepresentative} onChat={startChat} />
                 </div>
               )}
             </section>
@@ -436,16 +352,13 @@ export default function MyRepresentativePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
               Statewide Leadership
             </p>
-            <h3 className="mt-2 text-2xl font-bold text-slate-900">Texas</h3>
+            <h3 className="mt-2 text-2xl font-bold text-slate-900">
+              {profile?.state ?? "State"}
+            </h3>
 
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
               {statewideLeaders.map((official) => (
-                <OfficialCard
-                  key={official.id}
-                  official={official}
-                  wide
-                  onChat={startChat}
-                />
+                <OfficialCard key={official.id} official={official} onChat={startChat} />
               ))}
             </div>
           </section>
@@ -464,7 +377,7 @@ export default function MyRepresentativePage() {
                   {chatOfficial.name}
                 </h4>
                 <p className="mt-1 text-sm text-slate-600">
-                  {chatOfficial.title} • {chatOfficial.officeLabel}
+                  {chatOfficial.title}
                 </p>
               </div>
 
@@ -540,27 +453,19 @@ export default function MyRepresentativePage() {
 
 function OfficialCard({
   official,
-  featured = false,
-  wide = false,
   onChat,
 }: {
   official: Official;
-  featured?: boolean;
-  wide?: boolean;
   onChat: (official: Official) => void;
 }) {
-  const [imgSrc, setImgSrc] = useState(official.imageUrl);
+  const [imgSrc, setImgSrc] = useState(official.imageUrl || "/officials/fallback-avatar.jpg");
 
   useEffect(() => {
-    setImgSrc(official.imageUrl);
+    setImgSrc(official.imageUrl || "/officials/fallback-avatar.jpg");
   }, [official.imageUrl]);
 
   return (
-    <div
-      className={`rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm ${
-        featured ? "md:p-7" : ""
-      } ${wide ? "h-full" : ""}`}
-    >
+    <div className="h-full rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex h-full flex-col items-center text-center">
         <div className="h-36 w-36 overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
           <img
@@ -568,6 +473,7 @@ function OfficialCard({
             alt={official.name}
             className="h-full w-full object-cover"
             loading="lazy"
+            referrerPolicy="no-referrer"
             onError={() => setImgSrc("/officials/fallback-avatar.jpg")}
           />
         </div>
@@ -585,7 +491,6 @@ function OfficialCard({
         </h4>
 
         <p className="mt-2 text-lg text-slate-700">{official.title}</p>
-        <p className="mt-1 text-base text-slate-500">{official.officeLabel}</p>
 
         {official.phone ? (
           <p className="mt-3 text-sm font-medium text-slate-600">{official.phone}</p>
@@ -601,7 +506,7 @@ function OfficialCard({
           </button>
 
           <a
-            href={official.contactUrl}
+            href={official.contactUrl || official.website || "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
@@ -611,7 +516,7 @@ function OfficialCard({
           </a>
 
           <a
-            href={official.website}
+            href={official.website || "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
