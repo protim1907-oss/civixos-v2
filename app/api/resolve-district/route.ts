@@ -19,41 +19,46 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
 
   if (!first) return null;
 
-  const code =
+  const rawCode =
     first.CD118 ||
     first.BASENAME ||
     first.GEOID?.slice(-2) ||
     "";
 
+  if (!rawCode) return null;
+
+  const normalizedCode = String(Number(rawCode)).padStart(2, "0");
+
   const label =
     first.NAME ||
-    (code ? `Congressional District ${code}` : "Congressional District");
-
-  if (!code) return null;
+    `Congressional District ${Number(normalizedCode)}`;
 
   return {
-    value: code.startsWith("0") ? `${code}` : code,
+    value: normalizedCode,
     label,
   };
 }
 
-function buildDistrictId(state: string, districtCode: string) {
+function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
     Texas: "TX",
     "New Hampshire": "NH",
     California: "CA",
+    Florida: "FL",
+    "New York": "NY",
   };
 
-  const stateAbbr = stateCodeMap[state] || state.slice(0, 2).toUpperCase();
+  return stateCodeMap[state] || state.slice(0, 2).toUpperCase();
+}
 
-  if (state === "New Hampshire") {
-    return "NH";
-  }
+function buildDistrictId(state: string, districtCode: string) {
+  const stateAbbr = getStateAbbr(state);
+  const normalizedCode = String(Number(districtCode));
+  return `${stateAbbr}-${normalizedCode}`;
+}
 
-  const padded =
-    districtCode.length === 1 ? `0${districtCode}` : districtCode;
-
-  return `${stateAbbr}-${Number(padded)}`;
+function buildDistrictLabel(state: string, districtCode: string, districtId: string) {
+  return `${state} Congressional District ${Number(districtCode)} (${districtId})`;
 }
 
 export async function POST(request: Request) {
@@ -116,14 +121,16 @@ export async function POST(request: Request) {
     }
 
     const districtId = buildDistrictId(String(state), String(district.value));
+    const districtLabel = buildDistrictLabel(
+      String(state),
+      String(district.value),
+      districtId
+    );
 
     return NextResponse.json({
       district: {
         value: districtId,
-        label:
-          state === "New Hampshire"
-            ? "New Hampshire"
-            : `${state} ${district.label} (${districtId})`,
+        label: districtLabel,
       },
       matchedAddress: match.matchedAddress || null,
       coordinates: match.coordinates || null,
