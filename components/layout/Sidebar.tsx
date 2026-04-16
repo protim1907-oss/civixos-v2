@@ -13,6 +13,7 @@ import {
   UserCircle2,
   Activity,
   BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
@@ -189,6 +190,11 @@ export default function Sidebar() {
       href: "/create-post",
       label: "Create Post",
       icon: MessageSquareText,
+    },
+    {
+      href: "/policy-pulse",
+      label: "Policy Pulse",
+      icon: ShieldCheck,
     },
     {
       href: "/trending-posts",
