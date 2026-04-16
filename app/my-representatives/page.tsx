@@ -24,6 +24,9 @@ type ProfileRow = {
   role: string | null;
   district: string | null;
   state: string | null;
+  city?: string | null;
+  zip_code?: string | null;
+  street_address?: string | null;
 };
 
 type Official = {
@@ -122,27 +125,64 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
   },
 ];
 
-function normalizeDistrict(rawValue: string | null | undefined): string {
-  if (!rawValue) return "TX-35";
+function normalizeDistrict(rawValue: string | null | undefined, state?: string | null): string {
+  if (!rawValue) {
+    return state?.toLowerCase().includes("texas") || state?.toUpperCase() === "TX"
+      ? "TX-35"
+      : "N/A";
+  }
 
   const raw = String(rawValue).trim().toUpperCase();
+  const stateCode = normalizeStateCode(state);
 
-  if (raw === "TX-35") return "TX-35";
-  if (raw === "35") return "TX-35";
-  if (raw === "DISTRICT 35") return "TX-35";
-  if (raw === "TEXAS DISTRICT 35") return "TX-35";
-  if (raw === "TEXAS-35") return "TX-35";
-  if (raw === "TEXAS 35") return "TX-35";
-  if (raw === "CD-35") return "TX-35";
-  if (raw === "TX35") return "TX-35";
+  if (/^[A-Z]{2}-\d{1,2}$/.test(raw)) return raw;
+  if (raw === "35" && stateCode) return `${stateCode}-35`;
 
-  const txMatch = raw.match(/TX[\s-]?(\d{1,2})/);
-  if (txMatch?.[1]) return `TX-${txMatch[1]}`;
+  const prefixedMatch = raw.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
+  if (prefixedMatch?.[1] && prefixedMatch?.[2]) {
+    return `${prefixedMatch[1]}-${Number(prefixedMatch[2])}`;
+  }
 
-  const districtMatch = raw.match(/DISTRICT[\s-]?(\d{1,2})/);
-  if (districtMatch?.[1]) return `TX-${districtMatch[1]}`;
+  const numericMatch = raw.match(/(\d{1,2})/);
+  if (numericMatch?.[1] && stateCode) {
+    return `${stateCode}-${Number(numericMatch[1])}`;
+  }
 
   return raw;
+}
+
+function normalizeStateCode(state?: string | null): string {
+  const value = String(state || "").trim().toLowerCase();
+
+  const map: Record<string, string> = {
+    texas: "TX",
+    tx: "TX",
+    california: "CA",
+    ca: "CA",
+    florida: "FL",
+    fl: "FL",
+    "new york": "NY",
+    ny: "NY",
+  };
+
+  return map[value] || String(state || "").trim().toUpperCase();
+}
+
+function normalizeStateName(state?: string | null): string {
+  const value = String(state || "").trim().toLowerCase();
+
+  const map: Record<string, string> = {
+    tx: "Texas",
+    texas: "Texas",
+    ca: "California",
+    california: "California",
+    fl: "Florida",
+    florida: "Florida",
+    ny: "New York",
+    "new york": "New York",
+  };
+
+  return map[value] || String(state || "").trim() || "State";
 }
 
 function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
@@ -180,6 +220,55 @@ function buildAutoReply(official: Official, userText: string) {
   return `This is a Civix250 drafting assistant for ${official.name}. Share your concern or request, and then send the final version through the official contact page.`;
 }
 
+function buildAddress(profile: ProfileRow | null) {
+  if (!profile) return "";
+
+  const parts = [
+    profile.street_address || "",
+    profile.city || "",
+    profile.state || "",
+    profile.zip_code || "",
+  ]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+
+  return parts.join(", ");
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function mapCivicOfficial(input: any, profile: ProfileRow | null, district: string): Official | null {
+  if (!input?.name || !input?.title) return null;
+
+  const stateName = normalizeStateName(profile?.state);
+
+  return {
+    id: input.id || `${input.name}-${input.title}`.replace(/\s+/g, "-").toLowerCase(),
+    name: input.name,
+    title: input.title,
+    officeLabel: input.officeLabel || district || "District Office",
+    level: input.level === "state" ? "state" : "federal",
+    district: district || undefined,
+    state: stateName,
+    website: input.website || "#",
+    contactUrl: input.contactUrl || input.website || "#",
+    phone: input.phone || undefined,
+    imageUrl: input.imageUrl || "",
+    badge: {
+      text: input.badge?.text || "Office",
+      tone: input.badge?.tone || "slate",
+    },
+  };
+}
+
 export default function MyRepresentativePage() {
   const router = useRouter();
   const supabase = createClient();
@@ -187,6 +276,9 @@ export default function MyRepresentativePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [district, setDistrict] = useState("TX-35");
+  const [dynamicPrimaryRepresentative, setDynamicPrimaryRepresentative] =
+    useState<Official | null>(null);
+  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<Official[]>([]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
@@ -211,21 +303,58 @@ export default function MyRepresentativePage() {
 
         const { data: profileRow } = await supabase
           .from("profiles")
-          .select("id, full_name, email, role, district, state")
+          .select("id, full_name, email, role, district, state, city, zip_code, street_address")
           .eq("id", user.id)
           .single();
 
         if (!mounted) return;
 
+        const mergedProfile = profileRow ?? null;
         const mergedDistrict =
-          profileRow?.district ||
+          mergedProfile?.district ||
           (user.user_metadata?.district as string | undefined) ||
           (user.user_metadata?.district_name as string | undefined) ||
           (user.user_metadata?.district_id as string | undefined) ||
           "TX-35";
 
-        setProfile(profileRow ?? null);
-        setDistrict(normalizeDistrict(mergedDistrict));
+        const normalizedDistrict = normalizeDistrict(mergedDistrict, mergedProfile?.state);
+
+        setProfile(mergedProfile);
+        setDistrict(normalizedDistrict);
+
+        const address = buildAddress(mergedProfile);
+
+        if (address) {
+          try {
+            const response = await fetch(
+              `/api/civic/representatives?address=${encodeURIComponent(address)}`,
+              { cache: "no-store" }
+            );
+
+            if (response.ok) {
+              const json = await response.json();
+
+              if (!mounted) return;
+
+              const mappedPrimary = mapCivicOfficial(
+                json?.districtRepresentative,
+                mergedProfile,
+                normalizedDistrict
+              );
+
+              const mappedStatewide = Array.isArray(json?.statewideLeaders)
+                ? json.statewideLeaders
+                    .map((item: any) => mapCivicOfficial(item, mergedProfile, normalizedDistrict))
+                    .filter(Boolean) as Official[]
+                : [];
+
+              setDynamicPrimaryRepresentative(mappedPrimary);
+              setDynamicStatewideLeaders(mappedStatewide);
+            }
+          } catch (civicError) {
+            console.error("Failed to load Google Civic representatives:", civicError);
+          }
+        }
       } catch (error) {
         console.error("Failed to load representative page:", error);
         setDistrict("TX-35");
@@ -242,12 +371,14 @@ export default function MyRepresentativePage() {
   }, [router, supabase]);
 
   const primaryRepresentative = useMemo(() => {
+    if (dynamicPrimaryRepresentative) return dynamicPrimaryRepresentative;
     return DISTRICT_OFFICIALS[district] ?? null;
-  }, [district]);
+  }, [district, dynamicPrimaryRepresentative]);
 
   const statewideLeaders = useMemo(() => {
+    if (dynamicStatewideLeaders.length > 0) return dynamicStatewideLeaders;
     return district.startsWith("TX-") ? TEXAS_STATEWIDE_LEADERS : [];
-  }, [district]);
+  }, [district, dynamicStatewideLeaders]);
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
@@ -311,6 +442,7 @@ export default function MyRepresentativePage() {
   }
 
   const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
+  const stateHeading = normalizeStateName(profile?.state);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -436,7 +568,7 @@ export default function MyRepresentativePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
               Statewide Leadership
             </p>
-            <h3 className="mt-2 text-2xl font-bold text-slate-900">Texas</h3>
+            <h3 className="mt-2 text-2xl font-bold text-slate-900">{stateHeading}</h3>
 
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
               {statewideLeaders.map((official) => (
@@ -549,11 +681,17 @@ function OfficialCard({
   wide?: boolean;
   onChat: (official: Official) => void;
 }) {
-  const [imgSrc, setImgSrc] = useState(official.imageUrl);
+  const [imgSrc, setImgSrc] = useState(official.imageUrl || "");
 
   useEffect(() => {
-    setImgSrc(official.imageUrl);
+    setImgSrc(official.imageUrl || "");
   }, [official.imageUrl]);
+
+  const proxiedSrc = imgSrc
+    ? imgSrc.startsWith("http")
+      ? `/api/civic/image?src=${encodeURIComponent(imgSrc)}`
+      : imgSrc
+    : "";
 
   return (
     <div
@@ -562,14 +700,20 @@ function OfficialCard({
       } ${wide ? "h-full" : ""}`}
     >
       <div className="flex h-full flex-col items-center text-center">
-        <div className="h-36 w-36 overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
-          <img
-            src={imgSrc}
-            alt={official.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setImgSrc("/officials/fallback-avatar.jpg")}
-          />
+        <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
+          {proxiedSrc ? (
+            <img
+              src={proxiedSrc}
+              alt={official.name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={() => setImgSrc("")}
+            />
+          ) : (
+            <span className="text-4xl font-bold text-slate-500">
+              {getInitials(official.name)}
+            </span>
+          )}
         </div>
 
         <span
@@ -601,7 +745,7 @@ function OfficialCard({
           </button>
 
           <a
-            href={official.contactUrl}
+            href={official.contactUrl || official.website || "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
@@ -611,7 +755,7 @@ function OfficialCard({
           </a>
 
           <a
-            href={official.website}
+            href={official.website || "#"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
