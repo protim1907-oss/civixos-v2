@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
 
@@ -82,6 +81,13 @@ type RepresentativeRow = {
 
 type CommentMap = Record<string, CommentRow[]>;
 type ProfileNameMap = Record<string, string>;
+
+type ChatMessage = {
+  id: string;
+  sender: "user" | "rep";
+  text: string;
+  time: string;
+};
 
 function displayDistrictName(value?: string | null) {
   const normalized = (value || "").trim().toUpperCase();
@@ -256,7 +262,6 @@ function getProfileDisplayName(profile?: ProfileRow | null) {
 }
 
 export default function FeedPage() {
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [search, setSearch] = useState("");
@@ -278,6 +283,11 @@ export default function FeedPage() {
   const [sharingIssueId, setSharingIssueId] = useState<string | null>(null);
   const [submittingCommentFor, setSubmittingCommentFor] = useState<string | null>(null);
   const [togglingVoteFor, setTogglingVoteFor] = useState<string | null>(null);
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatRepresentative, setChatRepresentative] = useState("Representative");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
     async function loadFeed() {
@@ -817,6 +827,44 @@ export default function FeedPage() {
     }
   }
 
+  function openRepresentativeChat(representative: string) {
+    const repName = representative || "Representative";
+
+    setChatRepresentative(repName);
+    setChatMessages([
+      {
+        id: `rep-welcome-${Date.now()}`,
+        sender: "rep",
+        text: `Hello, this is the office of ${repName}. How can we help you today?`,
+        time: "Just now",
+      },
+    ]);
+    setChatInput("");
+    setChatOpen(true);
+  }
+
+  function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: "user",
+      text,
+      time: "Just now",
+    };
+
+    const repReply: ChatMessage = {
+      id: `rep-${Date.now() + 1}`,
+      sender: "rep",
+      text: `Thank you for your message. ${chatRepresentative}'s office has received it and will review your concern.`,
+      time: "Just now",
+    };
+
+    setChatMessages((prev) => [...prev, userMessage, repReply]);
+    setChatInput("");
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 lg:flex">
       <Sidebar />
@@ -1038,18 +1086,14 @@ export default function FeedPage() {
 
                       <div className="flex w-full flex-col gap-3 lg:w-64">
                         <button
-                          onClick={() =>
-                            router.push(`/chat/${encodeURIComponent(post.representative)}`)
-                          }
+                          onClick={() => openRepresentativeChat(post.representative)}
                           className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
                         >
                           Chat with my representative
                         </button>
 
                         <button
-                          onClick={() =>
-                            router.push(`/chat/${encodeURIComponent(post.representative)}`)
-                          }
+                          onClick={() => openRepresentativeChat(post.representative)}
                           className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                           View representative thread
@@ -1097,6 +1141,83 @@ export default function FeedPage() {
           )}
         </div>
       </main>
+
+      {chatOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-2xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Representative Chat
+                </p>
+                <h3 className="mt-1 text-2xl font-bold text-slate-900">
+                  Chat with {chatRepresentative}
+                </h3>
+              </div>
+
+              <button
+                onClick={() => setChatOpen(false)}
+                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close chat"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="h-[380px] overflow-y-auto px-6 py-5">
+              <div className="space-y-4">
+                {chatMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${
+                      message.sender === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-7 ${
+                        message.sender === "user"
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 text-slate-800"
+                      }`}
+                    >
+                      <div>{message.text}</div>
+                      <div
+                        className={`mt-1 text-xs ${
+                          message.sender === "user" ? "text-blue-100" : "text-slate-500"
+                        }`}
+                      >
+                        {message.time}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 px-6 py-5">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") sendChatMessage();
+                  }}
+                  placeholder={`Message ${chatRepresentative}...`}
+                  className="flex-1 rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400"
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={!chatInput.trim()}
+                  className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
