@@ -28,6 +28,9 @@ type ProfileRow = {
   role: string | null;
   district: string | null;
   state: string | null;
+  city?: string | null;
+  zip_code?: string | null;
+  street_address?: string | null;
 };
 
 type OfficialUpdateCategory =
@@ -54,6 +57,13 @@ type OfficialUpdate = {
   comments: number;
   shares: number;
   href?: string;
+};
+
+type CommentItem = {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string;
 };
 
 function normalizeStateCode(state?: string | null): string {
@@ -285,6 +295,27 @@ export default function OfficialUpdatesPage() {
   const [commentState, setCommentState] = useState<Record<string, number>>({});
   const [shareState, setShareState] = useState<Record<string, number>>({});
 
+  const [commentsByItem, setCommentsByItem] = useState<Record<string, CommentItem[]>>({
+    "tx35-road-resurfacing": [
+      {
+        id: "c1",
+        author: "Maria",
+        text: "Please publish the lane-closure timing too.",
+        createdAt: "2h ago",
+      },
+    ],
+    "ca42-school-grants": [
+      {
+        id: "c2",
+        author: "David",
+        text: "Can nonprofits apply jointly with schools?",
+        createdAt: "5h ago",
+      },
+    ],
+  });
+  const [commentInput, setCommentInput] = useState("");
+  const [shareMenuOpenFor, setShareMenuOpenFor] = useState<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
 
@@ -368,33 +399,88 @@ export default function OfficialUpdatesPage() {
   const highPriorityCount = filteredUpdates.filter((item) => item.priority === "High").length;
   const reportingOffices = new Set(filteredUpdates.map((item) => item.office)).size;
 
+  function getTotalComments(itemId: string, baseComments: number) {
+    const extra = commentsByItem[itemId]?.length || 0;
+    return Math.max(baseComments, extra);
+  }
+
   function handleUpvote(itemId: string) {
     setVoteState((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
   }
 
-  function handleComment(itemId: string) {
-    setCommentState((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
-    const item = filteredUpdates.find((x) => x.id === itemId);
-    if (item) setActiveItem(item);
+  function handleOpenComments(item: OfficialUpdate) {
+    setActiveItem(item);
+    setCommentState((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
   }
 
-  async function handleShare(item: OfficialUpdate) {
-    setShareState((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
+  function handleAddComment() {
+    if (!activeItem || !commentInput.trim()) return;
 
+    const author = profile?.full_name?.trim() || "Citizen";
+
+    const newComment: CommentItem = {
+      id: `comment-${Date.now()}`,
+      author,
+      text: commentInput.trim(),
+      createdAt: "Just now",
+    };
+
+    setCommentsByItem((prev) => ({
+      ...prev,
+      [activeItem.id]: [...(prev[activeItem.id] || []), newComment],
+    }));
+
+    setCommentInput("");
+  }
+
+  async function copyShareUrl(item: OfficialUpdate) {
     const shareUrl =
       typeof window !== "undefined"
         ? `${window.location.origin}${item.href || "/official-updates"}`
         : item.href || "/official-updates";
 
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(shareUrl);
+    }
+  }
+
+  function openWhatsAppShare(item: OfficialUpdate) {
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${item.href || "/official-updates"}`
+        : item.href || "/official-updates";
+
+    const text = `${item.title} — ${shareUrl}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+    if (typeof window !== "undefined") {
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    }
+  }
+
+  async function handleShare(item: OfficialUpdate, mode: "copy" | "whatsapp" = "copy") {
+    setShareState((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
+    setShareMenuOpenFor(null);
+
     try {
+      if (mode === "whatsapp") {
+        openWhatsAppShare(item);
+        return;
+      }
+
       if (navigator.share) {
+        const shareUrl =
+          typeof window !== "undefined"
+            ? `${window.location.origin}${item.href || "/official-updates"}`
+            : item.href || "/official-updates";
+
         await navigator.share({
           title: item.title,
           text: item.summary,
           url: shareUrl,
         });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        await copyShareUrl(item);
       }
     } catch (error) {
       console.error("Share failed:", error);
@@ -493,7 +579,7 @@ export default function OfficialUpdatesPage() {
                 {filteredUpdates.length > 0 ? (
                   filteredUpdates.map((item) => {
                     const totalUpvotes = item.upvotes + (voteState[item.id] || 0);
-                    const totalComments = item.comments + (commentState[item.id] || 0);
+                    const totalComments = getTotalComments(item.id, item.comments);
                     const totalShares = item.shares + (shareState[item.id] || 0);
 
                     return (
@@ -582,20 +668,43 @@ export default function OfficialUpdatesPage() {
                           </button>
 
                           <button
-                            onClick={() => handleComment(item.id)}
+                            onClick={() => handleOpenComments(item)}
                             className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
                           >
                             <MessageCircle className="h-4 w-4" />
                             Comment ({totalComments})
                           </button>
 
-                          <button
-                            onClick={() => handleShare(item)}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-                          >
-                            <Share2 className="h-4 w-4" />
-                            Share ({totalShares})
-                          </button>
+                          <div className="relative">
+                            <button
+                              onClick={() =>
+                                setShareMenuOpenFor((prev) =>
+                                  prev === item.id ? null : item.id
+                                )
+                              }
+                              className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                            >
+                              <Share2 className="h-4 w-4" />
+                              Share ({totalShares})
+                            </button>
+
+                            {shareMenuOpenFor === item.id ? (
+                              <div className="absolute left-0 z-20 mt-2 w-44 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                                <button
+                                  onClick={() => handleShare(item, "copy")}
+                                  className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                                >
+                                  Copy link
+                                </button>
+                                <button
+                                  onClick={() => handleShare(item, "whatsapp")}
+                                  className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                                >
+                                  Share on WhatsApp
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     );
@@ -680,7 +789,11 @@ export default function OfficialUpdatesPage() {
               </div>
 
               <button
-                onClick={() => setActiveItem(null)}
+                onClick={() => {
+                  setActiveItem(null);
+                  setShareMenuOpenFor(null);
+                  setCommentInput("");
+                }}
                 className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                 aria-label="Close"
               >
@@ -743,19 +856,44 @@ export default function OfficialUpdatesPage() {
                   Upvote
                 </button>
                 <button
-                  onClick={() => handleComment(activeItem.id)}
+                  onClick={() => handleOpenComments(activeItem)}
                   className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
                 >
                   <MessageCircle className="h-4 w-4" />
                   Comment
                 </button>
-                <button
-                  onClick={() => handleShare(activeItem)}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-                >
-                  <Share2 className="h-4 w-4" />
-                  Share
-                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      setShareMenuOpenFor((prev) =>
+                        prev === activeItem.id ? null : activeItem.id
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </button>
+
+                  {shareMenuOpenFor === activeItem.id ? (
+                    <div className="absolute left-0 z-20 mt-2 w-44 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                      <button
+                        onClick={() => handleShare(activeItem, "copy")}
+                        className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                      >
+                        Copy link
+                      </button>
+                      <button
+                        onClick={() => handleShare(activeItem, "whatsapp")}
+                        className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                      >
+                        Share on WhatsApp
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
                 {activeItem.href ? (
                   <Link
                     href={activeItem.href}
@@ -765,6 +903,58 @@ export default function OfficialUpdatesPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : null}
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-lg font-bold text-slate-900">
+                    Comments ({getTotalComments(activeItem.id, activeItem.comments)})
+                  </h4>
+                </div>
+
+                <div className="mt-4 flex gap-3">
+                  <textarea
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    rows={3}
+                    placeholder="Write your comment on this official update..."
+                    className="flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!commentInput.trim()}
+                    className="self-end rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Post
+                  </button>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {(commentsByItem[activeItem.id] || []).length > 0 ? (
+                    (commentsByItem[activeItem.id] || []).map((comment) => (
+                      <div
+                        key={comment.id}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-slate-900">
+                            {comment.author}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {comment.createdAt}
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm leading-7 text-slate-700">
+                          {comment.text}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
+                      No comments yet. Start the conversation.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
