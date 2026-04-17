@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const CIVIC_API_KEY = process.env.GOOGLE_CIVIC_API_KEY;
-const CIVIC_BASE = "https://www.googleapis.com/civicinfo/v2/representatives";
 
 type CivicOfficial = {
   name?: string;
@@ -38,6 +37,18 @@ function normalizeStateCode(state?: string | null): string {
   return map[value] || value;
 }
 
+function normalizeStateName(stateCode: string): string {
+  const map: Record<string, string> = {
+    tx: "Texas",
+    nh: "New Hampshire",
+    ca: "California",
+    fl: "Florida",
+    ny: "New York",
+  };
+
+  return map[stateCode.toLowerCase()] || stateCode.toUpperCase();
+}
+
 function officeBadge(officeName = "", roles: string[] = []) {
   const value = `${officeName} ${roles.join(" ")}`.toLowerCase();
 
@@ -70,9 +81,8 @@ function buildOfficial(
     name: official.name || "Unknown Official",
     title: office.name || "Public Office",
     officeLabel: "Statewide Office",
-    level:
-      office.levels?.includes("administrativeArea1") ? "state" : "federal",
-    state: stateCode.toUpperCase(),
+    level: "state" as const,
+    state: normalizeStateName(stateCode),
     party: official.party || undefined,
     website: official.urls?.[0] || "#",
     contactUrl: official.urls?.[0] || "#",
@@ -88,10 +98,7 @@ export async function GET(request: NextRequest) {
     const stateCode = normalizeStateCode(rawState);
 
     if (!stateCode) {
-      return NextResponse.json(
-        { error: "Missing state" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing state" }, { status: 400 });
     }
 
     if (!CIVIC_API_KEY) {
@@ -101,22 +108,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = new URL(CIVIC_BASE);
+    const ocdId = `ocd-division/country:us/state:${stateCode}`;
+
+    const url = new URL(
+      `https://www.googleapis.com/civicinfo/v2/representatives/${encodeURIComponent(
+        ocdId
+      )}`
+    );
     url.searchParams.set("key", CIVIC_API_KEY);
-    url.searchParams.set("ocdId", `ocd-division/country:us/state:${stateCode}`);
     url.searchParams.set("levels", "administrativeArea1");
+    url.searchParams.set("recursive", "true");
 
     const response = await fetch(url.toString(), { cache: "no-store" });
+    const rawText = await response.text();
+
+    console.log("STATEWIDE URL:", url.toString());
+    console.log("STATEWIDE STATUS:", response.status);
+    console.log("STATEWIDE RAW:", rawText);
 
     if (!response.ok) {
-      const text = await response.text();
       return NextResponse.json(
-        { error: "Google Civic API error", details: text },
+        {
+          error: "Google Civic API error",
+          status: response.status,
+          details: rawText,
+        },
         { status: response.status }
       );
     }
 
-    const data = await response.json();
+    const data = JSON.parse(rawText);
     const officials: CivicOfficial[] = Array.isArray(data.officials)
       ? data.officials
       : [];
