@@ -137,6 +137,7 @@ export default function DashboardPage() {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
+  const [dashboardReady, setDashboardReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -223,8 +224,14 @@ export default function DashboardPage() {
   }
 
   async function loadDashboard(mode: "initial" | "refresh" = "initial") {
-    if (mode === "initial") setLoading(true);
-    if (mode === "refresh") setRefreshing(true);
+    if (mode === "initial") {
+      setLoading(true);
+      setDashboardReady(false);
+    }
+
+    if (mode === "refresh") {
+      setRefreshing(true);
+    }
 
     try {
       const {
@@ -244,12 +251,7 @@ export default function DashboardPage() {
           localStorage.removeItem("guest_user");
         }
 
-        const updated = await syncDistrictFromEmail();
-
-        if (updated && mode === "initial") {
-          window.location.reload();
-          return;
-        }
+        await syncDistrictFromEmail();
       }
 
       if (!session?.user && guestUser) {
@@ -274,6 +276,7 @@ export default function DashboardPage() {
             setIssues([]);
             setPosts([]);
             setDiscussions([]);
+            setDashboardReady(true);
             return;
           }
 
@@ -326,10 +329,15 @@ export default function DashboardPage() {
 
           setIssues((issuesRes.data as Issue[]) || []);
           setPosts(postRows);
+          setDashboardReady(true);
           return;
         } catch (error) {
           console.error("Guest parse error:", error);
-          localStorage.removeItem("guest_user");
+
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("guest_user");
+          }
+
           router.replace("/login");
           return;
         }
@@ -383,6 +391,7 @@ export default function DashboardPage() {
         setIssues([]);
         setPosts([]);
         setDiscussions([]);
+        setDashboardReady(true);
         return;
       }
 
@@ -435,6 +444,7 @@ export default function DashboardPage() {
 
       setIssues((issuesRes.data as Issue[]) || []);
       setPosts(postRows);
+      setDashboardReady(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -610,9 +620,9 @@ export default function DashboardPage() {
     (i) => normalizeStatus(i.status) === "under_review"
   ).length;
 
-  const totalCount = issues.length + posts.filter(
-    (p) => normalizeStatus(p.status) === "active"
-  ).length;
+  const totalCount =
+    issues.length +
+    posts.filter((p) => normalizeStatus(p.status) === "active").length;
 
   function formatStatus(status: string | null) {
     if (!status) return "Open";
@@ -689,6 +699,23 @@ export default function DashboardPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);
   }, [districtFeed]);
+
+  if (loading || !dashboardReady) {
+    return (
+      <main className="min-h-screen bg-slate-100">
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Loading dashboard...
+            </h2>
+            <p className="mt-2 text-slate-500">
+              Preparing your district view.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-100">
