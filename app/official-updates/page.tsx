@@ -146,7 +146,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 42,
     comments: 8,
     shares: 5,
-    href: "/district-feed",
+    href: "/feed",
   },
   {
     id: "tx35-public-safety-advisory",
@@ -165,7 +165,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 25,
     comments: 4,
     shares: 3,
-    href: "/district-feed",
+    href: "/feed",
   },
   {
     id: "ca42-port-cleanup",
@@ -184,7 +184,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 51,
     comments: 11,
     shares: 7,
-    href: "/district-feed",
+    href: "/feed",
   },
   {
     id: "ca42-school-grants",
@@ -222,7 +222,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 19,
     comments: 3,
     shares: 2,
-    href: "/district-feed",
+    href: "/feed",
   },
   {
     id: "nh-community-feedback",
@@ -241,7 +241,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 27,
     comments: 9,
     shares: 6,
-    href: "/my-activity",
+    href: "/dashboard",
   },
 ];
 
@@ -288,14 +288,18 @@ export default function OfficialUpdatesPage() {
   const [district, setDistrict] = useState("N/A");
   const [stateName, setStateName] = useState("State");
   const [query, setQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"All" | OfficialUpdateCategory>("All");
+  const [selectedCategory, setSelectedCategory] = useState<
+    "All" | OfficialUpdateCategory
+  >("All");
   const [activeItem, setActiveItem] = useState<OfficialUpdate | null>(null);
 
   const [voteState, setVoteState] = useState<Record<string, number>>({});
   const [commentState, setCommentState] = useState<Record<string, number>>({});
   const [shareState, setShareState] = useState<Record<string, number>>({});
 
-  const [commentsByItem, setCommentsByItem] = useState<Record<string, CommentItem[]>>({
+  const [commentsByItem, setCommentsByItem] = useState<
+    Record<string, CommentItem[]>
+  >({
     "tx35-road-resurfacing": [
       {
         id: "c1",
@@ -333,7 +337,9 @@ export default function OfficialUpdatesPage() {
 
         const { data: profileRow } = await supabase
           .from("profiles")
-          .select("id, full_name, email, role, district, state, city, zip_code, street_address")
+          .select(
+            "id, full_name, email, role, district, state, city, zip_code, street_address"
+          )
           .eq("id", user.id)
           .single();
 
@@ -353,7 +359,10 @@ export default function OfficialUpdatesPage() {
         const effectiveDistrict =
           mergedProfile?.district || metadataDistrict || effectiveState || "N/A";
 
-        const normalizedDistrict = normalizeDistrict(effectiveDistrict, effectiveState);
+        const normalizedDistrict = normalizeDistrict(
+          effectiveDistrict,
+          effectiveState
+        );
         const derivedStateCode = normalizedDistrict.includes("-")
           ? normalizedDistrict.split("-")[0]
           : normalizeStateCode(effectiveState || normalizedDistrict);
@@ -396,8 +405,11 @@ export default function OfficialUpdatesPage() {
   }, [districtUpdates, query, selectedCategory]);
 
   const activeNotices = filteredUpdates.length;
-  const highPriorityCount = filteredUpdates.filter((item) => item.priority === "High").length;
-  const reportingOffices = new Set(filteredUpdates.map((item) => item.office)).size;
+  const highPriorityCount = filteredUpdates.filter(
+    (item) => item.priority === "High"
+  ).length;
+  const reportingOffices = new Set(filteredUpdates.map((item) => item.office))
+    .size;
 
   function getTotalComments(itemId: string, baseComments: number) {
     const extra = commentsByItem[itemId]?.length || 0;
@@ -458,7 +470,10 @@ export default function OfficialUpdatesPage() {
     }
   }
 
-  async function handleShare(item: OfficialUpdate, mode: "copy" | "whatsapp" = "copy") {
+  async function handleShare(
+    item: OfficialUpdate,
+    mode: "copy" | "whatsapp" = "copy"
+  ) {
     setShareState((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
     setShareMenuOpenFor(null);
 
@@ -524,9 +539,9 @@ export default function OfficialUpdatesPage() {
                     Official Updates for {district}
                   </h1>
                   <p className="mt-3 max-w-3xl text-base leading-8 text-blue-100/90">
-                    View verified announcements, public notices, policy changes, and
-                    official communications for {district} in {stateName}. Each update
-                    can be opened, upvoted, commented on, and shared.
+                    View verified announcements, public notices, policy changes,
+                    and official communications for {district} in {stateName}.
+                    Each update can be opened, upvoted, commented on, and shared.
                   </p>
                 </div>
 
@@ -565,13 +580,16 @@ export default function OfficialUpdatesPage() {
             <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">District-specific communication feed</p>
+                  <p className="text-sm text-slate-500">
+                    District-specific communication feed
+                  </p>
                   <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
                     Latest Official Announcements
                   </h2>
                 </div>
                 <div className="text-sm text-slate-500">
-                  {filteredUpdates.length} update{filteredUpdates.length === 1 ? "" : "s"} found
+                  {filteredUpdates.length} update
+                  {filteredUpdates.length === 1 ? "" : "s"} found
                 </div>
               </div>
 
@@ -711,7 +729,8 @@ export default function OfficialUpdatesPage() {
                   })
                 ) : (
                   <div className="rounded-[26px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-slate-500">
-                    No official updates were found for {district} with the current filters.
+                    No official updates were found for {district} with the
+                    current filters.
                   </div>
                 )}
               </div>
@@ -755,7 +774,10 @@ export default function OfficialUpdatesPage() {
                         "Community",
                       ] as const
                     ).map((category) => (
-                      <label key={category} className="flex items-center gap-3 text-lg text-slate-700">
+                      <label
+                        key={category}
+                        className="flex items-center gap-3 text-lg text-slate-700"
+                      >
                         <input
                           type="radio"
                           name="category"
@@ -826,11 +848,15 @@ export default function OfficialUpdatesPage() {
                 </span>
               </div>
 
-              <p className="mt-6 text-lg leading-9 text-slate-700">{activeItem.body}</p>
+              <p className="mt-6 text-lg leading-9 text-slate-700">
+                {activeItem.body}
+              </p>
 
               <div className="mt-8 grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-5 sm:grid-cols-2">
                 <div className="text-sm text-slate-600">
-                  <div className="font-semibold text-slate-900">Reporting Office</div>
+                  <div className="font-semibold text-slate-900">
+                    Reporting Office
+                  </div>
                   <div className="mt-1">{activeItem.office}</div>
                 </div>
                 <div className="text-sm text-slate-600">
@@ -894,15 +920,13 @@ export default function OfficialUpdatesPage() {
                   ) : null}
                 </div>
 
-                {activeItem.href ? (
-                  <Link
-                    href={activeItem.href}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    Open related page
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                ) : null}
+                <Link
+                  href={activeItem.href || "/feed"}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Open related page
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
 
               <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
