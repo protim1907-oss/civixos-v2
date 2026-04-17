@@ -116,7 +116,7 @@ export default function SignupPage() {
     }
   }
 
-  const handleSignup = async () => {
+  async function handleSignup() {
     setError("");
     setInfo("");
 
@@ -181,82 +181,97 @@ export default function SignupPage() {
     const normalizedCity = city.trim();
     const normalizedDistrict = selectedDistrict.trim();
 
-    const { data, error } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: {
-        data: {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            full_name: normalizedFullName,
+            state: normalizedState,
+            street_address: normalizedStreetAddress,
+            city: normalizedCity,
+            zip_code: normalizedZip,
+            district: normalizedDistrict,
+            matched_address: matchedAddress || null,
+            role: "citizen",
+          },
+        },
+      });
+
+      console.log("SIGNUP_RESULT:", { data, error, selectedDistrict });
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+
+        if (msg.includes("already")) {
+          setError("User already registered. Redirecting to login...");
+          setLoading(false);
+
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 1200);
+
+          return;
+        }
+
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      const signedUpUser = data?.user;
+
+      if (signedUpUser?.id) {
+        const profilePayload = {
+          id: signedUpUser.id,
           full_name: normalizedFullName,
+          email: normalizedEmail,
+          role: "citizen",
+          district: normalizedDistrict,
           state: normalizedState,
           street_address: normalizedStreetAddress,
           city: normalizedCity,
           zip_code: normalizedZip,
-          district: normalizedDistrict,
-          district_id: normalizedDistrict,
-          matched_address: matchedAddress || null,
-          role: "citizen",
-        },
-      },
-    });
+        };
 
-    console.log("SIGNUP_RESULT:", { data, error, selectedDistrict });
+        const { error: profileUpsertError } = await supabase
+          .from("profiles")
+          .upsert(profilePayload, { onConflict: "id" });
 
-    if (error) {
-      const msg = error.message.toLowerCase();
+        if (profileUpsertError) {
+          console.error("Profile upsert error after signup:", profileUpsertError);
+          setError(
+            `Account created, but profile save failed: ${profileUpsertError.message}`
+          );
+          setLoading(false);
+          return;
+        }
 
-      if (msg.includes("already")) {
-        setError("User already registered. Redirecting to login...");
+        console.log("PROFILE_UPSERT_SUCCESS:", profilePayload);
+      }
+
+      if (!data.session) {
+        setInfo(
+          `Account created or already exists. Your district was confirmed as ${selectedDistrict}. Please check your email or login.`
+        );
         setLoading(false);
 
         setTimeout(() => {
           window.location.href = "/login";
-        }, 1200);
+        }, 1500);
 
         return;
       }
 
-      setError(error.message);
       setLoading(false);
-      return;
-    }
-
-    const signedUpUser = data?.user;
-
-    if (signedUpUser?.id) {
-      const profilePayload = {
-        id: signedUpUser.id,
-        full_name: normalizedFullName,
-        email: normalizedEmail,
-        role: "citizen",
-        district: normalizedDistrict,
-        state: normalizedState,
-      };
-
-      const { error: profileUpsertError } = await supabase
-        .from("profiles")
-        .upsert(profilePayload, { onConflict: "id" });
-
-      if (profileUpsertError) {
-        console.error("Profile upsert error after signup:", profileUpsertError);
-      }
-    }
-
-    if (!data.session) {
-      setInfo(
-        `Account created or already exists. Your district was confirmed as ${selectedDistrict}. Please check your email or login.`
-      );
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Unexpected signup error:", err);
+      setError("Something went wrong while creating your account.");
       setLoading(false);
-
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1500);
-
-      return;
     }
-
-    setLoading(false);
-    window.location.href = "/login";
-  };
+  }
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 border rounded-2xl shadow bg-white">
