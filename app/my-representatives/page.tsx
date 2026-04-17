@@ -160,16 +160,28 @@ function buildAutoReply(official: Official, userText: string) {
 function buildAddress(profile: ProfileRow | null) {
   if (!profile) return "";
 
-  const parts = [
-    profile.street_address || "",
-    profile.city || "",
-    profile.state || "",
-    profile.zip_code || "",
-  ]
-    .map((part) => String(part || "").trim())
-    .filter(Boolean);
+  const street = String(profile.street_address || "").trim();
+  const city = String(profile.city || "").trim();
+  const state = String(profile.state || "").trim();
+  const zip = String(profile.zip_code || "").trim();
 
-  return parts.join(", ");
+  if (street && city && state && zip) {
+    return `${street}, ${city}, ${state} ${zip}`;
+  }
+
+  if (city && state && zip) {
+    return `${city}, ${state} ${zip}`;
+  }
+
+  if (state && zip) {
+    return `${state} ${zip}`;
+  }
+
+  if (city && state) {
+    return `${city}, ${state}`;
+  }
+
+  return "";
 }
 
 function getInitials(name: string) {
@@ -183,7 +195,12 @@ function getInitials(name: string) {
 }
 
 function isBadgeTone(value: unknown): value is Official["badge"]["tone"] {
-  return value === "red" || value === "green" || value === "blue" || value === "slate";
+  return (
+    value === "red" ||
+    value === "green" ||
+    value === "blue" ||
+    value === "slate"
+  );
 }
 
 function mapCivicOfficial(
@@ -219,6 +236,7 @@ function mapCivicOfficial(
 
 function dedupeOfficials(items: Official[]) {
   const seen = new Set<string>();
+
   return items.filter((item) => {
     const key = `${item.name}-${item.title}`.toLowerCase();
     if (seen.has(key)) return false;
@@ -236,7 +254,9 @@ export default function MyRepresentativePage() {
   const [district, setDistrict] = useState("N/A");
   const [dynamicPrimaryRepresentative, setDynamicPrimaryRepresentative] =
     useState<Official | null>(null);
-  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<Official[]>([]);
+  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<
+    Official[]
+  >([]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
@@ -293,6 +313,10 @@ export default function MyRepresentativePage() {
 
         const address = buildAddress(mergedProfile);
 
+        console.log("profile row:", mergedProfile);
+        console.log("normalizedDistrict:", normalizedDistrict);
+        console.log("built address:", address);
+
         if (address) {
           try {
             const response = await fetch(
@@ -302,6 +326,7 @@ export default function MyRepresentativePage() {
 
             if (response.ok) {
               const json: CivicApiResponse = await response.json();
+              console.log("/api/representatives response:", json);
 
               if (!mounted) return;
 
@@ -312,11 +337,11 @@ export default function MyRepresentativePage() {
               );
 
               const leaders = Array.isArray(json?.statewideLeaders)
-                ? json.statewideLeaders
+                ? (json.statewideLeaders
                     .map((item) =>
                       mapCivicOfficial(item, mergedProfile, normalizedDistrict)
                     )
-                    .filter(Boolean) as Official[]
+                    .filter(Boolean) as Official[])
                 : [];
 
               if (mappedPrimary) {
@@ -326,6 +351,12 @@ export default function MyRepresentativePage() {
               if (leaders.length > 0) {
                 mappedStatewide.push(...leaders);
               }
+            } else {
+              console.error(
+                "Failed /api/representatives:",
+                response.status,
+                await response.text()
+              );
             }
           } catch (error) {
             console.error("Failed to load representatives by address:", error);
@@ -333,14 +364,16 @@ export default function MyRepresentativePage() {
         }
 
         const districtStateCode = normalizedDistrict.includes("-")
-  ? normalizedDistrict.split("-")[0]
-  : normalizedDistrict;
+          ? normalizedDistrict.split("-")[0]
+          : normalizedDistrict;
 
-const stateForLookup =
-  mergedProfile?.state ||
-  (user.user_metadata?.state as string | undefined) ||
-  districtStateCode ||
-  "";
+        const stateForLookup =
+          mergedProfile?.state ||
+          (user.user_metadata?.state as string | undefined) ||
+          districtStateCode ||
+          "";
+
+        console.log("stateForLookup:", stateForLookup);
 
         if (stateForLookup) {
           try {
@@ -351,20 +384,27 @@ const stateForLookup =
 
             if (response.ok) {
               const json: CivicApiResponse = await response.json();
+              console.log("/api/statewide response:", json);
 
               if (!mounted) return;
 
               const statewide = Array.isArray(json?.statewideLeaders)
-                ? json.statewideLeaders
+                ? (json.statewideLeaders
                     .map((item) =>
                       mapCivicOfficial(item, mergedProfile, normalizedDistrict)
                     )
-                    .filter(Boolean) as Official[]
+                    .filter(Boolean) as Official[])
                 : [];
 
               if (statewide.length > 0) {
                 mappedStatewide.push(...statewide);
               }
+            } else {
+              console.error(
+                "Failed /api/statewide:",
+                response.status,
+                await response.text()
+              );
             }
           } catch (error) {
             console.error("Failed to load statewide leaders:", error);
@@ -459,10 +499,9 @@ const stateForLookup =
 
   const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
   const derivedStateCode =
-  normalizeStateCode(profile?.state) ||
-  normalizeStateCode(district.includes("-") ? district.split("-")[0] : district);
-
-const stateHeading = normalizeStateName(derivedStateCode);
+    normalizeStateCode(profile?.state) ||
+    normalizeStateCode(district.includes("-") ? district.split("-")[0] : district);
+  const stateHeading = normalizeStateName(derivedStateCode);
 
   return (
     <div className="min-h-screen bg-slate-50">
