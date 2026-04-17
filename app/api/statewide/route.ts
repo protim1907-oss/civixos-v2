@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const CIVIC_API_KEY = process.env.GOOGLE_CIVIC_API_KEY;
+const CIVIC_BASE = "https://www.googleapis.com/civicinfo/v2/representatives";
+
 type CivicOfficial = {
   name?: string;
+  party?: string;
   photoUrl?: string;
-  phones?: string[];
-  emails?: string[];
   urls?: string[];
+  phones?: string[];
 };
 
 type CivicOffice = {
@@ -16,118 +19,94 @@ type CivicOffice = {
   officialIndices?: number[];
 };
 
-type CivicResponse = {
-  offices?: CivicOffice[];
-  officials?: CivicOfficial[];
-};
+function normalizeStateCode(state?: string | null): string {
+  const value = String(state || "").trim().toLowerCase();
 
-function normalizePhotoUrl(url?: string) {
-  if (!url) return "";
-  const trimmed = url.trim();
-  if (!trimmed) return "";
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  if (trimmed.startsWith("http://")) return trimmed.replace("http://", "https://");
-  return trimmed;
+  const map: Record<string, string> = {
+    texas: "tx",
+    tx: "tx",
+    "new hampshire": "nh",
+    nh: "nh",
+    california: "ca",
+    ca: "ca",
+    florida: "fl",
+    fl: "fl",
+    "new york": "ny",
+    ny: "ny",
+  };
+
+  return map[value] || value;
 }
 
-function badgeForOffice(role?: string, officeName?: string) {
-  const roleText = role || "";
-  const office = (officeName || "").toLowerCase();
+function officeBadge(officeName = "", roles: string[] = []) {
+  const value = `${officeName} ${roles.join(" ")}`.toLowerCase();
 
-  if (roleText === "legislatorUpperBody" || office.includes("senator")) {
+  if (value.includes("senator") || roles.includes("legislatorUpperBody")) {
     return { text: "Senate", tone: "red" as const };
   }
 
-  return { text: "State", tone: "green" as const };
+  if (
+    value.includes("governor") ||
+    value.includes("attorney general") ||
+    roles.includes("headOfGovernment") ||
+    roles.includes("governmentOfficer")
+  ) {
+    return { text: "State", tone: "green" as const };
+  }
+
+  return { text: "Office", tone: "slate" as const };
 }
 
-function firstUrl(official?: CivicOfficial) {
-  return official?.urls?.find(Boolean) || "";
-}
-
-function firstPhone(official?: CivicOfficial) {
-  return official?.phones?.find(Boolean) || "";
-}
-
-function firstEmail(official?: CivicOfficial) {
-  return official?.emails?.find(Boolean) || "";
-}
-
-function contactUrl(official?: CivicOfficial) {
-  const email = firstEmail(official);
-  if (email) return `mailto:${email}`;
-  return firstUrl(official);
-}
-
-function normalizeStateCode(state?: string | null) {
-  const value = String(state || "").trim().toLowerCase();
-
-  const map: Record<string, string> = {
-    tx: "tx",
-    texas: "tx",
-    nh: "nh",
-    "new hampshire": "nh",
-    ca: "ca",
-    california: "ca",
-    fl: "fl",
-    florida: "fl",
-    ny: "ny",
-    "new york": "ny",
+function buildOfficial(
+  official: CivicOfficial,
+  office: CivicOffice,
+  idx: number,
+  stateCode: string
+) {
+  return {
+    id: `${official.name || "official"}-${idx}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-"),
+    name: official.name || "Unknown Official",
+    title: office.name || "Public Office",
+    officeLabel: "Statewide Office",
+    level:
+      office.levels?.includes("administrativeArea1") ? "state" : "federal",
+    state: stateCode.toUpperCase(),
+    party: official.party || undefined,
+    website: official.urls?.[0] || "#",
+    contactUrl: official.urls?.[0] || "#",
+    phone: official.phones?.[0] || undefined,
+    imageUrl: official.photoUrl || "",
+    badge: officeBadge(office.name, office.roles || []),
   };
-
-  return map[value] || String(state || "").trim().toLowerCase();
 }
 
-function normalizeStateName(state?: string | null) {
-  const value = String(state || "").trim().toLowerCase();
-
-  const map: Record<string, string> = {
-    tx: "Texas",
-    texas: "Texas",
-    nh: "New Hampshire",
-    "new hampshire": "New Hampshire",
-    ca: "California",
-    california: "California",
-    fl: "Florida",
-    florida: "Florida",
-    ny: "New York",
-    "new york": "New York",
-  };
-
-  return map[value] || String(state || "").trim() || "State";
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const state = req.nextUrl.searchParams.get("state");
+    const rawState = request.nextUrl.searchParams.get("state");
+    const stateCode = normalizeStateCode(rawState);
 
-    if (!state) {
+    if (!stateCode) {
       return NextResponse.json(
-        { error: "Missing state parameter." },
+        { error: "Missing state" },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.GOOGLE_CIVIC_API_KEY;
-    if (!apiKey) {
+    if (!CIVIC_API_KEY) {
       return NextResponse.json(
-        { error: "Missing GOOGLE_CIVIC_API_KEY." },
+        { error: "Missing GOOGLE_CIVIC_API_KEY" },
         { status: 500 }
       );
     }
 
-    const stateCode = normalizeStateCode(state);
-    const ocdId = `ocd-division/country:us/state:${stateCode}`;
+    const url = new URL(CIVIC_BASE);
+    url.searchParams.set("key", CIVIC_API_KEY);
+    url.searchParams.set("ocdId", `ocd-division/country:us/state:${stateCode}`);
+    url.searchParams.set("levels", "administrativeArea1");
 
-    const url = new URL("https://www.googleapis.com/civicinfo/v2/representatives");
-    url.searchParams.set("ocdId", ocdId);
-    url.searchParams.set("recursive", "true");
-    url.searchParams.set("key", apiKey);
-
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 86400 },
-    });
+    const response = await fetch(url.toString(), { cache: "no-store" });
 
     if (!response.ok) {
       const text = await response.text();
@@ -137,46 +116,41 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const data = (await response.json()) as CivicResponse;
-    const offices = data.offices || [];
-    const officials = data.officials || [];
+    const data = await response.json();
+    const officials: CivicOfficial[] = Array.isArray(data.officials)
+      ? data.officials
+      : [];
+    const offices: CivicOffice[] = Array.isArray(data.offices) ? data.offices : [];
 
-    const statewideLeaders = offices.flatMap((office) => {
-      const officeName = office.name || "";
-      const role = office.roles?.[0];
+    const statewideLeaders: any[] = [];
 
-      const isWanted =
-        officeName.toLowerCase().includes("senator") ||
-        officeName.toLowerCase().includes("governor") ||
-        officeName.toLowerCase().includes("attorney general");
+    for (const office of offices) {
+      const officeName = (office.name || "").toLowerCase();
+      const roles = office.roles || [];
+      const indices = office.officialIndices || [];
 
-      if (!isWanted) return [];
+      const keep =
+        officeName.includes("senator") ||
+        officeName.includes("governor") ||
+        officeName.includes("attorney general") ||
+        roles.includes("legislatorUpperBody") ||
+        roles.includes("headOfGovernment") ||
+        roles.includes("governmentOfficer");
 
-      return (office.officialIndices || []).map((idx) => {
-        const person = officials[idx];
-        return {
-          id: `${office.divisionId || officeName}-${idx}`,
-          name: person?.name || "Official",
-          title: officeName,
-          officeLabel: normalizeStateName(state),
-          level: officeName.toLowerCase().includes("senator")
-            ? "federal"
-            : "state",
-          state: normalizeStateName(state),
-          website: firstUrl(person) || "#",
-          contactUrl: contactUrl(person) || firstUrl(person) || "#",
-          phone: firstPhone(person) || undefined,
-          imageUrl: normalizePhotoUrl(person?.photoUrl),
-          badge: badgeForOffice(role, officeName),
-        };
-      });
-    });
+      if (!keep) continue;
+
+      for (const index of indices) {
+        const official = officials[index];
+        if (!official) continue;
+        statewideLeaders.push(buildOfficial(official, office, index, stateCode));
+      }
+    }
 
     return NextResponse.json({ statewideLeaders });
   } catch (error) {
-    console.error("Statewide route failed:", error);
+    console.error("statewide route failed:", error);
     return NextResponse.json(
-      { error: "Failed to load statewide leaders." },
+      { error: "Failed to load statewide leaders" },
       { status: 500 }
     );
   }
