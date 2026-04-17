@@ -1,474 +1,797 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
 import {
-  Megaphone,
   Search,
   Filter,
-  Bell,
-  ShieldCheck,
-  CalendarDays,
-  FileText,
-  Building2,
-  ArrowRight,
-  CheckCircle2,
+  Megaphone,
   AlertTriangle,
-  Info,
+  Building2,
+  CalendarDays,
+  ArrowRight,
+  Loader2,
+  MapPinned,
+  ThumbsUp,
+  MessageCircle,
+  Share2,
+  X,
 } from "lucide-react";
+
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+  district: string | null;
+  state: string | null;
+};
+
+type OfficialUpdateCategory =
+  | "Public Notice"
+  | "Policy Update"
+  | "Infrastructure"
+  | "Public Safety"
+  | "Education"
+  | "Community";
 
 type OfficialUpdate = {
   id: string;
+  district: string;
+  state: string;
   title: string;
   summary: string;
-  category: "Public Notice" | "Policy Update" | "Infrastructure" | "Safety" | "Community";
+  body: string;
+  category: OfficialUpdateCategory;
   office: string;
-  district: string;
-  published_at: string;
-  priority: "High" | "Medium" | "Routine";
-  status: "Active" | "Scheduled" | "Closed";
+  date: string;
+  priority: "High" | "Normal";
+  status: "Active" | "New" | "Ongoing";
+  upvotes: number;
+  comments: number;
+  shares: number;
+  href?: string;
 };
 
-const sampleUpdates: OfficialUpdate[] = [
+function normalizeStateCode(state?: string | null): string {
+  const value = String(state || "").trim().toLowerCase();
+
+  const map: Record<string, string> = {
+    texas: "TX",
+    tx: "TX",
+    california: "CA",
+    ca: "CA",
+    "new hampshire": "NH",
+    nh: "NH",
+    florida: "FL",
+    fl: "FL",
+    "new york": "NY",
+    ny: "NY",
+  };
+
+  return map[value] || String(state || "").trim().toUpperCase();
+}
+
+function normalizeDistrict(
+  rawValue: string | null | undefined,
+  state?: string | null
+): string {
+  const raw = String(rawValue || "").trim().toUpperCase();
+  const stateCode = normalizeStateCode(state);
+
+  if (!raw) return stateCode || "N/A";
+  if (/^[A-Z]{2}$/.test(raw)) return raw;
+  if (/^[A-Z]{2}-\d{1,2}$/.test(raw)) return raw;
+
+  const prefixedMatch = raw.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
+  if (prefixedMatch?.[1] && prefixedMatch?.[2]) {
+    return `${prefixedMatch[1]}-${Number(prefixedMatch[2])}`;
+  }
+
+  const numericMatch = raw.match(/(\d{1,2})/);
+  if (numericMatch?.[1] && stateCode) {
+    return `${stateCode}-${Number(numericMatch[1])}`;
+  }
+
+  return raw;
+}
+
+function normalizeStateName(state?: string | null): string {
+  const value = String(state || "").trim().toLowerCase();
+
+  const map: Record<string, string> = {
+    texas: "Texas",
+    tx: "Texas",
+    california: "California",
+    ca: "California",
+    "new hampshire": "New Hampshire",
+    nh: "New Hampshire",
+    florida: "Florida",
+    fl: "Florida",
+    "new york": "New York",
+    ny: "New York",
+  };
+
+  return map[value] || String(state || "").trim() || "State";
+}
+
+const OFFICIAL_UPDATES: OfficialUpdate[] = [
   {
-    id: "1",
+    id: "tx35-road-resurfacing",
+    district: "TX-35",
+    state: "Texas",
     title: "Road resurfacing scheduled for Main Street corridor",
     summary:
       "District transportation teams will begin resurfacing work next week. Temporary lane closures and posted detours will be in effect during work hours.",
+    body:
+      "The District Transportation Office has announced a resurfacing schedule for the Main Street corridor. Construction teams will work in phased segments to reduce congestion. Residents are encouraged to follow posted detour signage and allow extra travel time during peak hours.",
     category: "Infrastructure",
     office: "District Transportation Office",
-    district: "New Hampshire",
-    published_at: "2026-04-14",
+    date: "Apr 13, 2026",
     priority: "High",
     status: "Active",
+    upvotes: 42,
+    comments: 8,
+    shares: 5,
+    href: "/district-feed",
   },
   {
-    id: "2",
-    title: "Public listening session on school safety improvements",
+    id: "tx35-public-safety-advisory",
+    district: "TX-35",
+    state: "Texas",
+    title: "Weekend public safety advisory for downtown events",
     summary:
-      "Residents are invited to attend a community town hall to review proposed school safety upgrades and submit questions to district officials.",
-    category: "Safety",
-    office: "Education & Community Affairs",
-    district: "New Hampshire",
-    published_at: "2026-04-13",
-    priority: "Medium",
-    status: "Scheduled",
+      "Officials have issued temporary traffic and parking guidance due to multiple scheduled public gatherings this weekend.",
+    body:
+      "Public Safety officials have coordinated with transportation and city services to manage expected higher downtown traffic. Parking restrictions will apply on select streets and officers will be deployed to key intersections.",
+    category: "Public Safety",
+    office: "District Public Safety Office",
+    date: "Apr 15, 2026",
+    priority: "Normal",
+    status: "New",
+    upvotes: 25,
+    comments: 4,
+    shares: 3,
+    href: "/district-feed",
   },
   {
-    id: "3",
-    title: "Updated guidance on district stormwater maintenance",
+    id: "ca42-port-cleanup",
+    district: "CA-42",
+    state: "California",
+    title: "Port-area cleanup and traffic control plan announced",
     summary:
-      "The district has released new maintenance guidance for storm drains, flood-prone streets, and reporting channels for blocked drainage infrastructure.",
-    category: "Policy Update",
-    office: "Public Works Department",
-    district: "New Hampshire",
-    published_at: "2026-04-11",
-    priority: "Medium",
+      "District operations teams will begin a cleanup and logistics improvement initiative near key freight corridors.",
+    body:
+      "The district has announced a cleanup and traffic-control effort focused on freight mobility and neighborhood access near the port area. Officials said the initiative will improve roadway conditions, pedestrian access, and loading coordination over the next two weeks.",
+    category: "Infrastructure",
+    office: "District Operations Office",
+    date: "Apr 16, 2026",
+    priority: "High",
     status: "Active",
+    upvotes: 51,
+    comments: 11,
+    shares: 7,
+    href: "/district-feed",
   },
   {
-    id: "4",
-    title: "Community grant applications open for local neighborhood projects",
+    id: "ca42-school-grants",
+    district: "CA-42",
+    state: "California",
+    title: "District education office opens community school grant cycle",
     summary:
-      "Civic and community organizations may now apply for district mini-grants supporting beautification, youth engagement, and neighborhood improvement programs.",
+      "Applications are now open for district-supported community learning and after-school improvement grants.",
+    body:
+      "The District Education Office has opened a new application round for community schools and after-school enrichment programs. Eligible organizations may apply for support focused on tutoring, technology access, and youth engagement.",
+    category: "Education",
+    office: "District Education Office",
+    date: "Apr 12, 2026",
+    priority: "Normal",
+    status: "New",
+    upvotes: 33,
+    comments: 6,
+    shares: 4,
+    href: "/policy-pulse",
+  },
+  {
+    id: "nh-water-maintenance",
+    district: "NH",
+    state: "New Hampshire",
+    title: "Water system maintenance notice for selected neighborhoods",
+    summary:
+      "Utility officials have scheduled routine maintenance that may affect water pressure in limited service areas.",
+    body:
+      "Residents in selected neighborhoods may experience temporary pressure reductions during scheduled maintenance windows. Emergency services and schools have been notified, and utility teams will provide updated completion timing as needed.",
+    category: "Public Notice",
+    office: "State Utility Coordination Office",
+    date: "Apr 14, 2026",
+    priority: "High",
+    status: "Active",
+    upvotes: 19,
+    comments: 3,
+    shares: 2,
+    href: "/district-feed",
+  },
+  {
+    id: "nh-community-feedback",
+    district: "NH",
+    state: "New Hampshire",
+    title: "Community feedback sessions scheduled across the district",
+    summary:
+      "Officials are hosting listening sessions on transportation, public services, and neighborhood priorities.",
+    body:
+      "A series of community listening sessions will be held across the district to gather resident input on service delivery, transportation safety, and local priorities. Residents are encouraged to attend and submit recommendations.",
     category: "Community",
     office: "District Engagement Office",
-    district: "New Hampshire",
-    published_at: "2026-04-10",
-    priority: "Routine",
-    status: "Active",
-  },
-  {
-    id: "5",
-    title: "Temporary service disruption notice for permit processing",
-    summary:
-      "Permit intake may take longer than usual this week due to a planned system maintenance window. Residents are encouraged to submit urgent requests early.",
-    category: "Public Notice",
-    office: "District Administrative Services",
-    district: "New Hampshire",
-    published_at: "2026-04-09",
-    priority: "High",
-    status: "Active",
+    date: "Apr 10, 2026",
+    priority: "Normal",
+    status: "Ongoing",
+    upvotes: 27,
+    comments: 9,
+    shares: 6,
+    href: "/my-activity",
   },
 ];
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function getPriorityClasses(priority: OfficialUpdate["priority"]) {
-  switch (priority) {
-    case "High":
-      return "bg-red-50 text-red-700 border-red-200";
-    case "Medium":
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    case "Routine":
-      return "bg-green-50 text-green-700 border-green-200";
+function getCategoryBadgeClasses(category: OfficialUpdateCategory) {
+  switch (category) {
+    case "Infrastructure":
+      return "bg-slate-100 text-slate-700";
+    case "Policy Update":
+      return "bg-blue-50 text-blue-700";
+    case "Public Notice":
+      return "bg-amber-50 text-amber-700";
+    case "Public Safety":
+      return "bg-red-50 text-red-700";
+    case "Education":
+      return "bg-emerald-50 text-emerald-700";
     default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
+      return "bg-violet-50 text-violet-700";
   }
 }
 
-function getStatusClasses(status: OfficialUpdate["status"]) {
+function getPriorityBadgeClasses(priority: OfficialUpdate["priority"]) {
+  return priority === "High"
+    ? "bg-red-50 text-red-600 ring-red-200"
+    : "bg-slate-100 text-slate-600 ring-slate-200";
+}
+
+function getStatusBadgeClasses(status: OfficialUpdate["status"]) {
   switch (status) {
-    case "Active":
+    case "New":
       return "bg-blue-50 text-blue-700";
-    case "Scheduled":
-      return "bg-violet-50 text-violet-700";
-    case "Closed":
-      return "bg-slate-100 text-slate-700";
+    case "Ongoing":
+      return "bg-amber-50 text-amber-700";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-indigo-50 text-indigo-700";
   }
 }
 
 export default function OfficialUpdatesPage() {
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [district, setDistrict] = useState("N/A");
+  const [stateName, setStateName] = useState("State");
+  const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<"All" | OfficialUpdateCategory>("All");
+  const [activeItem, setActiveItem] = useState<OfficialUpdate | null>(null);
+
+  const [voteState, setVoteState] = useState<Record<string, number>>({});
+  const [commentState, setCommentState] = useState<Record<string, number>>({});
+  const [shareState, setShareState] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPage() {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          router.push("/login");
+          return;
+        }
+
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, role, district, state, city, zip_code, street_address")
+          .eq("id", user.id)
+          .single();
+
+        if (!mounted) return;
+
+        const mergedProfile = profileRow ?? null;
+        setProfile(mergedProfile);
+
+        const metadataState =
+          (user.user_metadata?.state as string | undefined) || "";
+        const metadataDistrict =
+          (user.user_metadata?.district as string | undefined) ||
+          (user.user_metadata?.district_name as string | undefined) ||
+          "";
+
+        const effectiveState = mergedProfile?.state || metadataState || "";
+        const effectiveDistrict =
+          mergedProfile?.district || metadataDistrict || effectiveState || "N/A";
+
+        const normalizedDistrict = normalizeDistrict(effectiveDistrict, effectiveState);
+        const derivedStateCode = normalizedDistrict.includes("-")
+          ? normalizedDistrict.split("-")[0]
+          : normalizeStateCode(effectiveState || normalizedDistrict);
+
+        setDistrict(normalizedDistrict);
+        setStateName(normalizeStateName(derivedStateCode));
+      } catch (error) {
+        console.error("Failed to load official updates page:", error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, supabase]);
+
+  const districtUpdates = useMemo(() => {
+    return OFFICIAL_UPDATES.filter((item) => item.district === district);
+  }, [district]);
 
   const filteredUpdates = useMemo(() => {
-    let result = [...sampleUpdates];
+    return districtUpdates.filter((item) => {
+      const matchesCategory =
+        selectedCategory === "All" || item.category === selectedCategory;
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.summary.toLowerCase().includes(q) ||
-          item.office.toLowerCase().includes(q)
-      );
+      const q = query.trim().toLowerCase();
+      const matchesQuery =
+        !q ||
+        item.title.toLowerCase().includes(q) ||
+        item.summary.toLowerCase().includes(q) ||
+        item.office.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q);
+
+      return matchesCategory && matchesQuery;
+    });
+  }, [districtUpdates, query, selectedCategory]);
+
+  const activeNotices = filteredUpdates.length;
+  const highPriorityCount = filteredUpdates.filter((item) => item.priority === "High").length;
+  const reportingOffices = new Set(filteredUpdates.map((item) => item.office)).size;
+
+  function handleUpvote(itemId: string) {
+    setVoteState((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
+  }
+
+  function handleComment(itemId: string) {
+    setCommentState((prev) => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
+    const item = filteredUpdates.find((x) => x.id === itemId);
+    if (item) setActiveItem(item);
+  }
+
+  async function handleShare(item: OfficialUpdate) {
+    setShareState((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
+
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${item.href || "/official-updates"}`
+        : item.href || "/official-updates";
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: item.title,
+          text: item.summary,
+          url: shareUrl,
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+    } catch (error) {
+      console.error("Share failed:", error);
     }
+  }
 
-    if (categoryFilter !== "all") {
-      result = result.filter(
-        (item) => item.category.toLowerCase() === categoryFilter
-      );
-    }
-
-    if (priorityFilter !== "all") {
-      result = result.filter(
-        (item) => item.priority.toLowerCase() === priorityFilter
-      );
-    }
-
-    return result.sort(
-      (a, b) =>
-        new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="mx-auto flex max-w-[1700px]">
+          <Sidebar />
+          <main className="flex-1 p-6 md:p-8">
+            <div className="flex h-[70vh] items-center justify-center">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                <span className="text-sm font-medium text-slate-600">
+                  Loading official district updates...
+                </span>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
     );
-  }, [search, categoryFilter, priorityFilter]);
-
-  const activeCount = sampleUpdates.filter((u) => u.status === "Active").length;
-  const highPriorityCount = sampleUpdates.filter((u) => u.priority === "High").length;
-  const officeCount = new Set(sampleUpdates.map((u) => u.office)).size;
+  }
 
   return (
-    <main className="min-h-screen bg-slate-100">
-      <div className="flex min-h-screen">
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto flex max-w-[1700px]">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1">
-          <div className="w-full p-4 md:p-6 xl:p-8">
-            <div className="mx-auto max-w-7xl space-y-6">
-              <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-6 md:px-8">
-                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-blue-100/80">
-                        District Updates
-                      </p>
-                      <h1 className="mt-2 text-3xl font-bold tracking-tight text-white md:text-4xl">
-                        Official Updates
-                      </h1>
-                      <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100/80 md:text-base">
-                        View verified announcements, public notices, policy changes,
-                        and official communications from district offices and representatives.
-                      </p>
-                    </div>
+        <main className="flex-1 p-6 md:p-8">
+          <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+            <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-800 px-8 py-8 text-white">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-4xl">
+                  <p className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-100/90">
+                    Verified Communication Feed
+                  </p>
+                  <h1 className="mt-3 text-3xl font-bold tracking-tight">
+                    Official Updates for {district}
+                  </h1>
+                  <p className="mt-3 max-w-3xl text-base leading-8 text-blue-100/90">
+                    View verified announcements, public notices, policy changes, and
+                    official communications for {district} in {stateName}. Each update
+                    can be opened, upvoted, commented on, and shared.
+                  </p>
+                </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white backdrop-blur">
-                        <span className="font-semibold">Source:</span> Verified district offices
-                      </div>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                >
+                  Back to Dashboard
+                </Link>
+              </div>
+            </div>
 
-                      <Link
-                        href="/dashboard"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+            <div className="grid grid-cols-1 gap-5 px-8 py-7 lg:grid-cols-3">
+              <StatCard
+                title="Active Notices"
+                value={activeNotices}
+                icon={<Megaphone className="h-6 w-6 text-white/90" />}
+                cardClassName="bg-gradient-to-r from-sky-500 to-cyan-500"
+              />
+              <StatCard
+                title="High Priority"
+                value={highPriorityCount}
+                icon={<AlertTriangle className="h-6 w-6 text-white/90" />}
+                cardClassName="bg-gradient-to-r from-rose-500 to-pink-500"
+              />
+              <StatCard
+                title="Reporting Offices"
+                value={reportingOffices}
+                icon={<Building2 className="h-6 w-6 text-white/90" />}
+                cardClassName="bg-gradient-to-r from-emerald-500 to-green-500"
+              />
+            </div>
+          </div>
+
+          <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[1.5fr_0.72fr]">
+            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">District-specific communication feed</p>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                    Latest Official Announcements
+                  </h2>
+                </div>
+                <div className="text-sm text-slate-500">
+                  {filteredUpdates.length} update{filteredUpdates.length === 1 ? "" : "s"} found
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                {filteredUpdates.length > 0 ? (
+                  filteredUpdates.map((item) => {
+                    const totalUpvotes = item.upvotes + (voteState[item.id] || 0);
+                    const totalComments = item.comments + (commentState[item.id] || 0);
+                    const totalShares = item.shares + (shareState[item.id] || 0);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md"
                       >
-                        Back to Dashboard
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-3 md:p-6">
-                  <div className="rounded-3xl bg-gradient-to-br from-blue-500 to-cyan-400 p-5 text-white shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">Active Notices</p>
-                      <Bell className="h-5 w-5 text-white/85" />
-                    </div>
-                    <p className="mt-4 text-3xl font-bold">{activeCount}</p>
-                  </div>
-
-                  <div className="rounded-3xl bg-gradient-to-br from-red-500 to-rose-400 p-5 text-white shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">High Priority</p>
-                      <AlertTriangle className="h-5 w-5 text-white/85" />
-                    </div>
-                    <p className="mt-4 text-3xl font-bold">{highPriorityCount}</p>
-                  </div>
-
-                  <div className="rounded-3xl bg-gradient-to-br from-emerald-500 to-green-400 p-5 text-white shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/85">Reporting Offices</p>
-                      <Building2 className="h-5 w-5 text-white/85" />
-                    </div>
-                    <p className="mt-4 text-3xl font-bold">{officeCount}</p>
-                  </div>
-                </div>
-              </section>
-
-              <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-                <div className="space-y-6 xl:col-span-8">
-                  <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="text-sm text-slate-500">Verified communication feed</p>
-                        <h2 className="mt-1 text-2xl font-bold text-slate-900">
-                          Latest Official Announcements
-                        </h2>
-                      </div>
-
-                      <p className="text-sm text-slate-500">
-                        {filteredUpdates.length} update{filteredUpdates.length !== 1 ? "s" : ""} found
-                      </p>
-                    </div>
-
-                    <div className="mt-6 space-y-4">
-                      {filteredUpdates.length === 0 ? (
-                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-6 py-16 text-center">
-                          <h3 className="text-2xl font-bold text-slate-900">No updates found</h3>
-                          <p className="mt-3 text-slate-500">
-                            Try changing your filters or search term.
-                          </p>
-                        </div>
-                      ) : (
-                        filteredUpdates.map((update) => (
-                          <article
-                            key={update.id}
-                            className="rounded-3xl border border-slate-200 bg-white p-6 transition hover:border-slate-300 hover:bg-slate-50"
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                          <div
+                            className="flex-1 cursor-pointer"
+                            onClick={() => setActiveItem(item)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                setActiveItem(item);
+                              }
+                            }}
                           >
-                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                              <div>
-                                <div className="mb-3 flex flex-wrap items-center gap-2">
-                                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                                    {update.category}
-                                  </span>
-                                  <span
-                                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${getPriorityClasses(
-                                      update.priority
-                                    )}`}
-                                  >
-                                    {update.priority} Priority
-                                  </span>
-                                  <span
-                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                                      update.status
-                                    )}`}
-                                  >
-                                    {update.status}
-                                  </span>
-                                </div>
-
-                                <h3 className="text-xl font-bold text-slate-900 md:text-2xl">
-                                  {update.title}
-                                </h3>
-
-                                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
-                                  {update.summary}
-                                </p>
-
-                                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                                  <span className="inline-flex items-center gap-2">
-                                    <Building2 className="h-4 w-4" />
-                                    {update.office}
-                                  </span>
-                                  <span className="inline-flex items-center gap-2">
-                                    <CalendarDays className="h-4 w-4" />
-                                    {formatDate(update.published_at)}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span
+                                className={`rounded-full px-4 py-2 text-sm font-semibold ${getCategoryBadgeClasses(
+                                  item.category
+                                )}`}
                               >
-                                View details
-                                <ArrowRight className="h-4 w-4" />
-                              </button>
+                                {item.category}
+                              </span>
+                              <span
+                                className={`rounded-full px-4 py-2 text-sm font-semibold ring-1 ${getPriorityBadgeClasses(
+                                  item.priority
+                                )}`}
+                              >
+                                {item.priority} Priority
+                              </span>
+                              <span
+                                className={`rounded-full px-4 py-2 text-sm font-semibold ${getStatusBadgeClasses(
+                                  item.status
+                                )}`}
+                              >
+                                {item.status}
+                              </span>
                             </div>
-                          </article>
-                        ))
-                      )}
-                    </div>
-                  </section>
+
+                            <h3 className="mt-5 text-[2.2rem] font-bold leading-tight tracking-tight text-slate-900">
+                              {item.title}
+                            </h3>
+
+                            <p className="mt-4 max-w-3xl text-lg leading-9 text-slate-600">
+                              {item.summary}
+                            </p>
+
+                            <div className="mt-6 flex flex-wrap items-center gap-5 text-sm text-slate-500">
+                              <div className="inline-flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                {item.office}
+                              </div>
+                              <div className="inline-flex items-center gap-2">
+                                <CalendarDays className="h-4 w-4" />
+                                {item.date}
+                              </div>
+                              <div className="inline-flex items-center gap-2">
+                                <MapPinned className="h-4 w-4" />
+                                {item.district}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-3 lg:w-[170px]">
+                            <button
+                              onClick={() => setActiveItem(item)}
+                              className="inline-flex items-center justify-center gap-2 rounded-[22px] bg-slate-950 px-5 py-4 text-base font-semibold text-white transition hover:bg-slate-800"
+                            >
+                              View details
+                              <ArrowRight className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+                          <button
+                            onClick={() => handleUpvote(item.id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                          >
+                            <ThumbsUp className="h-4 w-4" />
+                            Upvote ({totalUpvotes})
+                          </button>
+
+                          <button
+                            onClick={() => handleComment(item.id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            Comment ({totalComments})
+                          </button>
+
+                          <button
+                            onClick={() => handleShare(item)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            Share ({totalShares})
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-[26px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-slate-500">
+                    No official updates were found for {district} with the current filters.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <aside className="space-y-6">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Search className="h-6 w-6 text-slate-400" />
+                  <h3 className="text-2xl font-bold text-slate-900">Search</h3>
                 </div>
 
-                <aside className="xl:col-span-4">
-                  <div className="sticky top-6 space-y-6">
-                    <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Search className="h-5 w-5 text-slate-400" />
-                        <h2 className="text-xl font-semibold text-slate-900">Search</h2>
-                      </div>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search official updates..."
+                  className="mt-6 w-full rounded-2xl border border-slate-200 px-4 py-4 text-base outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
 
-                      <input
-                        type="text"
-                        placeholder="Search official updates..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="mt-4 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-slate-400"
-                      />
-                    </section>
+              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Filter className="h-6 w-6 text-slate-400" />
+                  <h3 className="text-2xl font-bold text-slate-900">Filters</h3>
+                </div>
 
-                    <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-5 w-5 text-slate-400" />
-                        <h3 className="text-xl font-semibold text-slate-900">Filters</h3>
-                      </div>
+                <div className="mt-7">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Category
+                  </p>
 
-                      <div className="mt-6">
-                        <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                          Category
-                        </h4>
-                        <div className="mt-4 space-y-4 text-slate-700">
-                          {[
-                            ["all", "All"],
-                            ["public notice", "Public Notice"],
-                            ["policy update", "Policy Update"],
-                            ["infrastructure", "Infrastructure"],
-                            ["safety", "Safety"],
-                            ["community", "Community"],
-                          ].map(([value, label]) => (
-                            <label key={value} className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="category"
-                                checked={categoryFilter === value}
-                                onChange={() => setCategoryFilter(value)}
-                                className="h-4 w-4"
-                              />
-                              <span>{label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="mt-8">
-                        <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                          Priority
-                        </h4>
-                        <div className="mt-4 space-y-4 text-slate-700">
-                          {[
-                            ["all", "All"],
-                            ["high", "High"],
-                            ["medium", "Medium"],
-                            ["routine", "Routine"],
-                          ].map(([value, label]) => (
-                            <label key={value} className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="priority"
-                                checked={priorityFilter === value}
-                                onChange={() => setPriorityFilter(value)}
-                                className="h-4 w-4"
-                              />
-                              <span>{label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </section>
-
-                    <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                      <p className="text-sm text-slate-500">Verification status</p>
-                      <h3 className="mt-2 text-2xl font-bold text-slate-900">
-                        Trusted Information
-                      </h3>
-
-                      <div className="mt-5 space-y-4">
-                        <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                          <ShieldCheck className="mt-0.5 h-5 w-5 text-green-600" />
-                          <div>
-                            <p className="font-semibold text-slate-900">Verified source</p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              All items on this page should come from district offices,
-                              public agencies, or official representatives.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                          <CheckCircle2 className="mt-0.5 h-5 w-5 text-blue-600" />
-                          <div>
-                            <p className="font-semibold text-slate-900">Public relevance</p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              Prioritize updates that affect district operations, safety,
-                              services, timelines, and citizen engagement.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                          <Info className="mt-0.5 h-5 w-5 text-amber-600" />
-                          <div>
-                            <p className="font-semibold text-slate-900">Next enhancement</p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              Next we can connect this page to Supabase and show only
-                              live official notices by district, office, and publish date.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-
-                    <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                      <p className="text-sm text-slate-500">Suggested content blocks</p>
-                      <h3 className="mt-2 text-xl font-bold text-slate-900">
-                        Good content for this page
-                      </h3>
-
-                      <div className="mt-4 space-y-3 text-sm text-slate-600">
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          Emergency alerts and urgent district notices
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          Public meeting schedules and hearing announcements
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          Road closures, repairs, and infrastructure work
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          Policy changes that affect residents directly
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4">
-                          Grant programs, civic opportunities, and community notices
-                        </div>
-                      </div>
-                    </section>
+                  <div className="mt-5 space-y-4">
+                    {(
+                      [
+                        "All",
+                        "Public Notice",
+                        "Policy Update",
+                        "Infrastructure",
+                        "Public Safety",
+                        "Education",
+                        "Community",
+                      ] as const
+                    ).map((category) => (
+                      <label key={category} className="flex items-center gap-3 text-lg text-slate-700">
+                        <input
+                          type="radio"
+                          name="category"
+                          value={category}
+                          checked={selectedCategory === category}
+                          onChange={() => setSelectedCategory(category)}
+                          className="h-5 w-5"
+                        />
+                        {category}
+                      </label>
+                    ))}
                   </div>
-                </aside>
-              </section>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </main>
+      </div>
+
+      {activeItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[30px] border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Official Update Detail
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-slate-900">
+                  {activeItem.title}
+                </h3>
+              </div>
+
+              <button
+                onClick={() => setActiveItem(null)}
+                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${getCategoryBadgeClasses(
+                    activeItem.category
+                  )}`}
+                >
+                  {activeItem.category}
+                </span>
+                <span
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ring-1 ${getPriorityBadgeClasses(
+                    activeItem.priority
+                  )}`}
+                >
+                  {activeItem.priority} Priority
+                </span>
+                <span
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${getStatusBadgeClasses(
+                    activeItem.status
+                  )}`}
+                >
+                  {activeItem.status}
+                </span>
+              </div>
+
+              <p className="mt-6 text-lg leading-9 text-slate-700">{activeItem.body}</p>
+
+              <div className="mt-8 grid grid-cols-1 gap-4 rounded-2xl bg-slate-50 p-5 sm:grid-cols-2">
+                <div className="text-sm text-slate-600">
+                  <div className="font-semibold text-slate-900">Reporting Office</div>
+                  <div className="mt-1">{activeItem.office}</div>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <div className="font-semibold text-slate-900">Date</div>
+                  <div className="mt-1">{activeItem.date}</div>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <div className="font-semibold text-slate-900">District</div>
+                  <div className="mt-1">{activeItem.district}</div>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <div className="font-semibold text-slate-900">State</div>
+                  <div className="mt-1">{activeItem.state}</div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  onClick={() => handleUpvote(activeItem.id)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  <ThumbsUp className="h-4 w-4" />
+                  Upvote
+                </button>
+                <button
+                  onClick={() => handleComment(activeItem.id)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Comment
+                </button>
+                <button
+                  onClick={() => handleShare(activeItem)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </button>
+                {activeItem.href ? (
+                  <Link
+                    href={activeItem.href}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open related page
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  icon,
+  cardClassName,
+}: {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  cardClassName: string;
+}) {
+  return (
+    <div className={`rounded-[28px] p-6 text-white shadow-sm ${cardClassName}`}>
+      <div className="flex items-start justify-between">
+        <p className="text-xl text-white/90">{title}</p>
+        {icon}
       </div>
-    </main>
+      <div className="mt-6 text-5xl font-bold tracking-tight">{value}</div>
+    </div>
   );
 }
