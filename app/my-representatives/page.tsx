@@ -64,12 +64,30 @@ const GREG_ABBOTT_IMAGE =
 const KEN_PAXTON_IMAGE =
   "https://upload.wikimedia.org/wikipedia/commons/1/1a/Ken_Paxton_2018.jpg";
 
+// NEW HAMPSHIRE IMAGES
+const JEANNE_SHAHEEN_IMAGE =
+  "https://www.senate.gov/senators/111thCongress/graphics/ShaheenJeanne.jpg";
+
+const MAGGIE_HASSAN_IMAGE =
+  "https://www.senate.gov/senators/115thCongress/graphics/HassanMaggie.jpg";
+
+const KELLY_AYOTTE_IMAGE =
+  "https://upload.wikimedia.org/wikipedia/commons/0/06/Kelly_Ayotte%2C_Official_Portrait%2C_112th_Congress_2_%28cropped%29.jpg";
+
+const JOHN_FORMELLA_IMAGE =
+  "https://upload.wikimedia.org/wikipedia/commons/7/77/John_Formella_%28cropped%29.jpg";
+
 function getOfficialOverrideImage(name: string): string | null {
   const normalized = name.toLowerCase();
 
   if (normalized.includes("ted cruz")) return TED_CRUZ_IMAGE;
   if (normalized.includes("greg abbott")) return GREG_ABBOTT_IMAGE;
   if (normalized.includes("ken paxton")) return KEN_PAXTON_IMAGE;
+
+  if (normalized.includes("jeanne shaheen")) return JEANNE_SHAHEEN_IMAGE;
+  if (normalized.includes("maggie hassan")) return MAGGIE_HASSAN_IMAGE;
+  if (normalized.includes("kelly ayotte")) return KELLY_AYOTTE_IMAGE;
+  if (normalized.includes("john formella")) return JOHN_FORMELLA_IMAGE;
 
   return null;
 }
@@ -149,6 +167,92 @@ const TEXAS_STATEWIDE_LEADERS: Official[] = [
     imageUrl: resolveOfficialImage({
       name: "Ken Paxton",
       remoteImageUrl: KEN_PAXTON_IMAGE,
+    }),
+    badge: {
+      text: "State",
+      tone: "green",
+    },
+  },
+];
+
+// ADD THIS
+const NEW_HAMPSHIRE_STATEWIDE_LEADERS: Official[] = [
+  {
+    id: "jeanne-shaheen",
+    name: "Jeanne Shaheen",
+    title: "U.S. Senator",
+    officeLabel: "New Hampshire",
+    level: "federal",
+    state: "New Hampshire",
+    website: "https://www.shaheen.senate.gov/",
+    contactUrl: "https://www.shaheen.senate.gov/contact/contact-jeanne",
+    phone: "(603) 647-7500",
+    imageUrl: resolveOfficialImage({
+      name: "Jeanne Shaheen",
+      state: "New Hampshire",
+      remoteImageUrl: JEANNE_SHAHEEN_IMAGE,
+    }),
+    badge: {
+      text: "Senate",
+      tone: "red",
+    },
+  },
+  {
+    id: "maggie-hassan",
+    name: "Maggie Hassan",
+    title: "U.S. Senator",
+    officeLabel: "New Hampshire",
+    level: "federal",
+    state: "New Hampshire",
+    website: "https://www.hassan.senate.gov/",
+    contactUrl: "https://www.hassan.senate.gov/contact/email",
+    phone: "(603) 622-2204",
+    imageUrl: resolveOfficialImage({
+      name: "Maggie Hassan",
+      state: "New Hampshire",
+      remoteImageUrl: MAGGIE_HASSAN_IMAGE,
+    }),
+    badge: {
+      text: "Senate",
+      tone: "red",
+    },
+  },
+  {
+    id: "kelly-ayotte",
+    name: "Kelly Ayotte",
+    title: "Governor of New Hampshire",
+    officeLabel: "Statewide Office",
+    level: "state",
+    state: "New Hampshire",
+    website: "https://www.governor.nh.gov/",
+    contactUrl: "https://www.governor.nh.gov/contact-us",
+    phone: "(603) 271-2121",
+    imageUrl: resolveOfficialImage({
+      name: "Kelly Ayotte",
+      title: "Governor of New Hampshire",
+      state: "New Hampshire",
+      remoteImageUrl: KELLY_AYOTTE_IMAGE,
+    }),
+    badge: {
+      text: "State",
+      tone: "green",
+    },
+  },
+  {
+    id: "john-formella",
+    name: "John M. Formella",
+    title: "Attorney General of New Hampshire",
+    officeLabel: "Statewide Office",
+    level: "state",
+    state: "New Hampshire",
+    website: "https://www.doj.nh.gov/",
+    contactUrl: "https://www.doj.nh.gov/contact-us",
+    phone: "(603) 271-3658",
+    imageUrl: resolveOfficialImage({
+      name: "John M. Formella",
+      title: "Attorney General of New Hampshire",
+      state: "New Hampshire",
+      remoteImageUrl: JOHN_FORMELLA_IMAGE,
     }),
     badge: {
       text: "State",
@@ -472,10 +576,19 @@ export default function MyRepresentativePage() {
     return DISTRICT_OFFICIALS[district] ?? null;
   }, [district, dynamicPrimaryRepresentative]);
 
+  // REPLACE YOUR EXISTING statewideLeaders useMemo WITH THIS
   const statewideLeaders = useMemo(() => {
     if (dynamicStatewideLeaders.length > 0) return dynamicStatewideLeaders;
-    return district.startsWith("TX-") ? TEXAS_STATEWIDE_LEADERS : [];
-  }, [district, dynamicStatewideLeaders]);
+
+    const stateCode =
+      normalizeStateCode(profile?.state) ||
+      normalizeStateCode(district.split("-")[0] || district);
+
+    if (stateCode === "TX") return TEXAS_STATEWIDE_LEADERS;
+    if (stateCode === "NH") return NEW_HAMPSHIRE_STATEWIDE_LEADERS;
+
+    return [];
+  }, [district, dynamicStatewideLeaders, profile?.state]);
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
@@ -671,7 +784,7 @@ export default function MyRepresentativePage() {
               {stateHeading}
             </h3>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
               {statewideLeaders.map((official) => (
                 <OfficialCard
                   key={official.id}
@@ -799,8 +912,8 @@ function OfficialCard({
       <div className="flex h-full flex-col items-center text-center">
         <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
           {displaySrc ? (
-  <img
-    src={displaySrc}
+            <img
+              src={displaySrc}
               alt={official.name}
               className="h-full w-full object-cover"
               loading="lazy"
