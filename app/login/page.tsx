@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,45 +38,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [pageChecking, setPageChecking] = useState(true);
   const [message, setMessage] = useState("");
+
+  const redirectingRef = useRef(false);
 
   function getRedirectPath({
     accountType,
     role,
+    districtId,
   }: {
     accountType?: string | null;
     role?: string | null;
+    districtId?: string | null;
   }) {
-    if (role === "admin") {
-      return "/admin";
-    }
-
-    if (role === "moderator") {
-      return "/moderator";
-    }
-
-    if (accountType === "official") {
-      return "/official-dashboard";
-    }
-
+    if (role === "admin") return "/admin";
+    if (role === "moderator") return "/moderator";
+    if (accountType === "official") return "/official-dashboard";
+    if (!districtId) return "/district";
     return "/dashboard";
   }
 
-  async function getProfileRole(userId?: string) {
+  async function getProfile(userId?: string) {
     if (!userId) return null;
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, district")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      console.error("Failed to fetch profile role:", error);
+      console.error("Failed to fetch profile:", error);
       return null;
     }
 
-    return data?.role ?? null;
+    return data ?? null;
   }
 
   async function syncDistrictFromEmail(user: any) {
@@ -117,7 +114,9 @@ export default function LoginPage() {
   }
 
   async function handleSessionRedirect(session: any) {
-    if (!session?.user) return;
+    if (!session?.user || redirectingRef.current) return;
+
+    redirectingRef.current = true;
 
     try {
       if (typeof window !== "undefined") {
@@ -125,27 +124,46 @@ export default function LoginPage() {
       }
 
       const updatedUser = await syncDistrictFromEmail(session.user);
-      const accountType = updatedUser?.user_metadata?.account_type;
-      const role = await getProfileRole(updatedUser?.id);
+      const profile = await getProfile(updatedUser?.id);
+
+      const accountType = updatedUser?.user_metadata?.account_type ?? null;
+      const role = profile?.role ?? null;
+      const districtId =
+        profile?.district ??
+        updatedUser?.user_metadata?.district_id ??
+        updatedUser?.user_metadata?.district ??
+        updatedUser?.user_metadata?.district_name ??
+        null;
 
       const redirectPath = getRedirectPath({
         accountType,
         role,
+        districtId,
       });
 
       router.replace(redirectPath);
     } catch (error) {
       console.error("Session redirect error:", error);
 
-      const accountType = session.user?.user_metadata?.account_type;
-      const role = await getProfileRole(session.user?.id);
+      const profile = await getProfile(session.user?.id);
+      const accountType = session.user?.user_metadata?.account_type ?? null;
+      const role = profile?.role ?? null;
+      const districtId =
+        profile?.district ??
+        session.user?.user_metadata?.district_id ??
+        session.user?.user_metadata?.district ??
+        session.user?.user_metadata?.district_name ??
+        null;
 
       const redirectPath = getRedirectPath({
         accountType,
         role,
+        districtId,
       });
 
       router.replace(redirectPath);
+    } finally {
+      setPageChecking(false);
     }
   }
 
@@ -153,12 +171,22 @@ export default function LoginPage() {
     let mounted = true;
 
     const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (session && mounted) {
-        await handleSessionRedirect(session);
+        if (!mounted) return;
+
+        if (session) {
+          await handleSessionRedirect(session);
+          return;
+        }
+
+        setPageChecking(false);
+      } catch (error) {
+        console.error("Session check error:", error);
+        if (mounted) setPageChecking(false);
       }
     };
 
@@ -167,9 +195,8 @@ export default function LoginPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session && mounted) {
-        await handleSessionRedirect(session);
-      }
+      if (!mounted || !session || redirectingRef.current) return;
+      await handleSessionRedirect(session);
     });
 
     return () => {
@@ -183,7 +210,7 @@ export default function LoginPage() {
     setMessage("");
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -198,21 +225,8 @@ export default function LoginPage() {
       localStorage.removeItem("guest_user");
     }
 
-    const updatedUser = await syncDistrictFromEmail(data.user);
-    const accountType = updatedUser?.user_metadata?.account_type;
-    const role = await getProfileRole(updatedUser?.id);
-
-    const redirectPath = getRedirectPath({
-      accountType,
-      role,
-    });
-
     setMessage("Login successful. Redirecting...");
     setLoading(false);
-
-    setTimeout(() => {
-      window.location.href = redirectPath;
-    }, 200);
   }
 
   async function handleMobileLogin(e: FormEvent) {
@@ -242,12 +256,13 @@ export default function LoginPage() {
           mobile: mobile.trim(),
           state: "Texas",
           district_id: "TX-20",
+          district: "TX-20",
         })
       );
 
       setMessage("Mobile login is a demo flow. Redirecting...");
       setLoading(false);
-      router.push("/dashboard");
+      router.replace("/dashboard");
       router.refresh();
     } catch (error) {
       console.error("Mobile login error:", error);
@@ -302,16 +317,34 @@ export default function LoginPage() {
           account_type: "citizen",
           state: "Texas",
           district_id: "TX-20",
+          district: "TX-20",
         })
       );
 
-      router.push("/dashboard");
+      router.replace("/dashboard");
       router.refresh();
     } catch (error) {
       console.error("Guest login error:", error);
       setMessage("Unable to continue as guest.");
       setGuestLoading(false);
     }
+  }
+
+  if (pageChecking) {
+    return (
+      <main className="min-h-screen bg-slate-100 px-4 py-8 md:px-6">
+        <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center justify-center">
+          <div className="rounded-[32px] border border-slate-200 bg-white px-8 py-10 shadow-sm">
+            <h1 className="text-2xl font-bold text-slate-900">
+              Checking your session...
+            </h1>
+            <p className="mt-2 text-slate-600">
+              Preparing the correct destination for your account.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -399,7 +432,6 @@ export default function LoginPage() {
               <h2 className="mt-2 text-2xl font-bold text-slate-900">
                 Log in to Civix250
               </h2>
-              
             </div>
 
             <div className="mb-4 rounded-3xl border border-green-200 bg-green-50 p-3.5">
