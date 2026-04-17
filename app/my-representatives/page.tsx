@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { resolveOfficialImage } from "@/lib/official-images";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   Building2,
@@ -55,211 +54,10 @@ type ChatMessage = {
   text: string;
 };
 
-const TED_CRUZ_IMAGE =
-  "https://upload.wikimedia.org/wikipedia/commons/9/94/Ted_Cruz%2C_official_portrait%2C_113th_Congress.jpg";
-
-const GREG_ABBOTT_IMAGE =
-  "https://upload.wikimedia.org/wikipedia/commons/5/5f/Greg_Abbott_2015.jpg";
-
-const KEN_PAXTON_IMAGE =
-  "https://upload.wikimedia.org/wikipedia/commons/1/1a/Ken_Paxton_2018.jpg";
-
-// NEW HAMPSHIRE IMAGES
-const JEANNE_SHAHEEN_IMAGE =
-  "https://www.senate.gov/senators/111thCongress/graphics/ShaheenJeanne.jpg";
-
-const MAGGIE_HASSAN_IMAGE =
-  "https://www.senate.gov/senators/115thCongress/graphics/HassanMaggie.jpg";
-
-const KELLY_AYOTTE_IMAGE =
-  "https://upload.wikimedia.org/wikipedia/commons/0/06/Kelly_Ayotte%2C_Official_Portrait%2C_112th_Congress_2_%28cropped%29.jpg";
-
-const JOHN_FORMELLA_IMAGE =
-  "https://upload.wikimedia.org/wikipedia/commons/7/77/John_Formella_%28cropped%29.jpg";
-
-function getOfficialOverrideImage(name: string): string | null {
-  const normalized = name.toLowerCase();
-
-  if (normalized.includes("ted cruz")) return TED_CRUZ_IMAGE;
-  if (normalized.includes("greg abbott")) return GREG_ABBOTT_IMAGE;
-  if (normalized.includes("ken paxton")) return KEN_PAXTON_IMAGE;
-
-  if (normalized.includes("jeanne shaheen")) return JEANNE_SHAHEEN_IMAGE;
-  if (normalized.includes("maggie hassan")) return MAGGIE_HASSAN_IMAGE;
-  if (normalized.includes("kelly ayotte")) return KELLY_AYOTTE_IMAGE;
-  if (normalized.includes("john formella")) return JOHN_FORMELLA_IMAGE;
-
-  return null;
-}
-
-const DISTRICT_OFFICIALS: Record<string, Official> = {
-  "TX-35": {
-    id: "greg-casar",
-    name: "Greg Casar",
-    title: "U.S. Representative",
-    officeLabel: "Texas 35th Congressional District",
-    level: "federal",
-    district: "TX-35",
-    state: "Texas",
-    party: "Democrat",
-    website: "https://casar.house.gov",
-    contactUrl: "https://casar.house.gov/contact/offices",
-    phone: "(202) 225-5645",
-    imageUrl: resolveOfficialImage({
-      name: "Greg Casar",
-      remoteImageUrl: "/officials/greg-casar.jpg",
-    }),
-    badge: {
-      text: "House",
-      tone: "blue",
-    },
-  },
+type CivicApiResponse = {
+  districtRepresentative?: any | null;
+  statewideLeaders?: any[];
 };
-
-const TEXAS_STATEWIDE_LEADERS: Official[] = [
-  {
-    id: "ted-cruz",
-    name: "Ted Cruz",
-    title: "U.S. Senator",
-    officeLabel: "Texas",
-    level: "federal",
-    state: "Texas",
-    website: "https://www.cruz.senate.gov",
-    contactUrl: "https://www.cruz.senate.gov/contact/write-ted",
-    phone: "(512) 916-5834",
-    imageUrl: resolveOfficialImage({
-      name: "Ted Cruz",
-      remoteImageUrl: TED_CRUZ_IMAGE,
-    }),
-    badge: {
-      text: "Senate",
-      tone: "red",
-    },
-  },
-  {
-    id: "greg-abbott",
-    name: "Greg Abbott",
-    title: "Governor of Texas",
-    officeLabel: "Statewide Office",
-    level: "state",
-    state: "Texas",
-    website: "https://gov.texas.gov/",
-    contactUrl: "https://gov.texas.gov/contact",
-    phone: "(512) 463-2000",
-    imageUrl: resolveOfficialImage({
-      name: "Greg Abbott",
-      remoteImageUrl: GREG_ABBOTT_IMAGE,
-    }),
-    badge: {
-      text: "State",
-      tone: "green",
-    },
-  },
-  {
-    id: "ken-paxton",
-    name: "Ken Paxton",
-    title: "Attorney General of Texas",
-    officeLabel: "Statewide Office",
-    level: "state",
-    state: "Texas",
-    website: "https://www.texasattorneygeneral.gov/",
-    contactUrl: "https://www.texasattorneygeneral.gov/about-office",
-    imageUrl: resolveOfficialImage({
-      name: "Ken Paxton",
-      remoteImageUrl: KEN_PAXTON_IMAGE,
-    }),
-    badge: {
-      text: "State",
-      tone: "green",
-    },
-  },
-];
-
-// ADD THIS
-const NEW_HAMPSHIRE_STATEWIDE_LEADERS: Official[] = [
-  {
-    id: "jeanne-shaheen",
-    name: "Jeanne Shaheen",
-    title: "U.S. Senator",
-    officeLabel: "New Hampshire",
-    level: "federal",
-    state: "New Hampshire",
-    website: "https://www.shaheen.senate.gov/",
-    contactUrl: "https://www.shaheen.senate.gov/contact/contact-jeanne",
-    phone: "(603) 647-7500",
-    imageUrl: resolveOfficialImage({
-      name: "Jeanne Shaheen",
-      state: "New Hampshire",
-      remoteImageUrl: JEANNE_SHAHEEN_IMAGE,
-    }),
-    badge: {
-      text: "Senate",
-      tone: "red",
-    },
-  },
-  {
-    id: "maggie-hassan",
-    name: "Maggie Hassan",
-    title: "U.S. Senator",
-    officeLabel: "New Hampshire",
-    level: "federal",
-    state: "New Hampshire",
-    website: "https://www.hassan.senate.gov/",
-    contactUrl: "https://www.hassan.senate.gov/contact/email",
-    phone: "(603) 622-2204",
-    imageUrl: resolveOfficialImage({
-      name: "Maggie Hassan",
-      state: "New Hampshire",
-      remoteImageUrl: MAGGIE_HASSAN_IMAGE,
-    }),
-    badge: {
-      text: "Senate",
-      tone: "red",
-    },
-  },
-  {
-    id: "kelly-ayotte",
-    name: "Kelly Ayotte",
-    title: "Governor of New Hampshire",
-    officeLabel: "Statewide Office",
-    level: "state",
-    state: "New Hampshire",
-    website: "https://www.governor.nh.gov/",
-    contactUrl: "https://www.governor.nh.gov/contact-us",
-    phone: "(603) 271-2121",
-    imageUrl: resolveOfficialImage({
-      name: "Kelly Ayotte",
-      title: "Governor of New Hampshire",
-      state: "New Hampshire",
-      remoteImageUrl: KELLY_AYOTTE_IMAGE,
-    }),
-    badge: {
-      text: "State",
-      tone: "green",
-    },
-  },
-  {
-    id: "john-formella",
-    name: "John M. Formella",
-    title: "Attorney General of New Hampshire",
-    officeLabel: "Statewide Office",
-    level: "state",
-    state: "New Hampshire",
-    website: "https://www.doj.nh.gov/",
-    contactUrl: "https://www.doj.nh.gov/contact-us",
-    phone: "(603) 271-3658",
-    imageUrl: resolveOfficialImage({
-      name: "John M. Formella",
-      title: "Attorney General of New Hampshire",
-      state: "New Hampshire",
-      remoteImageUrl: JOHN_FORMELLA_IMAGE,
-    }),
-    badge: {
-      text: "State",
-      tone: "green",
-    },
-  },
-];
 
 function normalizeStateCode(state?: string | null): string {
   const value = String(state || "").trim().toLowerCase();
@@ -384,6 +182,10 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+function isBadgeTone(value: unknown): value is Official["badge"]["tone"] {
+  return value === "red" || value === "green" || value === "blue" || value === "slate";
+}
+
 function mapCivicOfficial(
   input: any,
   profile: ProfileRow | null,
@@ -391,33 +193,38 @@ function mapCivicOfficial(
 ): Official | null {
   if (!input?.name || !input?.title) return null;
 
-  const stateName = normalizeStateName(profile?.state);
-  const overrideImage = getOfficialOverrideImage(input.name);
+  const stateName = normalizeStateName(profile?.state || input?.state || district);
 
   return {
     id:
       input.id ||
       `${input.name}-${input.title}`.replace(/\s+/g, "-").toLowerCase(),
-    name: input.name,
-    title: input.title,
-    officeLabel: input.officeLabel || district || "District Office",
+    name: String(input.name),
+    title: String(input.title),
+    officeLabel: String(input.officeLabel || district || "District Office"),
     level: input.level === "state" ? "state" : "federal",
     district: district || undefined,
     state: stateName,
-    website: input.website || "#",
-    contactUrl: input.contactUrl || input.website || "#",
-    phone: input.phone || undefined,
-    imageUrl: resolveOfficialImage({
-      name: input.name,
-      title: input.title,
-      state: stateName,
-      remoteImageUrl: overrideImage || input.imageUrl || "",
-    }),
+    party: input.party ? String(input.party) : undefined,
+    website: String(input.website || "#"),
+    contactUrl: String(input.contactUrl || input.website || "#"),
+    phone: input.phone ? String(input.phone) : undefined,
+    imageUrl: String(input.imageUrl || ""),
     badge: {
-      text: input.badge?.text || "Office",
-      tone: input.badge?.tone || "slate",
+      text: String(input.badge?.text || "Office"),
+      tone: isBadgeTone(input.badge?.tone) ? input.badge.tone : "slate",
     },
   };
+}
+
+function dedupeOfficials(items: Official[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.name}-${item.title}`.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default function MyRepresentativePage() {
@@ -426,12 +233,10 @@ export default function MyRepresentativePage() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [district, setDistrict] = useState("TX-35");
+  const [district, setDistrict] = useState("N/A");
   const [dynamicPrimaryRepresentative, setDynamicPrimaryRepresentative] =
     useState<Official | null>(null);
-  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<
-    Official[]
-  >([]);
+  const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<Official[]>([]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
@@ -465,6 +270,8 @@ export default function MyRepresentativePage() {
         if (!mounted) return;
 
         const mergedProfile = profileRow ?? null;
+        setProfile(mergedProfile);
+
         const rawState =
           mergedProfile?.state ||
           (user.user_metadata?.state as string | undefined) ||
@@ -476,89 +283,95 @@ export default function MyRepresentativePage() {
           (user.user_metadata?.district_name as string | undefined) ||
           (user.user_metadata?.district_id as string | undefined) ||
           rawState ||
-          "TX-35";
+          "N/A";
 
         const normalizedDistrict = normalizeDistrict(mergedDistrict, rawState);
-
-        setProfile(mergedProfile);
         setDistrict(normalizedDistrict);
 
-        let loadedStatewide: Official[] = [];
+        const mappedStatewide: Official[] = [];
+        let mappedPrimary: Official | null = null;
+
         const address = buildAddress(mergedProfile);
 
         if (address) {
           try {
             const response = await fetch(
-              `/api/civic/representatives?address=${encodeURIComponent(address)}`,
+              `/api/representatives?address=${encodeURIComponent(address)}`,
               { cache: "no-store" }
             );
 
             if (response.ok) {
-              const json = await response.json();
+              const json: CivicApiResponse = await response.json();
 
               if (!mounted) return;
 
-              const mappedPrimary = mapCivicOfficial(
+              mappedPrimary = mapCivicOfficial(
                 json?.districtRepresentative,
                 mergedProfile,
                 normalizedDistrict
               );
 
-              const mappedStatewide = Array.isArray(json?.statewideLeaders)
-                ? (json.statewideLeaders
-                    .map((item: any) =>
+              const leaders = Array.isArray(json?.statewideLeaders)
+                ? json.statewideLeaders
+                    .map((item) =>
                       mapCivicOfficial(item, mergedProfile, normalizedDistrict)
                     )
-                    .filter(Boolean) as Official[])
+                    .filter(Boolean) as Official[]
                 : [];
 
-              setDynamicPrimaryRepresentative(mappedPrimary);
-              setDynamicStatewideLeaders(mappedStatewide);
-              loadedStatewide = mappedStatewide;
+              if (mappedPrimary) {
+                setDynamicPrimaryRepresentative(mappedPrimary);
+              }
+
+              if (leaders.length > 0) {
+                mappedStatewide.push(...leaders);
+              }
             }
-          } catch (civicError) {
-            console.error("Failed to load Google Civic representatives:", civicError);
+          } catch (error) {
+            console.error("Failed to load representatives by address:", error);
           }
         }
 
         const stateForLookup =
           mergedProfile?.state ||
           (user.user_metadata?.state as string | undefined) ||
-          (normalizedDistrict.length === 2 ? normalizedDistrict : "");
+          (normalizedDistrict.length === 2 ? normalizedDistrict : normalizedDistrict.split("-")[0]) ||
+          "";
 
-        if (stateForLookup && (!address || loadedStatewide.length === 0)) {
+        if (stateForLookup) {
           try {
-            const stateResponse = await fetch(
-              `/api/civic/statewide?state=${encodeURIComponent(stateForLookup)}`,
+            const response = await fetch(
+              `/api/statewide?state=${encodeURIComponent(stateForLookup)}`,
               { cache: "no-store" }
             );
 
-            if (stateResponse.ok) {
-              const stateJson = await stateResponse.json();
+            if (response.ok) {
+              const json: CivicApiResponse = await response.json();
 
               if (!mounted) return;
 
-              const fallbackStatewide = Array.isArray(
-                stateJson?.statewideLeaders
-              )
-                ? (stateJson.statewideLeaders
-                    .map((item: any) =>
+              const statewide = Array.isArray(json?.statewideLeaders)
+                ? json.statewideLeaders
+                    .map((item) =>
                       mapCivicOfficial(item, mergedProfile, normalizedDistrict)
                     )
-                    .filter(Boolean) as Official[])
+                    .filter(Boolean) as Official[]
                 : [];
 
-              if (fallbackStatewide.length > 0) {
-                setDynamicStatewideLeaders(fallbackStatewide);
+              if (statewide.length > 0) {
+                mappedStatewide.push(...statewide);
               }
             }
-          } catch (stateError) {
-            console.error("Failed to load statewide leaders:", stateError);
+          } catch (error) {
+            console.error("Failed to load statewide leaders:", error);
           }
+        }
+
+        if (mounted) {
+          setDynamicStatewideLeaders(dedupeOfficials(mappedStatewide));
         }
       } catch (error) {
         console.error("Failed to load representative page:", error);
-        setDistrict("TX-35");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -572,23 +385,12 @@ export default function MyRepresentativePage() {
   }, [router, supabase]);
 
   const primaryRepresentative = useMemo(() => {
-    if (dynamicPrimaryRepresentative) return dynamicPrimaryRepresentative;
-    return DISTRICT_OFFICIALS[district] ?? null;
-  }, [district, dynamicPrimaryRepresentative]);
+    return dynamicPrimaryRepresentative;
+  }, [dynamicPrimaryRepresentative]);
 
-  // REPLACE YOUR EXISTING statewideLeaders useMemo WITH THIS
   const statewideLeaders = useMemo(() => {
-    if (dynamicStatewideLeaders.length > 0) return dynamicStatewideLeaders;
-
-    const stateCode =
-      normalizeStateCode(profile?.state) ||
-      normalizeStateCode(district.split("-")[0] || district);
-
-    if (stateCode === "TX") return TEXAS_STATEWIDE_LEADERS;
-    if (stateCode === "NH") return NEW_HAMPSHIRE_STATEWIDE_LEADERS;
-
-    return [];
-  }, [district, dynamicStatewideLeaders, profile?.state]);
+    return dynamicStatewideLeaders;
+  }, [dynamicStatewideLeaders]);
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
@@ -652,7 +454,7 @@ export default function MyRepresentativePage() {
   }
 
   const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
-  const stateHeading = normalizeStateName(profile?.state);
+  const stateHeading = normalizeStateName(profile?.state || district);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -746,7 +548,7 @@ export default function MyRepresentativePage() {
             </section>
 
             <section>
-              {primaryRepresentative && (
+              {primaryRepresentative ? (
                 <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="mb-5 flex items-center justify-between gap-3">
                     <div>
@@ -772,6 +574,17 @@ export default function MyRepresentativePage() {
                     onChat={startChat}
                   />
                 </div>
+              ) : (
+                <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                    Assigned District Representative
+                  </p>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-12 text-center text-slate-600">
+                    We could not find a district representative for your current profile
+                    address yet. Try ensuring your state, city, and ZIP are populated in
+                    your profile.
+                  </div>
+                </div>
               )}
             </section>
           </div>
@@ -784,16 +597,22 @@ export default function MyRepresentativePage() {
               {stateHeading}
             </h3>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
-              {statewideLeaders.map((official) => (
-                <OfficialCard
-                  key={official.id}
-                  official={official}
-                  wide
-                  onChat={startChat}
-                />
-              ))}
-            </div>
+            {statewideLeaders.length > 0 ? (
+              <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                {statewideLeaders.map((official) => (
+                  <OfficialCard
+                    key={official.id}
+                    official={official}
+                    wide
+                    onChat={startChat}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-12 text-center text-slate-600">
+                No statewide leaders were returned for this state yet.
+              </div>
+            )}
           </section>
         </main>
       </div>
@@ -896,12 +715,12 @@ function OfficialCard({
   onChat: (official: Official) => void;
 }) {
   const [imgSrc, setImgSrc] = useState(official.imageUrl || "");
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     setImgSrc(official.imageUrl || "");
+    setImageFailed(false);
   }, [official.imageUrl]);
-
-  const displaySrc = imgSrc || "";
 
   return (
     <div
@@ -911,13 +730,14 @@ function OfficialCard({
     >
       <div className="flex h-full flex-col items-center text-center">
         <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
-          {displaySrc ? (
+          {imgSrc && !imageFailed ? (
             <img
-              src={displaySrc}
+              src={imgSrc}
               alt={official.name}
               className="h-full w-full object-cover"
               loading="lazy"
-              onError={() => setImgSrc("")}
+              referrerPolicy="no-referrer"
+              onError={() => setImageFailed(true)}
             />
           ) : (
             <span className="text-4xl font-bold text-slate-500">
