@@ -105,7 +105,6 @@ function normalizeDistrict(
   const stateCode = normalizeStateCode(state);
 
   if (!raw) return stateCode || "N/A";
-
   if (/^[A-Z]{2}$/.test(raw)) return raw;
   if (/^[A-Z]{2}-\d{1,2}$/.test(raw)) return raw;
 
@@ -157,28 +156,19 @@ function buildAutoReply(official: Official, userText: string) {
   return `This is a Civix250 drafting assistant for ${official.name}. Share your concern or request, and then send the final version through the official contact page.`;
 }
 
-function buildAddress(profile: ProfileRow | null) {
-  if (!profile) return "";
-
-  const street = String(profile.street_address || "").trim();
-  const city = String(profile.city || "").trim();
-  const state = String(profile.state || "").trim();
-  const zip = String(profile.zip_code || "").trim();
+function buildAddressFromValues(input: {
+  street_address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+}) {
+  const street = String(input.street_address || "").trim();
+  const city = String(input.city || "").trim();
+  const state = String(input.state || "").trim();
+  const zip = String(input.zip_code || "").trim();
 
   if (street && city && state && zip) {
     return `${street}, ${city}, ${state} ${zip}`;
-  }
-
-  if (city && state && zip) {
-    return `${city}, ${state} ${zip}`;
-  }
-
-  if (state && zip) {
-    return `${state} ${zip}`;
-  }
-
-  if (city && state) {
-    return `${city}, ${state}`;
   }
 
   return "";
@@ -206,11 +196,14 @@ function isBadgeTone(value: unknown): value is Official["badge"]["tone"] {
 function mapCivicOfficial(
   input: any,
   profile: ProfileRow | null,
-  district: string
+  district: string,
+  fallbackState?: string | null
 ): Official | null {
   if (!input?.name || !input?.title) return null;
 
-  const stateName = normalizeStateName(profile?.state || input?.state || district);
+  const stateName = normalizeStateName(
+    profile?.state || input?.state || fallbackState || district
+  );
 
   return {
     id:
@@ -252,6 +245,7 @@ export default function MyRepresentativePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [district, setDistrict] = useState("N/A");
+  const [resolvedState, setResolvedState] = useState<string>("");
   const [dynamicPrimaryRepresentative, setDynamicPrimaryRepresentative] =
     useState<Official | null>(null);
   const [dynamicStatewideLeaders, setDynamicStatewideLeaders] = useState<
@@ -292,31 +286,59 @@ export default function MyRepresentativePage() {
         const mergedProfile = profileRow ?? null;
         setProfile(mergedProfile);
 
-        const rawState =
-          mergedProfile?.state ||
-          (user.user_metadata?.state as string | undefined) ||
-          null;
-
-        const mergedDistrict =
-          mergedProfile?.district ||
+        const metadataState =
+          (user.user_metadata?.state as string | undefined) || "";
+        const metadataStreet =
+          (user.user_metadata?.street_address as string | undefined) || "";
+        const metadataCity =
+          (user.user_metadata?.city as string | undefined) || "";
+        const metadataZip =
+          (user.user_metadata?.zip_code as string | undefined) || "";
+        const metadataDistrict =
           (user.user_metadata?.district as string | undefined) ||
           (user.user_metadata?.district_name as string | undefined) ||
           (user.user_metadata?.district_id as string | undefined) ||
-          rawState ||
+          "";
+
+        const effectiveState = mergedProfile?.state || metadataState || "";
+        const effectiveStreet = mergedProfile?.street_address || metadataStreet || "";
+        const effectiveCity = mergedProfile?.city || metadataCity || "";
+        const effectiveZip = mergedProfile?.zip_code || metadataZip || "";
+
+        const mergedDistrict =
+          mergedProfile?.district ||
+          metadataDistrict ||
+          effectiveState ||
           "N/A";
 
-        const normalizedDistrict = normalizeDistrict(mergedDistrict, rawState);
+        const normalizedDistrict = normalizeDistrict(mergedDistrict, effectiveState);
+        const districtStateCode = normalizedDistrict.includes("-")
+          ? normalizedDistrict.split("-")[0]
+          : normalizedDistrict;
+
+        const finalStateCode =
+          normalizeStateCode(effectiveState) || normalizeStateCode(districtStateCode);
+
         setDistrict(normalizedDistrict);
+        setResolvedState(finalStateCode);
 
         const mappedStatewide: Official[] = [];
         let mappedPrimary: Official | null = null;
 
-        const address = buildAddress(mergedProfile);
+        const address = buildAddressFromValues({
+          street_address: effectiveStreet,
+          city: effectiveCity,
+          state: effectiveState || normalizeStateName(finalStateCode),
+          zip_code: effectiveZip,
+        });
 
-        console.log("profile row:", mergedProfile);
-        console.log("normalizedDistrict:", normalizedDistrict);
-        console.log("built address:", address);
+        console.log("PROFILE:", mergedProfile);
+        console.log("USER_METADATA:", user.user_metadata);
+        console.log("ADDRESS_USED:", address);
+        console.log("DISTRICT_USED:", normalizedDistrict);
+        console.log("STATE_USED:", finalStateCode);
 
+        // 1) Try full address first
         if (address) {
           try {
             const response = await fetch(
@@ -333,13 +355,19 @@ export default function MyRepresentativePage() {
               mappedPrimary = mapCivicOfficial(
                 json?.districtRepresentative,
                 mergedProfile,
-                normalizedDistrict
+                normalizedDistrict,
+                finalStateCode
               );
 
               const leaders = Array.isArray(json?.statewideLeaders)
                 ? (json.statewideLeaders
                     .map((item) =>
-                      mapCivicOfficial(item, mergedProfile, normalizedDistrict)
+                      mapCivicOfficial(
+                        item,
+                        mergedProfile,
+                        normalizedDistrict,
+                        finalStateCode
+                      )
                     )
                     .filter(Boolean) as Official[])
                 : [];
@@ -359,26 +387,53 @@ export default function MyRepresentativePage() {
               );
             }
           } catch (error) {
-            console.error("Failed to load representatives by address:", error);
+            console.error("Failed address representatives lookup:", error);
           }
         }
 
-        const districtStateCode = normalizedDistrict.includes("-")
-          ? normalizedDistrict.split("-")[0]
-          : normalizedDistrict;
-
-        const stateForLookup =
-          mergedProfile?.state ||
-          (user.user_metadata?.state as string | undefined) ||
-          districtStateCode ||
-          "";
-
-        console.log("stateForLookup:", stateForLookup);
-
-        if (stateForLookup) {
+        // 2) If still no district rep, use district fallback
+        if (!mappedPrimary && /^[A-Z]{2}-\d{1,2}$/.test(normalizedDistrict)) {
           try {
             const response = await fetch(
-              `/api/statewide?state=${encodeURIComponent(stateForLookup)}`,
+              `/api/representatives-by-district?district=${encodeURIComponent(
+                normalizedDistrict
+              )}`,
+              { cache: "no-store" }
+            );
+
+            if (response.ok) {
+              const json = await response.json();
+              console.log("/api/representatives-by-district response:", json);
+
+              if (!mounted) return;
+
+              mappedPrimary = mapCivicOfficial(
+                json?.districtRepresentative,
+                mergedProfile,
+                normalizedDistrict,
+                finalStateCode
+              );
+
+              if (mappedPrimary) {
+                setDynamicPrimaryRepresentative(mappedPrimary);
+              }
+            } else {
+              console.error(
+                "Failed /api/representatives-by-district:",
+                response.status,
+                await response.text()
+              );
+            }
+          } catch (error) {
+            console.error("Failed district fallback lookup:", error);
+          }
+        }
+
+        // 3) Always try statewide by state
+        if (finalStateCode) {
+          try {
+            const response = await fetch(
+              `/api/statewide?state=${encodeURIComponent(finalStateCode)}`,
               { cache: "no-store" }
             );
 
@@ -391,7 +446,12 @@ export default function MyRepresentativePage() {
               const statewide = Array.isArray(json?.statewideLeaders)
                 ? (json.statewideLeaders
                     .map((item) =>
-                      mapCivicOfficial(item, mergedProfile, normalizedDistrict)
+                      mapCivicOfficial(
+                        item,
+                        mergedProfile,
+                        normalizedDistrict,
+                        finalStateCode
+                      )
                     )
                     .filter(Boolean) as Official[])
                 : [];
@@ -407,7 +467,7 @@ export default function MyRepresentativePage() {
               );
             }
           } catch (error) {
-            console.error("Failed to load statewide leaders:", error);
+            console.error("Failed statewide lookup:", error);
           }
         }
 
@@ -498,10 +558,7 @@ export default function MyRepresentativePage() {
   }
 
   const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
-  const derivedStateCode =
-    normalizeStateCode(profile?.state) ||
-    normalizeStateCode(district.includes("-") ? district.split("-")[0] : district);
-  const stateHeading = normalizeStateName(derivedStateCode);
+  const stateHeading = normalizeStateName(resolvedState || district);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -627,9 +684,8 @@ export default function MyRepresentativePage() {
                     Assigned District Representative
                   </p>
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-12 text-center text-slate-600">
-                    We could not find a district representative for your current profile
-                    address yet. Try ensuring your state, city, and ZIP are populated in
-                    your profile.
+                    We could not find a district representative for your current
+                    profile address or district yet.
                   </div>
                 </div>
               )}
@@ -809,7 +865,9 @@ function OfficialCard({
         <p className="mt-1 text-base text-slate-500">{official.officeLabel}</p>
 
         {official.phone ? (
-          <p className="mt-3 text-sm font-medium text-slate-600">{official.phone}</p>
+          <p className="mt-3 text-sm font-medium text-slate-600">
+            {official.phone}
+          </p>
         ) : null}
 
         <div className="mt-6 flex w-full flex-col gap-3">
