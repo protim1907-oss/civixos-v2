@@ -332,11 +332,15 @@ export default function MyRepresentativePage() {
           }
         }
 
-        const stateForLookup =
-          mergedProfile?.state ||
-          (user.user_metadata?.state as string | undefined) ||
-          (normalizedDistrict.length === 2 ? normalizedDistrict : normalizedDistrict.split("-")[0]) ||
-          "";
+        const districtStateCode = normalizedDistrict.includes("-")
+  ? normalizedDistrict.split("-")[0]
+  : normalizedDistrict;
+
+const stateForLookup =
+  mergedProfile?.state ||
+  (user.user_metadata?.state as string | undefined) ||
+  districtStateCode ||
+  "";
 
         if (stateForLookup) {
           try {
