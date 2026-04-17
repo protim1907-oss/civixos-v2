@@ -81,17 +81,33 @@ function buildOfficial(
   };
 }
 
-function isDistrictRepresentative(office: CivicOffice) {
+function districtOfficeScore(office: CivicOffice) {
   const officeName = (office.name || "").toLowerCase();
   const roles = office.roles || [];
   const divisionId = (office.divisionId || "").toLowerCase();
 
-  return (
-    officeName.includes("representative") ||
-    officeName.includes("house of representatives") ||
-    roles.includes("legislatorLowerBody") ||
-    divisionId.includes("/cd:")
-  );
+  // Best match: actual U.S. congressional district office
+  if (divisionId.includes("/cd:")) return 100;
+
+  // Strong match: explicit U.S. House office name
+  if (
+    officeName.includes("united states house of representatives") ||
+    officeName.includes("u.s. representative")
+  ) {
+    return 90;
+  }
+
+  // Weaker match: generic representative/house
+  if (officeName.includes("representative") || officeName.includes("house")) {
+    return 70;
+  }
+
+  // Weakest match: any lower-body legislator
+  if (roles.includes("legislatorLowerBody")) {
+    return 50;
+  }
+
+  return 0;
 }
 
 function isStatewideLeader(office: CivicOffice) {
@@ -123,10 +139,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log("REPRESENTATIVES ADDRESS:", address);
+
     const url = new URL(CIVIC_BASE);
     url.searchParams.set("key", CIVIC_API_KEY);
     url.searchParams.set("address", address);
-    url.searchParams.set("includeOffices", "true");
 
     const response = await fetch(url.toString(), { cache: "no-store" });
     const rawText = await response.text();
@@ -153,6 +170,7 @@ export async function GET(request: NextRequest) {
     const offices: CivicOffice[] = Array.isArray(data.offices) ? data.offices : [];
 
     let districtRepresentative: any = null;
+    let bestDistrictScore = 0;
     const statewideLeaders: any[] = [];
 
     for (const office of offices) {
@@ -164,9 +182,10 @@ export async function GET(request: NextRequest) {
 
         const mapped = buildOfficial(official, office, index);
 
-        if (isDistrictRepresentative(office) && !districtRepresentative) {
+        const score = districtOfficeScore(office);
+        if (score > bestDistrictScore) {
+          bestDistrictScore = score;
           districtRepresentative = mapped;
-          continue;
         }
 
         if (isStatewideLeader(office)) {
@@ -178,6 +197,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       districtRepresentative,
       statewideLeaders,
+      debug: {
+        address,
+        officialsCount: officials.length,
+        officesCount: offices.length,
+        bestDistrictScore,
+      },
     });
   } catch (error) {
     console.error("representatives route failed:", error);
