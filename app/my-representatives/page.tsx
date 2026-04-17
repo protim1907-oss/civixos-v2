@@ -54,6 +54,22 @@ type ChatMessage = {
   text: string;
 };
 
+type DistrictRepresentativeRow = {
+  id: string;
+  district_code: string;
+  state: string;
+  district_number: number | null;
+  name: string;
+  title: string;
+  office_label: string;
+  party: string | null;
+  website: string | null;
+  contact_url: string | null;
+  phone: string | null;
+  image_url: string | null;
+  is_active: boolean;
+};
+
 function normalizeStateCode(state?: string | null): string {
   const value = String(state || "").trim().toLowerCase();
 
@@ -161,46 +177,26 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-const DISTRICT_REPRESENTATIVES: Record<string, Official> = {
-  "TX-35": {
-    id: "greg-casar",
-    name: "Greg Casar",
-    title: "U.S. Representative",
-    officeLabel: "Texas 35th Congressional District",
+function mapDistrictRepRow(row: DistrictRepresentativeRow): Official {
+  return {
+    id: row.id,
+    name: row.name,
+    title: row.title,
+    officeLabel: row.office_label,
     level: "federal",
-    district: "TX-35",
-    state: "Texas",
-    party: "Democrat",
-    website: "https://casar.house.gov",
-    contactUrl: "https://casar.house.gov/contact",
-    phone: "(202) 225-5645",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Greg_Casar_118th_Congress.jpeg/640px-Greg_Casar_118th_Congress.jpeg",
+    district: row.district_code,
+    state: row.state,
+    party: row.party || undefined,
+    website: row.website || "#",
+    contactUrl: row.contact_url || row.website || "#",
+    phone: row.phone || undefined,
+    imageUrl: row.image_url || "",
     badge: {
       text: "House",
       tone: "blue",
     },
-  },
-  "CA-42": {
-    id: "robert-garcia",
-    name: "Robert Garcia",
-    title: "U.S. Representative",
-    officeLabel: "California 42nd Congressional District",
-    level: "federal",
-    district: "CA-42",
-    state: "California",
-    party: "Democrat",
-    website: "https://robertgarcia.house.gov",
-    contactUrl: "https://robertgarcia.house.gov/contact",
-    phone: "(202) 225-7924",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Robert_Garcia%2C_official_portrait%2C_118th_Congress.jpg/640px-Robert_Garcia%2C_official_portrait%2C_118th_Congress.jpg",
-    badge: {
-      text: "House",
-      tone: "blue",
-    },
-  },
-};
+  };
+}
 
 const STATEWIDE_LEADERS: Record<string, Official[]> = {
   TX: [
@@ -494,10 +490,18 @@ export default function MyRepresentativePage() {
         setDistrict(normalizedDistrict);
         setResolvedState(finalStateCode);
 
-        setPrimaryRepresentative(
-          DISTRICT_REPRESENTATIVES[normalizedDistrict] || null
-        );
+        const { data: districtRepRow } = await supabase
+          .from("district_representatives")
+          .select(
+            "id, district_code, state, district_number, name, title, office_label, party, website, contact_url, phone, image_url, is_active"
+          )
+          .eq("district_code", normalizedDistrict)
+          .eq("is_active", true)
+          .maybeSingle();
 
+        if (!mounted) return;
+
+        setPrimaryRepresentative(districtRepRow ? mapDistrictRepRow(districtRepRow) : null);
         setStatewideLeaders(STATEWIDE_LEADERS[finalStateCode] || []);
       } catch (error) {
         console.error("Failed to load representative page:", error);
@@ -706,8 +710,7 @@ export default function MyRepresentativePage() {
                     Assigned District Representative
                   </p>
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-12 text-center text-slate-600">
-                    We could not find a district representative for your current
-                    profile address or district yet.
+                    We could not find a district representative for your district yet.
                   </div>
                 </div>
               )}
