@@ -454,7 +454,11 @@ export default function MyRepresentativePage() {
   }
 
   const firstName = profile?.full_name?.split(" ")[0] || "Citizen";
-  const stateHeading = normalizeStateName(profile?.state || district);
+  const derivedStateCode =
+  normalizeStateCode(profile?.state) ||
+  normalizeStateCode(district.includes("-") ? district.split("-")[0] : district);
+
+const stateHeading = normalizeStateName(derivedStateCode);
 
   return (
     <div className="min-h-screen bg-slate-50">
