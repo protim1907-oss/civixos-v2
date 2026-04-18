@@ -49,7 +49,32 @@ type DistrictMetric = {
 };
 
 function normalizeDistrict(value: string | null | undefined) {
-  return (value || "Unknown").trim();
+  const raw = (value || "").trim();
+
+  if (!raw) return "Unknown";
+
+  const upper = raw.toUpperCase();
+
+  if (upper === "DISTRICT 12") return "CA-42";
+  if (upper === "DISTRICT 42") return "CA-42";
+  if (upper === "CA42") return "CA-42";
+  if (upper === "TX35") return "TX-35";
+  if (upper === "TX20") return "TX-20";
+  if (upper === "TX12") return "TX-12";
+  if (upper === "NH01") return "NH-01";
+  if (upper === "NH02") return "NH-02";
+
+  const compactMatch = upper.match(/^([A-Z]{2})(\d{1,2})$/);
+  if (compactMatch) {
+    return `${compactMatch[1]}-${Number(compactMatch[2])}`;
+  }
+
+  const spacedMatch = upper.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
+  if (spacedMatch) {
+    return `${spacedMatch[1]}-${Number(spacedMatch[2])}`;
+  }
+
+  return upper;
 }
 
 function scoreSentiment(text: string) {
@@ -164,9 +189,15 @@ export default function DistrictAnalyticsPage() {
             .eq("status", "active"),
         ]);
 
-        if (issuesRes.error) console.error("Issues analytics load error:", issuesRes.error);
-        if (postsRes.error) console.error("Posts analytics load error:", postsRes.error);
-        if (discussionsRes.error) console.error("Discussions analytics load error:", discussionsRes.error);
+        if (issuesRes.error) {
+          console.error("Issues analytics load error:", issuesRes.error);
+        }
+        if (postsRes.error) {
+          console.error("Posts analytics load error:", postsRes.error);
+        }
+        if (discussionsRes.error) {
+          console.error("Discussions analytics load error:", discussionsRes.error);
+        }
 
         setIssues((issuesRes.data as IssueRow[]) || []);
         setPosts((postsRes.data as PostRow[]) || []);
