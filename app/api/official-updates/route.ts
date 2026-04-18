@@ -191,7 +191,7 @@ async function fetchPage(url: string) {
 
 function extractLinks(html: string, baseUrl: string, sourceLabel: string) {
   const items: { title: string; url: string; source: string }[] = [];
-  const regex = /<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/gims;
+  const regex = /<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/gim;
 
   let match: RegExpExecArray | null;
   while ((match = regex.exec(html))) {
