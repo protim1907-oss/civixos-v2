@@ -146,7 +146,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 42,
     comments: 8,
     shares: 5,
-    href: "/feed",
+    href: "/feed?issue=Road%20resurfacing%20scheduled%20for%20Main%20Street%20corridor",
   },
   {
     id: "tx35-public-safety-advisory",
@@ -165,7 +165,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 25,
     comments: 4,
     shares: 3,
-    href: "/feed",
+    href: "/feed?issue=Weekend%20public%20safety%20advisory%20for%20downtown%20events",
   },
   {
     id: "ca42-port-cleanup",
@@ -184,7 +184,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 51,
     comments: 11,
     shares: 7,
-    href: "/feed",
+    href: "/feed?issue=Port-area%20cleanup%20and%20traffic%20control%20plan%20announced",
   },
   {
     id: "ca42-school-grants",
@@ -203,7 +203,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 33,
     comments: 6,
     shares: 4,
-    href: "/policy-pulse",
+    href: "/feed?issue=District%20education%20office%20opens%20community%20school%20grant%20cycle",
   },
   {
     id: "nh-water-maintenance",
@@ -222,7 +222,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 19,
     comments: 3,
     shares: 2,
-    href: "/feed",
+    href: "/feed?issue=Water%20system%20maintenance%20notice%20for%20selected%20neighborhoods",
   },
   {
     id: "nh-community-feedback",
@@ -241,7 +241,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 27,
     comments: 9,
     shares: 6,
-    href: "/dashboard",
+    href: "/feed?issue=Community%20feedback%20sessions%20scheduled%20across%20the%20district",
   },
 ];
 
@@ -448,8 +448,8 @@ export default function OfficialUpdatesPage() {
   async function copyShareUrl(item: OfficialUpdate) {
     const shareUrl =
       typeof window !== "undefined"
-        ? `${window.location.origin}${item.href || "/official-updates"}`
-        : item.href || "/official-updates";
+        ? `${window.location.origin}${item.href || "/feed"}`
+        : item.href || "/feed";
 
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(shareUrl);
@@ -459,8 +459,8 @@ export default function OfficialUpdatesPage() {
   function openWhatsAppShare(item: OfficialUpdate) {
     const shareUrl =
       typeof window !== "undefined"
-        ? `${window.location.origin}${item.href || "/official-updates"}`
-        : item.href || "/official-updates";
+        ? `${window.location.origin}${item.href || "/feed"}`
+        : item.href || "/feed";
 
     const text = `${item.title} — ${shareUrl}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -486,8 +486,8 @@ export default function OfficialUpdatesPage() {
       if (navigator.share) {
         const shareUrl =
           typeof window !== "undefined"
-            ? `${window.location.origin}${item.href || "/official-updates"}`
-            : item.href || "/official-updates";
+            ? `${window.location.origin}${item.href || "/feed"}`
+            : item.href || "/feed";
 
         await navigator.share({
           title: item.title,
@@ -606,17 +606,7 @@ export default function OfficialUpdatesPage() {
                         className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md"
                       >
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                          <div
-                            className="flex-1 cursor-pointer"
-                            onClick={() => setActiveItem(item)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                setActiveItem(item);
-                              }
-                            }}
-                          >
+                          <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-3">
                               <span
                                 className={`rounded-full px-4 py-2 text-sm font-semibold ${getCategoryBadgeClasses(
@@ -667,7 +657,7 @@ export default function OfficialUpdatesPage() {
 
                           <div className="flex flex-col gap-3 lg:w-[170px]">
                             <button
-                              onClick={() => setActiveItem(item)}
+                              onClick={() => router.push(item.href || "/feed")}
                               className="inline-flex items-center justify-center gap-2 rounded-[22px] bg-slate-950 px-5 py-4 text-base font-semibold text-white transition hover:bg-slate-800"
                             >
                               View details
