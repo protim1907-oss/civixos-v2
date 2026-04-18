@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
@@ -56,7 +55,7 @@ type OfficialUpdate = {
   upvotes: number;
   comments: number;
   shares: number;
-  href?: string;
+  sourceUrl?: string;
 };
 
 type CommentItem = {
@@ -146,7 +145,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 42,
     comments: 8,
     shares: 5,
-    href: "/feed?issue=Road%20resurfacing%20scheduled%20for%20Main%20Street%20corridor",
+    sourceUrl: "https://example.com/tx35-road-resurfacing",
   },
   {
     id: "tx35-public-safety-advisory",
@@ -165,7 +164,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 25,
     comments: 4,
     shares: 3,
-    href: "/feed?issue=Weekend%20public%20safety%20advisory%20for%20downtown%20events",
+    sourceUrl: "https://example.com/tx35-public-safety-advisory",
   },
   {
     id: "ca42-port-cleanup",
@@ -184,7 +183,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 51,
     comments: 11,
     shares: 7,
-    href: "/feed?issue=Port-area%20cleanup%20and%20traffic%20control%20plan%20announced",
+    sourceUrl: "https://example.com/ca42-port-cleanup",
   },
   {
     id: "ca42-school-grants",
@@ -203,7 +202,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 33,
     comments: 6,
     shares: 4,
-    href: "/feed?issue=District%20education%20office%20opens%20community%20school%20grant%20cycle",
+    sourceUrl: "https://example.com/ca42-school-grants",
   },
   {
     id: "nh-water-maintenance",
@@ -222,7 +221,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 19,
     comments: 3,
     shares: 2,
-    href: "/feed?issue=Water%20system%20maintenance%20notice%20for%20selected%20neighborhoods",
+    sourceUrl: "https://example.com/nh-water-maintenance",
   },
   {
     id: "nh-community-feedback",
@@ -241,7 +240,7 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     upvotes: 27,
     comments: 9,
     shares: 6,
-    href: "/feed?issue=Community%20feedback%20sessions%20scheduled%20across%20the%20district",
+    sourceUrl: "https://example.com/nh-community-feedback",
   },
 ];
 
@@ -280,7 +279,6 @@ function getStatusBadgeClasses(status: OfficialUpdate["status"]) {
 }
 
 export default function OfficialUpdatesPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -331,7 +329,7 @@ export default function OfficialUpdatesPage() {
         } = await supabase.auth.getUser();
 
         if (authError || !user) {
-          router.push("/login");
+          window.location.href = "/login";
           return;
         }
 
@@ -381,7 +379,7 @@ export default function OfficialUpdatesPage() {
     return () => {
       mounted = false;
     };
-  }, [router, supabase]);
+  }, [supabase]);
 
   const districtUpdates = useMemo(() => {
     return OFFICIAL_UPDATES.filter((item) => item.district === district);
@@ -408,8 +406,7 @@ export default function OfficialUpdatesPage() {
   const highPriorityCount = filteredUpdates.filter(
     (item) => item.priority === "High"
   ).length;
-  const reportingOffices = new Set(filteredUpdates.map((item) => item.office))
-    .size;
+  const reportingOffices = new Set(filteredUpdates.map((item) => item.office)).size;
 
   function getTotalComments(itemId: string, baseComments: number) {
     const extra = commentsByItem[itemId]?.length || 0;
@@ -446,10 +443,9 @@ export default function OfficialUpdatesPage() {
   }
 
   async function copyShareUrl(item: OfficialUpdate) {
-    const shareUrl =
-      typeof window !== "undefined"
-        ? `${window.location.origin}${item.href || "/feed"}`
-        : item.href || "/feed";
+    const shareUrl = item.sourceUrl || "";
+
+    if (!shareUrl) return;
 
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(shareUrl);
@@ -457,10 +453,8 @@ export default function OfficialUpdatesPage() {
   }
 
   function openWhatsAppShare(item: OfficialUpdate) {
-    const shareUrl =
-      typeof window !== "undefined"
-        ? `${window.location.origin}${item.href || "/feed"}`
-        : item.href || "/feed";
+    const shareUrl = item.sourceUrl || "";
+    if (!shareUrl) return;
 
     const text = `${item.title} — ${shareUrl}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -478,21 +472,18 @@ export default function OfficialUpdatesPage() {
     setShareMenuOpenFor(null);
 
     try {
+      if (!item.sourceUrl) return;
+
       if (mode === "whatsapp") {
         openWhatsAppShare(item);
         return;
       }
 
       if (navigator.share) {
-        const shareUrl =
-          typeof window !== "undefined"
-            ? `${window.location.origin}${item.href || "/feed"}`
-            : item.href || "/feed";
-
         await navigator.share({
           title: item.title,
           text: item.summary,
-          url: shareUrl,
+          url: item.sourceUrl,
         });
       } else {
         await copyShareUrl(item);
@@ -631,9 +622,22 @@ export default function OfficialUpdatesPage() {
                               </span>
                             </div>
 
-                            <h3 className="mt-5 text-[2.2rem] font-bold leading-tight tracking-tight text-slate-900">
-                              {item.title}
-                            </h3>
+                            {item.sourceUrl ? (
+                              <a
+                                href={item.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <h3 className="mt-5 text-[2.2rem] font-bold leading-tight tracking-tight text-slate-900 hover:underline">
+                                  {item.title}
+                                </h3>
+                              </a>
+                            ) : (
+                              <h3 className="mt-5 text-[2.2rem] font-bold leading-tight tracking-tight text-slate-900">
+                                {item.title}
+                              </h3>
+                            )}
 
                             <p className="mt-4 max-w-3xl text-lg leading-9 text-slate-600">
                               {item.summary}
@@ -656,13 +660,26 @@ export default function OfficialUpdatesPage() {
                           </div>
 
                           <div className="flex flex-col gap-3 lg:w-[170px]">
-                            <button
-                              onClick={() => router.push(item.href || "/feed")}
-                              className="inline-flex items-center justify-center gap-2 rounded-[22px] bg-slate-950 px-5 py-4 text-base font-semibold text-white transition hover:bg-slate-800"
-                            >
-                              View details
-                              <ArrowRight className="h-4 w-4" />
-                            </button>
+                            {item.sourceUrl ? (
+                              <a
+                                href={item.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 rounded-[22px] bg-slate-950 px-5 py-4 text-base font-semibold text-white transition hover:bg-slate-800"
+                              >
+                                View details
+                                <ArrowRight className="h-4 w-4" />
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setActiveItem(item)}
+                                className="inline-flex items-center justify-center gap-2 rounded-[22px] bg-slate-950 px-5 py-4 text-base font-semibold text-white transition hover:bg-slate-800"
+                              >
+                                View details
+                                <ArrowRight className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -719,8 +736,7 @@ export default function OfficialUpdatesPage() {
                   })
                 ) : (
                   <div className="rounded-[26px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-slate-500">
-                    No official updates were found for {district} with the
-                    current filters.
+                    No official updates were found for {district} with the current filters.
                   </div>
                 )}
               </div>
@@ -910,13 +926,17 @@ export default function OfficialUpdatesPage() {
                   ) : null}
                 </div>
 
-                <Link
-                  href={activeItem.href || "/feed"}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Open related page
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                {activeItem.sourceUrl ? (
+                  <a
+                    href={activeItem.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open source page
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                ) : null}
               </div>
 
               <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
