@@ -10,6 +10,7 @@ type FeedItem = {
   pubDate?: string;
   description?: string;
   source?: string;
+  sourceType: "official" | "community" | "media";
 };
 
 type RegionInfo = {
@@ -181,6 +182,27 @@ function inferRegionFromProfile(
     };
   }
 
+  if (
+    districtValue.includes("california") ||
+    districtValue === "ca" ||
+    districtValue.startsWith("ca-") ||
+    stateValue === "california" ||
+    stateValue === "ca"
+  ) {
+    const districtNumberMatch = districtValue.match(/(\d{1,2})/);
+    const districtNumber = districtNumberMatch ? Number(districtNumberMatch[1]) : null;
+
+    return {
+      stateName: "California",
+      districtLabel: districtNumber ? `CA District ${districtNumber}` : "California District",
+      districtNumber,
+      feedLabel: districtNumber ? `California District ${districtNumber}` : "California",
+      query: districtNumber
+        ? `"California" district ${districtNumber} local government OR community OR policy OR public safety OR infrastructure OR education`
+        : `"California" local government OR community OR policy OR public safety OR infrastructure OR education`,
+    };
+  }
+
   const stateName = rawState ? String(rawState).trim() : "your state";
   const districtLabel = rawDistrict ? String(rawDistrict).trim() : "your district";
 
@@ -195,6 +217,30 @@ function inferRegionFromProfile(
       ? `"${stateName}" local government OR community OR city council OR school board OR housing OR roads OR public safety`
       : `"local district" government OR community OR housing OR roads OR schools OR public safety`,
   };
+}
+
+function classifySource(item: { title: string; description?: string; source?: string; link: string }) {
+  const text = `${item.title} ${item.description || ""} ${item.source || ""} ${item.link}`.toLowerCase();
+
+  if (
+    text.includes(".gov") ||
+    text.includes("government") ||
+    text.includes("department") ||
+    text.includes("city of") ||
+    text.includes("county") ||
+    text.includes("official") ||
+    text.includes("press release") ||
+    text.includes("senate") ||
+    text.includes("house.gov") ||
+    text.includes("city council") ||
+    text.includes("school board") ||
+    text.includes("mayor") ||
+    text.includes("governor")
+  ) {
+    return "official" as const;
+  }
+
+  return "media" as const;
 }
 
 async function fetchGoogleNews(query: string): Promise<Omit<FeedItem, "id">[]> {
@@ -218,12 +264,21 @@ async function fetchGoogleNews(query: string): Promise<Omit<FeedItem, "id">[]> {
     return itemsArray
       .map((item: any) => {
         const link = cleanGoogleNewsLink(item.link || "");
+        const title = normalizeText(item.title);
+        const description = normalizeText(item.description);
+
         return {
-          title: normalizeText(item.title),
+          title,
           link,
           pubDate: item.pubDate,
-          description: normalizeText(item.description),
+          description,
           source: extractDomain(link),
+          sourceType: classifySource({
+            title,
+            description,
+            source: extractDomain(link),
+            link,
+          }),
         };
       })
       .filter((item: Omit<FeedItem, "id">) => item.title && item.link);
@@ -272,6 +327,7 @@ function scoreItemForRegion(item: Omit<FeedItem, "id">, region: RegionInfo) {
     if (haystack.includes(keyword)) score += 1;
   }
 
+  if (item.sourceType === "official") score += 2;
   if (isWithinLast7Days(item.pubDate)) score += 3;
   return score;
 }
@@ -356,7 +412,9 @@ async function generateAISummary(
       .slice(0, 15)
       .map(
         (item, index) =>
-          `${index + 1}. ${item.title}${item.description ? ` — ${item.description}` : ""}`
+          `${index + 1}. [${item.sourceType === "official" ? "Official Notice" : item.sourceType === "community" ? "Community" : "Media"}] ${item.title}${
+            item.description ? ` — ${item.description}` : ""
+          }`
       )
       .join("\n");
 
@@ -447,21 +505,55 @@ async function getCurrentUserProfile() {
 }
 
 const borderAccentClasses = [
-  "border-l-[6px] border-[#f59e0b]", // yellow
-  "border-l-[6px] border-[#3b82f6]", // blue
-  "border-l-[6px] border-[#ef4444]", // red
-  "border-l-[6px] border-[#22c55e]", // green
+  "border-l-[6px] border-[#f59e0b]",
+  "border-l-[6px] border-[#3b82f6]",
+  "border-l-[6px] border-[#ef4444]",
+  "border-l-[6px] border-[#22c55e]",
 ];
 
-export default async function TrendingPostsPage() {
-  const { user, profile } = await getCurrentUserProfile();
+function getSourceBadgeClasses(sourceType: FeedItem["sourceType"]) {
+  if (sourceType === "official") {
+    return "bg-green-100 text-green-700";
+  }
+  if (sourceType === "community") {
+    return "bg-slate-100 text-slate-700";
+  }
+  return "bg-blue-50 text-blue-700";
+}
 
+function getSourceBadgeLabel(sourceType: FeedItem["sourceType"]) {
+  if (sourceType === "official") return "Official Notice";
+  if (sourceType === "community") return "Community";
+  return "News";
+}
+
+export default async function TrendingPostsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = (await searchParams) || {};
+  const rawFilter = Array.isArray(resolvedSearchParams.filter)
+    ? resolvedSearchParams.filter[0]
+    : resolvedSearchParams.filter;
+
+  const activeFilter =
+    rawFilter === "official"
+      ? "official"
+      : rawFilter === "community"
+      ? "community"
+      : rawFilter === "media"
+      ? "media"
+      : "all";
+
+  const { user, profile } = await getCurrentUserProfile();
   const region = inferRegionFromProfile(profile, user?.user_metadata);
 
   const searchQueries = [
     region.query,
     `"${region.stateName}" community issues OR local government OR infrastructure`,
     `"${region.feedLabel}" housing OR education OR roads OR public safety`,
+    `"${region.feedLabel}" press release OR official notice OR city council OR county government`,
   ];
 
   const feedResults = await Promise.all(searchQueries.map((query) => fetchGoogleNews(query)));
@@ -477,9 +569,16 @@ export default async function TrendingPostsPage() {
 
   const districtSpecificItems = scored.filter((item) => item.score >= 4);
   const weeklyItems = districtSpecificItems.filter((item) => isWithinLast7Days(item.pubDate));
-  const newsToShow = (weeklyItems.length > 0 ? weeklyItems : districtSpecificItems).slice(0, 12);
+  const baseItems = (weeklyItems.length > 0 ? weeklyItems : districtSpecificItems).slice(0, 24);
 
-  const topIssues = await generateAISummary(newsToShow, region);
+  const newsToShow = baseItems
+    .filter((item) => {
+      if (activeFilter === "all") return true;
+      return item.sourceType === activeFilter;
+    })
+    .slice(0, 12);
+
+  const topIssues = await generateAISummary(newsToShow.length ? newsToShow : baseItems, region);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -569,22 +668,65 @@ export default async function TrendingPostsPage() {
         </section>
 
         <section>
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Recent stories</h2>
               <p className="mt-1 text-sm text-slate-600">
                 Showing the most relevant civic headlines for {region.feedLabel}.
               </p>
             </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/trending-posts"
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  activeFilter === "all"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                All
+              </Link>
+              <Link
+                href="/trending-posts?filter=official"
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  activeFilter === "official"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Official Notices
+              </Link>
+              <Link
+                href="/trending-posts?filter=community"
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  activeFilter === "community"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Community
+              </Link>
+              <Link
+                href="/trending-posts?filter=media"
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  activeFilter === "media"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Media
+              </Link>
+            </div>
           </div>
 
           {newsToShow.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
               <h3 className="text-lg font-semibold text-slate-900">
-                No district-specific stories found yet
+                No stories found for this filter
               </h3>
               <p className="mt-2 text-sm text-slate-600">
-                Try again later after more local stories are indexed.
+                Try switching filters or check again later after more local stories are indexed.
               </p>
             </div>
           ) : (
@@ -597,7 +739,14 @@ export default async function TrendingPostsPage() {
                   }`}
                 >
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getSourceBadgeClasses(
+                        item.sourceType
+                      )}`}
+                    >
+                      {getSourceBadgeLabel(item.sourceType)}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                       {item.source || "News"}
                     </span>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
