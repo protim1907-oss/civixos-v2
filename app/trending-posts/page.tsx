@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Sidebar from "@/components/layout/Sidebar";
+import { MessageCircle } from "lucide-react";
 import { XMLParser } from "fast-xml-parser";
 import { createClient } from "@/lib/supabase/server";
 import TrendingStoryActions from "@/components/trending/TrendingNewsActions";
@@ -533,6 +535,16 @@ function getSourceBadgeLabel(sourceType: FeedItem["sourceType"]) {
   return "News";
 }
 
+function buildRepresentativeHref(item: FeedItem) {
+  const params = new URLSearchParams({
+    storyTitle: item.title,
+    storyLink: item.link,
+    storySource: item.source || "News source",
+  });
+
+  return `/my-representative?${params.toString()}`;
+}
+
 export default async function TrendingPostsPage({
   searchParams,
 }: {
@@ -592,203 +604,219 @@ export default async function TrendingPostsPage({
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">
-                Trending Posts
-              </p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                {region.feedLabel} News & Community Signals
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Current-week civic headlines and issue summaries tailored to your district.
-              </p>
-            </div>
+      <div className="flex min-h-screen">
+        <Sidebar />
 
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                District
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{region.districtLabel}</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Stories this week
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">
-                {weeklyDistrictItems.length}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Last refresh
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">
-                {new Intl.DateTimeFormat("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                }).format(new Date())}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <section className="mb-8">
-          <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-[1px] shadow-lg">
-            <div className="rounded-3xl bg-white p-6">
-              <div className="mb-5 flex items-center justify-between gap-4">
+        <div className="flex-1 p-4 md:p-6 xl:p-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-8 flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
-                    AI Summarization
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">
+                    Trending Posts
                   </p>
-                  <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                    Top 3 issues this week
-                  </h2>
+                  <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                    {region.feedLabel} News & Community Signals
+                  </h1>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    Current-week civic headlines and issue summaries tailored to your district.
+                  </p>
                 </div>
+
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Back to Dashboard
+                </Link>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                {topIssues.map((issue, index) => (
-                  <div
-                    key={`${issue.title}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
-                  >
-                    <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
-                      {index + 1}
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-900">{issue.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{issue.summary}</p>
-                  </div>
-                ))}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    District
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">{region.districtLabel}</p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Stories this week
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    {weeklyDistrictItems.length}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Last refresh
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    {new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }).format(new Date())}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section>
-          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Recent stories</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Showing current-week civic headlines for {region.feedLabel}.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/trending-posts"
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-                  activeFilter === "all"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                All
-              </Link>
-              <Link
-                href="/trending-posts?filter=official"
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-                  activeFilter === "official"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Official Notices
-              </Link>
-              <Link
-                href="/trending-posts?filter=community"
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-                  activeFilter === "community"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Community
-              </Link>
-              <Link
-                href="/trending-posts?filter=media"
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-                  activeFilter === "media"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Media
-              </Link>
-            </div>
-          </div>
-
-          {newsToShow.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-              <h3 className="text-lg font-semibold text-slate-900">
-                No district-relevant stories published this week
-              </h3>
-              <p className="mt-2 text-sm text-slate-600">
-                There are no current-week stories for this filter right now. Check back later after more local stories are indexed.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-5 lg:grid-cols-2">
-              {newsToShow.map((item, index) => (
-                <article
-                  key={item.id}
-                  className={`group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md ${
-                    borderAccentClasses[index % borderAccentClasses.length]
-                  }`}
-                >
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getSourceBadgeClasses(
-                        item.sourceType
-                      )}`}
-                    >
-                      {getSourceBadgeLabel(item.sourceType)}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {item.source || "News"}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                      {formatDate(item.pubDate)}
-                    </span>
+            <section className="mb-8">
+              <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-[1px] shadow-lg">
+                <div className="rounded-3xl bg-white p-6">
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
+                        AI Summarization
+                      </p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                        Top 3 issues this week
+                      </h2>
+                    </div>
                   </div>
 
-                  <a href={item.link} target="_blank" rel="noreferrer" className="block">
-                    <h3 className="text-xl font-bold leading-snug text-slate-900 transition group-hover:text-blue-700">
-                      {item.title}
-                    </h3>
-                  </a>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {topIssues.map((issue, index) => (
+                      <div
+                        key={`${issue.title}-${index}`}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                      >
+                        <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
+                          {index + 1}
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900">{issue.title}</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">{issue.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
 
-                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
-                    {item.description || "Read more about this district-related civic update."}
+            <section>
+              <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Recent stories</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Showing current-week civic headlines for {region.feedLabel}.
                   </p>
+                </div>
 
-                  <div className="mt-5">
-                    <TrendingStoryActions
-                      storyId={item.id}
-                      title={item.title}
-                      link={item.link}
-                      source={item.source || "News source"}
-                    />
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/trending-posts"
+                    className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                      activeFilter === "all"
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    All
+                  </Link>
+                  <Link
+                    href="/trending-posts?filter=official"
+                    className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                      activeFilter === "official"
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Official Notices
+                  </Link>
+                  <Link
+                    href="/trending-posts?filter=community"
+                    className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                      activeFilter === "community"
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Community
+                  </Link>
+                  <Link
+                    href="/trending-posts?filter=media"
+                    className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                      activeFilter === "media"
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Media
+                  </Link>
+                </div>
+              </div>
+
+              {newsToShow.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    No district-relevant stories published this week
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    There are no current-week stories for this filter right now. Check back later after more local stories are indexed.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {newsToShow.map((item, index) => (
+                    <article
+                      key={item.id}
+                      className={`group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md ${
+                        borderAccentClasses[index % borderAccentClasses.length]
+                      }`}
+                    >
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getSourceBadgeClasses(
+                            item.sourceType
+                          )}`}
+                        >
+                          {getSourceBadgeLabel(item.sourceType)}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                          {item.source || "News"}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                          {formatDate(item.pubDate)}
+                        </span>
+                      </div>
+
+                      <a href={item.link} target="_blank" rel="noreferrer" className="block">
+                        <h3 className="text-xl font-bold leading-snug text-slate-900 transition group-hover:text-blue-700">
+                          {item.title}
+                        </h3>
+                      </a>
+
+                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                        {item.description || "Read more about this district-related civic update."}
+                      </p>
+
+                      <div className="mt-5 flex flex-col gap-3">
+                        <TrendingStoryActions
+                          storyId={item.id}
+                          title={item.title}
+                          link={item.link}
+                          source={item.source || "News source"}
+                        />
+
+                        <div className="flex justify-start">
+                          <Link
+                            href={buildRepresentativeHref(item)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            Ask Representative
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
       </div>
     </main>
   );
