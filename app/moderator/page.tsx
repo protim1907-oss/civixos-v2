@@ -39,16 +39,23 @@ type ProfileRow = {
   district: string | null;
 };
 
+type AuditLogDetails = {
+  actor_name?: string;
+  target_title?: string;
+  district?: string;
+  previous_status?: string | null;
+  new_status?: string | null;
+  notes?: string;
+};
+
 type AuditLogRow = {
   id: string;
   actor_id: string | null;
-  actor_name: string | null;
-  action: string | null;
-  target_type: string | null;
-  target_id: string | null;
-  target_title: string | null;
-  district: string | null;
-  notes: string | null;
+  actor_role: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  event_type: string | null;
+  details: AuditLogDetails | null;
   created_at: string | null;
 };
 
@@ -76,29 +83,42 @@ export default function ModeratorDashboardPage() {
     let mounted = true;
 
     const init = async () => {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-      if (authError || !user) {
-        router.push("/login");
-        return;
+        if (authError || !user) {
+          router.push("/login");
+          return;
+        }
+
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, role, district")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Failed to load moderator profile:", profileError.message);
+        }
+
+        if (mounted) {
+          setProfile((profileData as ProfileRow) ?? null);
+        }
+
+        await Promise.all([fetchIssues(), fetchAuditLogs()]);
+
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Moderator init failed:", error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, role, district")
-        .eq("id", user.id)
-        .single();
-
-      if (mounted) {
-        setProfile((profileData as ProfileRow) ?? null);
-      }
-
-      await Promise.all([fetchIssues(), fetchAuditLogs()]);
-
-      if (mounted) setLoading(false);
     };
 
     init();
@@ -140,27 +160,29 @@ export default function ModeratorDashboardPage() {
       )
       .order("created_at", { ascending: false });
 
-    if (!error) {
-      setIssues((data as Issue[]) ?? []);
-    } else {
+    if (error) {
       console.error("Failed to fetch issues:", error.message);
+      return;
     }
+
+    setIssues((data as Issue[]) ?? []);
   }
 
   async function fetchAuditLogs() {
     const { data, error } = await supabase
       .from("audit_logs")
       .select(
-        "id, actor_id, actor_name, action, target_type, target_id, target_title, district, notes, created_at"
+        "id, actor_id, actor_role, entity_type, entity_id, event_type, details, created_at"
       )
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (!error) {
-      setAuditLogs((data as AuditLogRow[]) ?? []);
-    } else {
+    if (error) {
       console.error("Failed to fetch audit logs:", error.message);
+      return;
     }
+
+    setAuditLogs((data as AuditLogRow[]) ?? []);
   }
 
   async function handleRefresh() {
@@ -182,12 +204,7 @@ export default function ModeratorDashboardPage() {
     nextStatus: string,
     actorProfile: ProfileRow | null
   ) {
-    const actorName =
-      actorProfile?.full_name?.trim() ||
-      actorProfile?.email?.trim() ||
-      "Moderator";
-
-    const actionLabel =
+    const eventType =
       nextStatus === "approved"
         ? "approved"
         : nextStatus === "removed"
@@ -196,28 +213,42 @@ export default function ModeratorDashboardPage() {
         ? "escalated"
         : "updated";
 
-    const notes =
-      nextStatus === "approved"
-        ? "Approved via moderator console"
-        : nextStatus === "removed"
-        ? "Removed via moderator console"
-        : nextStatus === "under_review"
-        ? "Escalated for further review via moderator console"
-        : "Status updated via moderator console";
+    const actorRole =
+      actorProfile?.role === "admin" || actorProfile?.role === "moderator"
+        ? actorProfile.role
+        : "moderator";
+
+    const details: AuditLogDetails = {
+      actor_name:
+        actorProfile?.full_name?.trim() ||
+        actorProfile?.email?.trim() ||
+        "Moderator",
+      target_title: issue.title,
+      district: issue.district || undefined,
+      previous_status: issue.status,
+      new_status: nextStatus,
+      notes:
+        nextStatus === "approved"
+          ? "Approved via moderator console"
+          : nextStatus === "removed"
+          ? "Removed via moderator console"
+          : nextStatus === "under_review"
+          ? "Escalated for further review via moderator console"
+          : "Status updated via moderator console",
+    };
 
     const { error } = await supabase.from("audit_logs").insert({
       actor_id: actorProfile?.id || null,
-      actor_name: actorName,
-      action: actionLabel,
-      target_type: "issue",
-      target_id: issue.id,
-      target_title: issue.title,
-      district: issue.district,
-      notes,
+      actor_role: actorRole,
+      entity_type: "issue",
+      entity_id: issue.id,
+      event_type: eventType,
+      details,
     });
 
     if (error) {
-      console.error("Failed to insert audit log:", error.message);
+      console.error("Failed to insert audit log:", error);
+      alert(`Audit log insert failed: ${error.message}`);
     }
   }
 
@@ -658,39 +689,46 @@ export default function ModeratorDashboardPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span
                               className={`rounded-full px-3 py-1 text-xs font-semibold ${getAuditActionClasses(
-                                log.action
+                                log.event_type
                               )}`}
                             >
-                              {log.action || "updated"}
+                              {log.event_type || "updated"}
                             </span>
 
-                            {log.target_type && (
+                            {log.entity_type && (
                               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                                {log.target_type}
+                                {log.entity_type}
                               </span>
                             )}
 
-                            {log.district && (
+                            {log.details?.district && (
                               <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-                                {log.district}
+                                {log.details.district}
                               </span>
                             )}
                           </div>
 
                           <div className="text-sm text-slate-900">
                             <span className="font-semibold">
-                              {log.target_title || "Untitled issue"}
+                              {log.details?.target_title || "Untitled issue"}
                             </span>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                             <UserCircle2 className="h-4 w-4 text-slate-400" />
-                            <span>{log.actor_name || "System"}</span>
+                            <span>{log.details?.actor_name || "System"}</span>
                           </div>
 
-                          {log.notes ? (
+                          {log.details?.notes ? (
                             <p className="text-sm text-slate-500">
-                              {log.notes}
+                              {log.details.notes}
+                            </p>
+                          ) : null}
+
+                          {log.details?.previous_status || log.details?.new_status ? (
+                            <p className="text-xs text-slate-400">
+                              {log.details?.previous_status || "unknown"} →{" "}
+                              {log.details?.new_status || "unknown"}
                             </p>
                           ) : null}
                         </div>
