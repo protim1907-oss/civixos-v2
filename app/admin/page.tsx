@@ -9,7 +9,6 @@ import {
   Users,
   FileText,
   AlertTriangle,
-  CheckCircle2,
   Trash2,
   RefreshCw,
   Loader2,
@@ -18,6 +17,9 @@ import {
   UserCog,
   ShieldCheck,
   Building2,
+  PieChart,
+  Clock3,
+  Tags,
 } from "lucide-react";
 
 type Issue = {
@@ -41,6 +43,24 @@ type ProfileRow = {
 
 type UserRole = "citizen" | "moderator" | "official" | "admin";
 
+type ModerationQueueRow = {
+  id: string;
+  post_id: string | null;
+  flagged_reason: string | null;
+  ai_recommended_action: string | null;
+  reviewer_decision: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+};
+
+type ModerationInsightStats = {
+  approvedPct: number;
+  removedPct: number;
+  totalEscalations: number;
+  avgResolutionHours: number;
+  topCategories: { name: string; count: number }[];
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -51,6 +71,15 @@ export default function AdminDashboardPage() {
   const [currentUserProfile, setCurrentUserProfile] = useState<ProfileRow | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [moderationQueue, setModerationQueue] = useState<ModerationQueueRow[]>([]);
+
+  const [moderationInsights, setModerationInsights] = useState<ModerationInsightStats>({
+    approvedPct: 0,
+    removedPct: 0,
+    totalEscalations: 0,
+    avgResolutionHours: 0,
+    topCategories: [],
+  });
 
   const [issueSearch, setIssueSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
@@ -108,6 +137,7 @@ export default function AdminDashboardPage() {
         { event: "*", schema: "public", table: "issues" },
         async () => {
           await loadIssues();
+          await loadModerationQueue();
         }
       )
       .subscribe();
@@ -123,15 +153,31 @@ export default function AdminDashboardPage() {
       )
       .subscribe();
 
+    const moderationQueueChannel = supabase
+      .channel("admin-live-moderation-queue")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "moderation_queue" },
+        async () => {
+          await loadModerationQueue();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       supabase.removeChannel(issuesChannel);
       supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(moderationQueueChannel);
     };
   }, [router, supabase]);
 
+  useEffect(() => {
+    computeModerationInsights();
+  }, [issues, moderationQueue]);
+
   async function loadDashboardData() {
-    await Promise.all([loadIssues(), loadProfiles()]);
+    await Promise.all([loadIssues(), loadProfiles(), loadModerationQueue()]);
   }
 
   async function loadIssues() {
@@ -154,6 +200,100 @@ export default function AdminDashboardPage() {
     if (!error) {
       setProfiles(data ?? []);
     }
+  }
+
+  async function loadModerationQueue() {
+    const { data, error } = await supabase
+      .from("moderation_queue")
+      .select(
+        "id, post_id, flagged_reason, ai_recommended_action, reviewer_decision, reviewed_at, created_at"
+      )
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setModerationQueue((data ?? []) as ModerationQueueRow[]);
+    }
+  }
+
+  function hoursBetween(start?: string | null, end?: string | null) {
+    if (!start || !end) return 0;
+    const startMs = new Date(start).getTime();
+    const endMs = new Date(end).getTime();
+
+    if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
+      return 0;
+    }
+
+    return (endMs - startMs) / (1000 * 60 * 60);
+  }
+
+  function computeModerationInsights() {
+    const totalEscalations = moderationQueue.length;
+
+    const resolvedQueue = moderationQueue.filter(
+      (row) => row.reviewed_at && row.reviewer_decision
+    );
+
+    const totalResolved = resolvedQueue.length;
+
+    const approvedCount = resolvedQueue.filter((row) =>
+      ["approve", "approved", "active", "publish"].includes(
+        String(row.reviewer_decision ?? "").toLowerCase()
+      )
+    ).length;
+
+    const removedCount = resolvedQueue.filter((row) =>
+      ["remove", "removed", "reject"].includes(
+        String(row.reviewer_decision ?? "").toLowerCase()
+      )
+    ).length;
+
+    const approvedPct =
+      totalResolved > 0 ? Math.round((approvedCount / totalResolved) * 100) : 0;
+
+    const removedPct =
+      totalResolved > 0 ? Math.round((removedCount / totalResolved) * 100) : 0;
+
+    const avgResolutionHours =
+      totalResolved > 0
+        ? Number(
+            (
+              resolvedQueue.reduce((sum, row) => {
+                return sum + hoursBetween(row.created_at, row.reviewed_at);
+              }, 0) / totalResolved
+            ).toFixed(1)
+          )
+        : 0;
+
+    const issueMap = new Map<string, Issue>();
+    for (const issue of issues) {
+      issueMap.set(issue.id, issue);
+    }
+
+    const categoryCounts = new Map<string, number>();
+
+    for (const row of moderationQueue) {
+      const issue = row.post_id ? issueMap.get(row.post_id) : null;
+      const category =
+        issue?.category?.trim() ||
+        row.flagged_reason?.trim() ||
+        "Uncategorized";
+
+      categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+    }
+
+    const topCategories = Array.from(categoryCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+
+    setModerationInsights({
+      approvedPct,
+      removedPct,
+      totalEscalations,
+      avgResolutionHours,
+      topCategories,
+    });
   }
 
   async function handleRefresh() {
@@ -184,7 +324,22 @@ export default function AdminDashboardPage() {
         return;
       }
 
+      const matchingQueueEntry = moderationQueue.find(
+        (row) => row.post_id === issueId && !row.reviewed_at
+      );
+
+      if (matchingQueueEntry) {
+        await supabase
+          .from("moderation_queue")
+          .update({
+            reviewer_decision: nextStatus,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", matchingQueueEntry.id);
+      }
+
       await loadIssues();
+      await loadModerationQueue();
     } catch (error) {
       console.error("Unexpected issue update error:", error);
     } finally {
@@ -318,6 +473,7 @@ export default function AdminDashboardPage() {
               <div className="h-28 rounded-2xl bg-slate-200" />
               <div className="h-28 rounded-2xl bg-slate-200" />
             </div>
+            <div className="h-56 rounded-2xl bg-slate-200" />
             <div className="h-80 rounded-2xl bg-slate-200" />
             <div className="h-96 rounded-2xl bg-slate-200" />
           </div>
@@ -455,6 +611,105 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="rounded-2xl bg-emerald-100 p-3">
                   <Building2 className="h-5 w-5 text-emerald-700" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Moderation Intelligence */}
+          <section className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                  Moderation Intelligence
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Platform-level insight into moderation outcomes, escalation volume,
+                  resolution speed, and flagged categories.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">
+                    Approved vs Removed
+                  </span>
+                  <div className="rounded-xl bg-blue-100 p-2 text-blue-700">
+                    <PieChart className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                  {moderationInsights.approvedPct}% / {moderationInsights.removedPct}%
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Share of resolved moderation decisions.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">
+                    Total Escalations
+                  </span>
+                  <div className="rounded-xl bg-amber-100 p-2 text-amber-700">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                  {moderationInsights.totalEscalations}
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Total items sent to elevated review.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">
+                    Avg Resolution Time
+                  </span>
+                  <div className="rounded-xl bg-emerald-100 p-2 text-emerald-700">
+                    <Clock3 className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                  {moderationInsights.avgResolutionHours}h
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Average time from escalation to final decision.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-500">
+                    Top Flagged Categories
+                  </span>
+                  <div className="rounded-xl bg-rose-100 p-2 text-rose-700">
+                    <Tags className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {moderationInsights.topCategories.length > 0 ? (
+                    moderationInsights.topCategories.map((item) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
+                      >
+                        <span className="truncate text-sm font-medium text-slate-700">
+                          {item.name}
+                        </span>
+                        <span className="ml-3 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                          {item.count}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">No flagged categories yet.</p>
+                  )}
                 </div>
               </div>
             </div>
