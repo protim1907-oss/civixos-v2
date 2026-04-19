@@ -20,6 +20,9 @@ import {
   PieChart,
   Clock3,
   Tags,
+  BarChart3,
+  MapPinned,
+  TrendingUp,
 } from "lucide-react";
 
 type Issue = {
@@ -61,6 +64,17 @@ type ModerationInsightStats = {
   topCategories: { name: string; count: number }[];
 };
 
+type DistrictRiskRow = {
+  district: string;
+  totalPosts: number;
+  escalatedPosts: number;
+  removedPosts: number;
+  escalationRate: number;
+  removalRate: number;
+  avgResolutionHours: number;
+  riskLevel: "Low" | "Medium" | "High";
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -80,6 +94,8 @@ export default function AdminDashboardPage() {
     avgResolutionHours: 0,
     topCategories: [],
   });
+
+  const [districtRiskRows, setDistrictRiskRows] = useState<DistrictRiskRow[]>([]);
 
   const [issueSearch, setIssueSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
@@ -174,6 +190,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     computeModerationInsights();
+    computeDistrictRiskSignals();
   }, [issues, moderationQueue]);
 
   async function loadDashboardData() {
@@ -294,6 +311,124 @@ export default function AdminDashboardPage() {
       avgResolutionHours,
       topCategories,
     });
+  }
+
+  function getRiskLevel(
+    escalationRate: number,
+    removalRate: number
+  ): "Low" | "Medium" | "High" {
+    if (escalationRate >= 40 || removalRate >= 25) return "High";
+    if (escalationRate >= 20 || removalRate >= 10) return "Medium";
+    return "Low";
+  }
+
+  function computeDistrictRiskSignals() {
+    const districtMap = new Map<
+      string,
+      {
+        totalPosts: number;
+        escalatedPosts: number;
+        removedPosts: number;
+        resolutionHours: number[];
+      }
+    >();
+
+    for (const issue of issues) {
+      const district = issue.district?.trim() || "Unassigned";
+
+      if (!districtMap.has(district)) {
+        districtMap.set(district, {
+          totalPosts: 0,
+          escalatedPosts: 0,
+          removedPosts: 0,
+          resolutionHours: [],
+        });
+      }
+
+      const bucket = districtMap.get(district)!;
+      bucket.totalPosts += 1;
+
+      if (issue.status === "under_review") {
+        bucket.escalatedPosts += 1;
+      }
+
+      if (issue.status === "removed") {
+        bucket.removedPosts += 1;
+      }
+    }
+
+    const issueMap = new Map<string, Issue>();
+    for (const issue of issues) {
+      issueMap.set(issue.id, issue);
+    }
+
+    for (const row of moderationQueue) {
+      if (!row.reviewed_at || !row.created_at || !row.post_id) continue;
+
+      const linkedIssue = issueMap.get(row.post_id);
+      const district = linkedIssue?.district?.trim() || "Unassigned";
+
+      if (!districtMap.has(district)) {
+        districtMap.set(district, {
+          totalPosts: 0,
+          escalatedPosts: 0,
+          removedPosts: 0,
+          resolutionHours: [],
+        });
+      }
+
+      const bucket = districtMap.get(district)!;
+      const duration = hoursBetween(row.created_at, row.reviewed_at);
+
+      if (duration > 0) {
+        bucket.resolutionHours.push(duration);
+      }
+    }
+
+    const rows: DistrictRiskRow[] = Array.from(districtMap.entries())
+      .map(([district, value]) => {
+        const escalationRate =
+          value.totalPosts > 0
+            ? Number(((value.escalatedPosts / value.totalPosts) * 100).toFixed(1))
+            : 0;
+
+        const removalRate =
+          value.totalPosts > 0
+            ? Number(((value.removedPosts / value.totalPosts) * 100).toFixed(1))
+            : 0;
+
+        const avgResolutionHours =
+          value.resolutionHours.length > 0
+            ? Number(
+                (
+                  value.resolutionHours.reduce((sum, hrs) => sum + hrs, 0) /
+                  value.resolutionHours.length
+                ).toFixed(1)
+              )
+            : 0;
+
+        const riskLevel = getRiskLevel(escalationRate, removalRate);
+
+        return {
+          district,
+          totalPosts: value.totalPosts,
+          escalatedPosts: value.escalatedPosts,
+          removedPosts: value.removedPosts,
+          escalationRate,
+          removalRate,
+          avgResolutionHours,
+          riskLevel,
+        };
+      })
+      .sort((a, b) => {
+        const rank = { High: 3, Medium: 2, Low: 1 };
+        if (rank[b.riskLevel] !== rank[a.riskLevel]) {
+          return rank[b.riskLevel] - rank[a.riskLevel];
+        }
+        return b.totalPosts - a.totalPosts;
+      });
+
+    setDistrictRiskRows(rows);
   }
 
   async function handleRefresh() {
@@ -458,6 +593,18 @@ export default function AdminDashboardPage() {
     }
   }
 
+  function getRiskBadgeClasses(level: "Low" | "Medium" | "High") {
+    switch (level) {
+      case "High":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "Medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Low":
+      default:
+        return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex">
@@ -474,6 +621,7 @@ export default function AdminDashboardPage() {
               <div className="h-28 rounded-2xl bg-slate-200" />
             </div>
             <div className="h-56 rounded-2xl bg-slate-200" />
+            <div className="h-72 rounded-2xl bg-slate-200" />
             <div className="h-80 rounded-2xl bg-slate-200" />
             <div className="h-96 rounded-2xl bg-slate-200" />
           </div>
@@ -712,6 +860,140 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* District Risk Signals */}
+          <section className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                    District Risk Signals
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    District-level oversight of escalation pressure, removal rates, and moderation responsiveness.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                  <MapPinned className="h-4 w-4 text-slate-500" />
+                  Live district governance view
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {districtRiskRows.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
+                  <BarChart3 className="mx-auto h-8 w-8 text-slate-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                    No district risk data yet
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    District signals will appear once posts and moderation activity are available.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  {districtRiskRows.map((row) => (
+                    <div
+                      key={row.district}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg font-semibold text-slate-900">
+                              {row.district}
+                            </h3>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getRiskBadgeClasses(
+                                row.riskLevel
+                              )}`}
+                            >
+                              {row.riskLevel} Risk
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-slate-500">
+                            Oversight signal based on escalation activity, removals, and review speed.
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-100 p-3">
+                          <TrendingUp className="h-5 w-5 text-slate-700" />
+                        </div>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Total Posts
+                          </p>
+                          <p className="mt-2 text-2xl font-bold text-slate-900">
+                            {row.totalPosts}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Escalated
+                          </p>
+                          <p className="mt-2 text-2xl font-bold text-yellow-700">
+                            {row.escalatedPosts}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Removed
+                          </p>
+                          <p className="mt-2 text-2xl font-bold text-red-700">
+                            {row.removedPosts}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            Avg Review Time
+                          </p>
+                          <p className="mt-2 text-2xl font-bold text-slate-900">
+                            {row.avgResolutionHours}h
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 space-y-3">
+                        <div>
+                          <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500">
+                            <span>Escalation Rate</span>
+                            <span>{row.escalationRate}%</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-slate-100">
+                            <div
+                              className="h-2 rounded-full bg-yellow-500"
+                              style={{ width: `${Math.min(row.escalationRate, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500">
+                            <span>Removal Rate</span>
+                            <span>{row.removalRate}%</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-slate-100">
+                            <div
+                              className="h-2 rounded-full bg-red-500"
+                              style={{ width: `${Math.min(row.removalRate, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
