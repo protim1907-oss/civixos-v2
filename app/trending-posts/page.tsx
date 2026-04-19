@@ -542,7 +542,7 @@ function buildRepresentativeHref(item: FeedItem) {
     storySource: item.source || "News source",
   });
 
-  return `/my-representative?${params.toString()}`;
+  return `/my-representatives?${params.toString()}`;
 }
 
 export default async function TrendingPostsPage({
