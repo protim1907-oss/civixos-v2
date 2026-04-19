@@ -23,6 +23,7 @@ import {
   BarChart3,
   MapPinned,
   TrendingUp,
+  History,
 } from "lucide-react";
 
 type Issue = {
@@ -75,6 +76,17 @@ type DistrictRiskRow = {
   riskLevel: "Low" | "Medium" | "High";
 };
 
+type ActivityLogRow = {
+  id: string;
+  actor_id: string | null;
+  actor_role: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  event_type: string | null;
+  details: Record<string, any> | null;
+  created_at: string | null;
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -86,6 +98,7 @@ export default function AdminDashboardPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [moderationQueue, setModerationQueue] = useState<ModerationQueueRow[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
 
   const [moderationInsights, setModerationInsights] = useState<ModerationInsightStats>({
     approvedPct: 0,
@@ -180,11 +193,23 @@ export default function AdminDashboardPage() {
       )
       .subscribe();
 
+    const activityLogsChannel = supabase
+      .channel("admin-live-activity-logs")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "activity_logs" },
+        async () => {
+          await loadActivityLogs();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       supabase.removeChannel(issuesChannel);
       supabase.removeChannel(profilesChannel);
       supabase.removeChannel(moderationQueueChannel);
+      supabase.removeChannel(activityLogsChannel);
     };
   }, [router, supabase]);
 
@@ -194,7 +219,12 @@ export default function AdminDashboardPage() {
   }, [issues, moderationQueue]);
 
   async function loadDashboardData() {
-    await Promise.all([loadIssues(), loadProfiles(), loadModerationQueue()]);
+    await Promise.all([
+      loadIssues(),
+      loadProfiles(),
+      loadModerationQueue(),
+      loadActivityLogs(),
+    ]);
   }
 
   async function loadIssues() {
@@ -229,6 +259,18 @@ export default function AdminDashboardPage() {
 
     if (!error) {
       setModerationQueue((data ?? []) as ModerationQueueRow[]);
+    }
+  }
+
+  async function loadActivityLogs() {
+    const { data, error } = await supabase
+      .from("activity_logs")
+      .select("id, actor_id, actor_role, entity_type, entity_id, event_type, details, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!error) {
+      setActivityLogs((data ?? []) as ActivityLogRow[]);
     }
   }
 
@@ -431,6 +473,28 @@ export default function AdminDashboardPage() {
     setDistrictRiskRows(rows);
   }
 
+  async function writeActivityLog(params: {
+    actorId?: string | null;
+    actorRole?: string | null;
+    entityType: string;
+    entityId: string;
+    eventType: string;
+    details?: Record<string, any>;
+  }) {
+    try {
+      await supabase.from("activity_logs").insert({
+        actor_id: params.actorId ?? null,
+        actor_role: params.actorRole ?? null,
+        entity_type: params.entityType,
+        entity_id: params.entityId,
+        event_type: params.eventType,
+        details: params.details ?? {},
+      });
+    } catch (error) {
+      console.error("Failed to write activity log:", error);
+    }
+  }
+
   async function handleRefresh() {
     try {
       setRefreshing(true);
@@ -448,6 +512,8 @@ export default function AdminDashboardPage() {
   async function updateIssueStatus(issueId: string, nextStatus: string) {
     try {
       setIssueActionLoadingId(issueId);
+
+      const targetIssue = issues.find((issue) => issue.id === issueId);
 
       const { error } = await supabase
         .from("issues")
@@ -473,8 +539,24 @@ export default function AdminDashboardPage() {
           .eq("id", matchingQueueEntry.id);
       }
 
+      await writeActivityLog({
+        actorId: currentUserProfile?.id ?? null,
+        actorRole: currentUserProfile?.role ?? "admin",
+        entityType: "issue",
+        entityId: issueId,
+        eventType: "issue_status_updated",
+        details: {
+          title: targetIssue?.title ?? null,
+          previous_status: targetIssue?.status ?? null,
+          new_status: nextStatus,
+          district: targetIssue?.district ?? null,
+          category: targetIssue?.category ?? null,
+        },
+      });
+
       await loadIssues();
       await loadModerationQueue();
+      await loadActivityLogs();
     } catch (error) {
       console.error("Unexpected issue update error:", error);
     } finally {
@@ -486,6 +568,8 @@ export default function AdminDashboardPage() {
     try {
       setRoleActionLoadingId(profileId);
 
+      const targetProfile = profiles.find((profile) => profile.id === profileId);
+
       const { error } = await supabase
         .from("profiles")
         .update({ role: nextRole })
@@ -496,7 +580,23 @@ export default function AdminDashboardPage() {
         return;
       }
 
+      await writeActivityLog({
+        actorId: currentUserProfile?.id ?? null,
+        actorRole: currentUserProfile?.role ?? "admin",
+        entityType: "profile",
+        entityId: profileId,
+        eventType: "user_role_updated",
+        details: {
+          full_name: targetProfile?.full_name ?? null,
+          email: targetProfile?.email ?? null,
+          district: targetProfile?.district ?? null,
+          previous_role: targetProfile?.role ?? null,
+          new_role: nextRole,
+        },
+      });
+
       await loadProfiles();
+      await loadActivityLogs();
     } catch (error) {
       console.error("Unexpected role update error:", error);
     } finally {
@@ -603,6 +703,56 @@ export default function AdminDashboardPage() {
       default:
         return "bg-emerald-100 text-emerald-700 border-emerald-200";
     }
+  }
+
+  function getAuditEventLabel(log: ActivityLogRow) {
+    switch (log.event_type) {
+      case "issue_status_updated":
+        return "Issue status updated";
+      case "user_role_updated":
+        return "User role updated";
+      default:
+        return log.event_type?.replaceAll("_", " ") || "Governance event";
+    }
+  }
+
+  function getAuditEventClasses(log: ActivityLogRow) {
+    switch (log.event_type) {
+      case "issue_status_updated":
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "user_role_updated":
+        return "bg-purple-100 text-purple-700 border-purple-200";
+      default:
+        return "bg-slate-100 text-slate-700 border-slate-200";
+    }
+  }
+
+  function renderAuditDescription(log: ActivityLogRow) {
+    const details = log.details ?? {};
+
+    if (log.event_type === "issue_status_updated") {
+      return `${details.title || "Issue"} changed from ${details.previous_status || "unknown"} to ${details.new_status || "unknown"}.`;
+    }
+
+    if (log.event_type === "user_role_updated") {
+      return `${details.full_name || details.email || "User"} changed from ${details.previous_role || "unknown"} to ${details.new_role || "unknown"}.`;
+    }
+
+    return details?.summary || "Governance action recorded.";
+  }
+
+  function renderAuditMeta(log: ActivityLogRow) {
+    const details = log.details ?? {};
+
+    if (log.event_type === "issue_status_updated") {
+      return [details.district, details.category].filter(Boolean).join(" • ");
+    }
+
+    if (log.event_type === "user_role_updated") {
+      return [details.email, details.district].filter(Boolean).join(" • ");
+    }
+
+    return log.entity_type || "platform";
   }
 
   if (loading) {
@@ -1238,6 +1388,87 @@ export default function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          {/* Governance Audit Trail */}
+          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                    Governance Audit Trail
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Trace high-impact governance actions across content decisions and role changes.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                  <History className="h-4 w-4 text-slate-500" />
+                  Live audit feed
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {activityLogs.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
+                  <History className="mx-auto h-8 w-8 text-slate-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                    No audit activity yet
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Governance events will appear here when admins review content or update user roles.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activityLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-5"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getAuditEventClasses(
+                                log
+                              )}`}
+                            >
+                              {getAuditEventLabel(log)}
+                            </span>
+
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                              {log.actor_role || "system"}
+                            </span>
+
+                            {log.entity_type && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                {log.entity_type}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-3">
+                            <h3 className="text-base font-semibold text-slate-900">
+                              {renderAuditDescription(log)}
+                            </h3>
+                            <p className="mt-2 text-sm text-slate-500">
+                              {renderAuditMeta(log) || "Governance metadata unavailable"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-sm text-slate-500">
+                          {formatDate(log.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
