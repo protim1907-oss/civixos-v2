@@ -49,6 +49,7 @@ function normalizeText(value: unknown) {
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -81,6 +82,7 @@ function formatDate(dateStr?: string) {
 
 function isWithinLast7Days(dateStr?: string) {
   if (!dateStr) return false;
+
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return false;
 
@@ -244,7 +246,8 @@ function classifySource(item: { title: string; description?: string; source?: st
 }
 
 async function fetchGoogleNews(query: string): Promise<Omit<FeedItem, "id">[]> {
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+  const recentQuery = `${query} when:7d`;
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(recentQuery)}&hl=en-US&gl=US&ceid=US:en`;
 
   try {
     const response = await fetch(url, {
@@ -281,7 +284,9 @@ async function fetchGoogleNews(query: string): Promise<Omit<FeedItem, "id">[]> {
           }),
         };
       })
-      .filter((item: Omit<FeedItem, "id">) => item.title && item.link);
+      .filter((item: Omit<FeedItem, "id">) => {
+        return Boolean(item.title && item.link && isWithinLast7Days(item.pubDate));
+      });
   } catch {
     return [];
   }
@@ -329,6 +334,7 @@ function scoreItemForRegion(item: Omit<FeedItem, "id">, region: RegionInfo) {
 
   if (item.sourceType === "official") score += 2;
   if (isWithinLast7Days(item.pubDate)) score += 3;
+
   return score;
 }
 
@@ -363,7 +369,7 @@ function keywordBucket(text: string) {
   return "Community issues";
 }
 
-function buildFallbackTopIssues(items: Omit<FeedItem, "id">[]): IssueSummary[] {
+function buildFallbackTopIssues(items: Omit<FeedItem, "id">[], region: RegionInfo): IssueSummary[] {
   const bucketMap = new Map<string, { count: number; headlines: string[] }>();
 
   for (const item of items) {
@@ -381,16 +387,16 @@ function buildFallbackTopIssues(items: Omit<FeedItem, "id">[]): IssueSummary[] {
       title,
       summary:
         data.headlines.length > 0
-          ? `This issue appeared in ${data.count} recent ${data.count > 1 ? "stories" : "story"} this week, including: ${data.headlines
+          ? `This issue appeared in ${data.count} recent ${data.count > 1 ? "stories" : "story"} in ${region.feedLabel} this week, including: ${data.headlines
               .slice(0, 2)
               .join(" • ")}.`
-          : `This issue appeared in ${data.count} recent ${data.count > 1 ? "stories" : "story"} this week.`,
+          : `This issue appeared in ${data.count} recent ${data.count > 1 ? "stories" : "story"} in ${region.feedLabel} this week.`,
     }));
 
   while (top.length < 3) {
     top.push({
       title: `Issue ${top.length + 1}`,
-      summary: "Not enough district-specific stories were available this week to generate a stronger summary.",
+      summary: `Not enough current-week stories were available for ${region.feedLabel} to generate a stronger summary.`,
     });
   }
 
@@ -404,7 +410,7 @@ async function generateAISummary(
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey || items.length === 0) {
-    return buildFallbackTopIssues(items);
+    return buildFallbackTopIssues(items, region);
   }
 
   try {
@@ -421,7 +427,7 @@ async function generateAISummary(
     const prompt = `
 You are summarizing local civic news for ${region.feedLabel}.
 
-Based on the headlines below, identify the top 3 civic/public issues this week.
+Use only the headlines below and identify the top 3 civic/public issues from the current week.
 Return ONLY valid JSON in this exact shape:
 {
   "issues": [
@@ -461,11 +467,11 @@ ${headlinesBlock}
       cache: "no-store",
     });
 
-    if (!response.ok) return buildFallbackTopIssues(items);
+    if (!response.ok) return buildFallbackTopIssues(items, region);
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) return buildFallbackTopIssues(items);
+    if (!content) return buildFallbackTopIssues(items, region);
 
     const parsed = JSON.parse(content);
     const issues = Array.isArray(parsed?.issues) ? parsed.issues : [];
@@ -479,9 +485,9 @@ ${headlinesBlock}
       .filter((issue: IssueSummary) => issue.title && issue.summary);
 
     if (cleaned.length === 3) return cleaned;
-    return buildFallbackTopIssues(items);
+    return buildFallbackTopIssues(items, region);
   } catch {
-    return buildFallbackTopIssues(items);
+    return buildFallbackTopIssues(items, region);
   }
 }
 
@@ -565,20 +571,24 @@ export default async function TrendingPostsPage({
       id: buildStoryId(item),
       score: scoreItemForRegion(item, region),
     }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+
+      const aTime = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+      const bTime = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+      return bTime - aTime;
+    });
 
   const districtSpecificItems = scored.filter((item) => item.score >= 4);
-  const weeklyItems = districtSpecificItems.filter((item) => isWithinLast7Days(item.pubDate));
-  const baseItems = (weeklyItems.length > 0 ? weeklyItems : districtSpecificItems).slice(0, 24);
+  const weeklyDistrictItems = districtSpecificItems.filter((item) => isWithinLast7Days(item.pubDate));
 
-  const newsToShow = baseItems
-    .filter((item) => {
-      if (activeFilter === "all") return true;
-      return item.sourceType === activeFilter;
-    })
-    .slice(0, 12);
+  const filteredWeeklyItems = weeklyDistrictItems.filter((item) => {
+    if (activeFilter === "all") return true;
+    return item.sourceType === activeFilter;
+  });
 
-  const topIssues = await generateAISummary(newsToShow.length ? newsToShow : baseItems, region);
+  const newsToShow = filteredWeeklyItems.slice(0, 12);
+  const topIssues = await generateAISummary(weeklyDistrictItems.slice(0, 12), region);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -593,7 +603,7 @@ export default async function TrendingPostsPage({
                 {region.feedLabel} News & Community Signals
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Daily-refreshed civic headlines and issue summaries tailored to your district.
+                Current-week civic headlines and issue summaries tailored to your district.
               </p>
             </div>
 
@@ -617,7 +627,9 @@ export default async function TrendingPostsPage({
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Stories this week
               </p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{weeklyItems.length}</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">
+                {weeklyDistrictItems.length}
+              </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -672,7 +684,7 @@ export default async function TrendingPostsPage({
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Recent stories</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Showing the most relevant civic headlines for {region.feedLabel}.
+                Showing current-week civic headlines for {region.feedLabel}.
               </p>
             </div>
 
@@ -723,10 +735,10 @@ export default async function TrendingPostsPage({
           {newsToShow.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
               <h3 className="text-lg font-semibold text-slate-900">
-                No stories found for this filter
+                No district-relevant stories published this week
               </h3>
               <p className="mt-2 text-sm text-slate-600">
-                Try switching filters or check again later after more local stories are indexed.
+                There are no current-week stories for this filter right now. Check back later after more local stories are indexed.
               </p>
             </div>
           ) : (
