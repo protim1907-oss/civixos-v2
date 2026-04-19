@@ -16,6 +16,8 @@ import {
   Filter,
   LogOut,
   Loader2,
+  History,
+  UserCircle2,
 } from "lucide-react";
 
 type Issue = {
@@ -37,6 +39,19 @@ type ProfileRow = {
   district: string | null;
 };
 
+type AuditLogRow = {
+  id: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  action: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  target_title: string | null;
+  district: string | null;
+  notes: string | null;
+  created_at: string | null;
+};
+
 type FilterType =
   | "all"
   | "active"
@@ -51,6 +66,7 @@ export default function ModeratorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -77,17 +93,17 @@ export default function ModeratorDashboardPage() {
         .single();
 
       if (mounted) {
-        setProfile(profileData ?? null);
+        setProfile((profileData as ProfileRow) ?? null);
       }
 
-      await fetchIssues();
+      await Promise.all([fetchIssues(), fetchAuditLogs()]);
 
       if (mounted) setLoading(false);
     };
 
     init();
 
-    const channel = supabase
+    const issuesChannel = supabase
       .channel("moderator-live-issues")
       .on(
         "postgres_changes",
@@ -98,9 +114,21 @@ export default function ModeratorDashboardPage() {
       )
       .subscribe();
 
+    const auditChannel = supabase
+      .channel("moderator-live-audit-logs")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "audit_logs" },
+        async () => {
+          await fetchAuditLogs();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(issuesChannel);
+      supabase.removeChannel(auditChannel);
     };
   }, [router, supabase]);
 
@@ -113,14 +141,32 @@ export default function ModeratorDashboardPage() {
       .order("created_at", { ascending: false });
 
     if (!error) {
-      setIssues(data ?? []);
+      setIssues((data as Issue[]) ?? []);
+    } else {
+      console.error("Failed to fetch issues:", error.message);
+    }
+  }
+
+  async function fetchAuditLogs() {
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select(
+        "id, actor_id, actor_name, action, target_type, target_id, target_title, district, notes, created_at"
+      )
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!error) {
+      setAuditLogs((data as AuditLogRow[]) ?? []);
+    } else {
+      console.error("Failed to fetch audit logs:", error.message);
     }
   }
 
   async function handleRefresh() {
     try {
       setRefreshing(true);
-      await fetchIssues();
+      await Promise.all([fetchIssues(), fetchAuditLogs()]);
     } finally {
       setRefreshing(false);
     }
@@ -131,9 +177,56 @@ export default function ModeratorDashboardPage() {
     window.location.href = "/login";
   }
 
+  async function insertAuditLog(
+    issue: Issue,
+    nextStatus: string,
+    actorProfile: ProfileRow | null
+  ) {
+    const actorName =
+      actorProfile?.full_name?.trim() ||
+      actorProfile?.email?.trim() ||
+      "Moderator";
+
+    const actionLabel =
+      nextStatus === "approved"
+        ? "approved"
+        : nextStatus === "removed"
+        ? "removed"
+        : nextStatus === "under_review"
+        ? "escalated"
+        : "updated";
+
+    const notes =
+      nextStatus === "approved"
+        ? "Approved via moderator console"
+        : nextStatus === "removed"
+        ? "Removed via moderator console"
+        : nextStatus === "under_review"
+        ? "Escalated for further review via moderator console"
+        : "Status updated via moderator console";
+
+    const { error } = await supabase.from("audit_logs").insert({
+      actor_id: actorProfile?.id || null,
+      actor_name: actorName,
+      action: actionLabel,
+      target_type: "issue",
+      target_id: issue.id,
+      target_title: issue.title,
+      district: issue.district,
+      notes,
+    });
+
+    if (error) {
+      console.error("Failed to insert audit log:", error.message);
+    }
+  }
+
   async function updateIssueStatus(issueId: string, nextStatus: string) {
     try {
       setActionLoadingId(issueId);
+
+      const issue = issues.find((item) => item.id === issueId);
+      if (!issue) return;
 
       const { error } = await supabase
         .from("issues")
@@ -145,7 +238,8 @@ export default function ModeratorDashboardPage() {
         return;
       }
 
-      await fetchIssues();
+      await insertAuditLog(issue, nextStatus, profile);
+      await Promise.all([fetchIssues(), fetchAuditLogs()]);
     } catch (err) {
       console.error("Unexpected moderation error:", err);
     } finally {
@@ -222,6 +316,19 @@ export default function ModeratorDashboardPage() {
       case null:
       default:
         return "bg-blue-100 text-blue-700 border-blue-200";
+    }
+  }
+
+  function getAuditActionClasses(action: string | null) {
+    switch (action) {
+      case "approved":
+        return "bg-green-100 text-green-700";
+      case "removed":
+        return "bg-red-100 text-red-700";
+      case "escalated":
+        return "bg-yellow-100 text-yellow-700";
+      default:
+        return "bg-slate-100 text-slate-700";
     }
   }
 
@@ -506,6 +613,90 @@ export default function ModeratorDashboardPage() {
                               ? "Updating..."
                               : "Remove"}
                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <History className="h-5 w-5 text-slate-700" />
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Audit Trail
+                </h2>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">
+                Recent moderation actions for transparency and accountability.
+              </p>
+            </div>
+
+            <div className="p-6">
+              {auditLogs.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
+                  <History className="mx-auto h-8 w-8 text-slate-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                    No audit activity yet
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Moderator actions will appear here automatically.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getAuditActionClasses(
+                                log.action
+                              )}`}
+                            >
+                              {log.action || "updated"}
+                            </span>
+
+                            {log.target_type && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                {log.target_type}
+                              </span>
+                            )}
+
+                            {log.district && (
+                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                                {log.district}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-sm text-slate-900">
+                            <span className="font-semibold">
+                              {log.target_title || "Untitled issue"}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                            <UserCircle2 className="h-4 w-4 text-slate-400" />
+                            <span>{log.actor_name || "System"}</span>
+                          </div>
+
+                          {log.notes ? (
+                            <p className="text-sm text-slate-500">
+                              {log.notes}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="text-xs text-slate-500">
+                          {formatDate(log.created_at)}
                         </div>
                       </div>
                     </div>
