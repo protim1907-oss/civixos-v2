@@ -18,6 +18,10 @@ import {
   Loader2,
   History,
   UserCircle2,
+  BarChart3,
+  TrendingUp,
+  Users,
+  Timer,
 } from "lucide-react";
 
 type Issue = {
@@ -65,6 +69,23 @@ type FilterType =
   | "under_review"
   | "removed"
   | "approved";
+
+type LeaderboardRow = {
+  actorId: string;
+  actorName: string;
+  totalActions: number;
+  approved: number;
+  removed: number;
+  escalated: number;
+};
+
+type CategoryMetric = {
+  category: string;
+  total: number;
+  removed: number;
+  approved: number;
+  escalated: number;
+};
 
 export default function ModeratorDashboardPage() {
   const router = useRouter();
@@ -175,7 +196,7 @@ export default function ModeratorDashboardPage() {
         "id, actor_id, actor_role, entity_type, entity_id, event_type, details, created_at"
       )
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(200);
 
     if (error) {
       console.error("Failed to fetch audit logs:", error.message);
@@ -329,6 +350,156 @@ export default function ModeratorDashboardPage() {
     return { total, active, underReview, removed, approved };
   }, [issues]);
 
+  const moderationInsights = useMemo(() => {
+    const issueMap = new Map<string, Issue>();
+    issues.forEach((issue) => issueMap.set(issue.id, issue));
+
+    const actionLogs = auditLogs.filter(
+      (log) =>
+        log.entity_type === "issue" &&
+        ["approved", "removed", "escalated"].includes(log.event_type || "")
+    );
+
+    const approvedCount = actionLogs.filter((log) => log.event_type === "approved").length;
+    const removedCount = actionLogs.filter((log) => log.event_type === "removed").length;
+    const escalatedCount = actionLogs.filter((log) => log.event_type === "escalated").length;
+    const totalModerationActions = approvedCount + removedCount + escalatedCount;
+
+    const removedPct =
+      totalModerationActions > 0
+        ? Math.round((removedCount / totalModerationActions) * 100)
+        : 0;
+
+    const approvedPct =
+      totalModerationActions > 0
+        ? Math.round((approvedCount / totalModerationActions) * 100)
+        : 0;
+
+    const escalatedPct =
+      totalModerationActions > 0
+        ? Math.round((escalatedCount / totalModerationActions) * 100)
+        : 0;
+
+    const categoryMap = new Map<string, CategoryMetric>();
+
+    actionLogs.forEach((log) => {
+      const issue = log.entity_id ? issueMap.get(log.entity_id) : undefined;
+      const category = issue?.category?.trim() || "Uncategorized";
+
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, {
+          category,
+          total: 0,
+          removed: 0,
+          approved: 0,
+          escalated: 0,
+        });
+      }
+
+      const entry = categoryMap.get(category)!;
+      entry.total += 1;
+
+      if (log.event_type === "removed") entry.removed += 1;
+      if (log.event_type === "approved") entry.approved += 1;
+      if (log.event_type === "escalated") entry.escalated += 1;
+    });
+
+    const topFlaggedCategories = [...categoryMap.values()]
+      .sort((a, b) => {
+        if (b.removed !== a.removed) return b.removed - a.removed;
+        if (b.escalated !== a.escalated) return b.escalated - a.escalated;
+        return b.total - a.total;
+      })
+      .slice(0, 5);
+
+    const leaderboardMap = new Map<string, LeaderboardRow>();
+
+    actionLogs.forEach((log) => {
+      const actorId = log.actor_id || "unknown";
+      const actorName =
+        log.details?.actor_name?.trim() || log.actor_role || "Unknown moderator";
+
+      if (!leaderboardMap.has(actorId)) {
+        leaderboardMap.set(actorId, {
+          actorId,
+          actorName,
+          totalActions: 0,
+          approved: 0,
+          removed: 0,
+          escalated: 0,
+        });
+      }
+
+      const entry = leaderboardMap.get(actorId)!;
+      entry.totalActions += 1;
+
+      if (log.event_type === "approved") entry.approved += 1;
+      if (log.event_type === "removed") entry.removed += 1;
+      if (log.event_type === "escalated") entry.escalated += 1;
+    });
+
+    const leaderboard = [...leaderboardMap.values()]
+      .sort((a, b) => b.totalActions - a.totalActions)
+      .slice(0, 5);
+
+    const firstModerationByIssue = new Map<string, AuditLogRow>();
+
+    actionLogs
+      .filter((log) => !!log.entity_id && !!log.created_at)
+      .forEach((log) => {
+        const existing = log.entity_id ? firstModerationByIssue.get(log.entity_id) : undefined;
+
+        if (!log.entity_id) return;
+
+        if (!existing) {
+          firstModerationByIssue.set(log.entity_id, log);
+          return;
+        }
+
+        const existingTime = new Date(existing.created_at || "").getTime();
+        const logTime = new Date(log.created_at || "").getTime();
+
+        if (!Number.isNaN(logTime) && (Number.isNaN(existingTime) || logTime < existingTime)) {
+          firstModerationByIssue.set(log.entity_id, log);
+        }
+      });
+
+    let totalResponseMinutes = 0;
+    let responseSamples = 0;
+
+    firstModerationByIssue.forEach((log, issueId) => {
+      const issue = issueMap.get(issueId);
+      if (!issue?.created_at || !log.created_at) return;
+
+      const createdAt = new Date(issue.created_at).getTime();
+      const moderatedAt = new Date(log.created_at).getTime();
+
+      if (Number.isNaN(createdAt) || Number.isNaN(moderatedAt) || moderatedAt < createdAt) {
+        return;
+      }
+
+      totalResponseMinutes += Math.round((moderatedAt - createdAt) / 60000);
+      responseSamples += 1;
+    });
+
+    const avgResponseMinutes =
+      responseSamples > 0 ? Math.round(totalResponseMinutes / responseSamples) : 0;
+
+    return {
+      approvedCount,
+      removedCount,
+      escalatedCount,
+      totalModerationActions,
+      removedPct,
+      approvedPct,
+      escalatedPct,
+      topFlaggedCategories,
+      leaderboard,
+      avgResponseMinutes,
+      responseSamples,
+    };
+  }, [issues, auditLogs]);
+
   function formatDate(dateString: string | null) {
     if (!dateString) return "—";
     return new Date(dateString).toLocaleString();
@@ -361,6 +532,13 @@ export default function ModeratorDashboardPage() {
       default:
         return "bg-slate-100 text-slate-700";
     }
+  }
+
+  function formatMinutes(minutes: number) {
+    if (minutes <= 0) return "—";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = (minutes / 60).toFixed(1);
+    return `${hours} hrs`;
   }
 
   if (loading) {
@@ -496,6 +674,160 @@ export default function ModeratorDashboardPage() {
                 </div>
                 <div className="rounded-2xl bg-red-100 p-3">
                   <Trash2 className="h-5 w-5 text-red-700" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-slate-700" />
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Moderation Insights
+                </h2>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">
+                Analytics on moderation outcomes, flagged categories, response time, and moderator activity.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">% Removed vs Approved</p>
+                    <TrendingUp className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-bold text-slate-900">
+                    {moderationInsights.removedPct}% removed
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {moderationInsights.approvedPct}% approved
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">Avg Response Time</p>
+                    <Timer className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-bold text-slate-900">
+                    {formatMinutes(moderationInsights.avgResponseMinutes)}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Based on {moderationInsights.responseSamples} moderated posts
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">Escalation Rate</p>
+                    <AlertTriangle className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-bold text-slate-900">
+                    {moderationInsights.escalatedPct}%
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {moderationInsights.escalatedCount} escalations logged
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">Moderation Actions</p>
+                    <History className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-3 text-2xl font-bold text-slate-900">
+                    {moderationInsights.totalModerationActions}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Approvals, removals, and escalations
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-slate-700" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Top Flagged Categories
+                    </h3>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {moderationInsights.topFlaggedCategories.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                        No category insights available yet.
+                      </div>
+                    ) : (
+                      moderationInsights.topFlaggedCategories.map((item) => (
+                        <div
+                          key={item.category}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {item.category}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                {item.total} moderation actions
+                              </p>
+                            </div>
+
+                            <div className="text-right text-sm text-slate-600">
+                              <div>Removed: {item.removed}</div>
+                              <div>Approved: {item.approved}</div>
+                              <div>Escalated: {item.escalated}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="flex items-center gap-3">
+                    <Users className="h-5 w-5 text-slate-700" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Moderator Activity Leaderboard
+                    </h3>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {moderationInsights.leaderboard.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                        No moderator activity logged yet.
+                      </div>
+                    ) : (
+                      moderationInsights.leaderboard.map((item, index) => (
+                        <div
+                          key={`${item.actorId}-${index}`}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                #{index + 1} {item.actorName}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                {item.totalActions} total actions
+                              </p>
+                            </div>
+
+                            <div className="text-right text-sm text-slate-600">
+                              <div>Approved: {item.approved}</div>
+                              <div>Removed: {item.removed}</div>
+                              <div>Escalated: {item.escalated}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
