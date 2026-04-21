@@ -60,6 +60,7 @@ export default function SignupPage() {
   const [districtOptions, setDistrictOptions] = useState<DistrictOption[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [matchedAddress, setMatchedAddress] = useState("");
+  const [isVoterCertified, setIsVoterCertified] = useState(false);
 
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -231,6 +232,11 @@ export default function SignupPage() {
 
     if (!isValidResolvedDistrict(normalizedDistrict)) {
       setError("Your district could not be confirmed. Please resolve it again before signup.");
+      return;
+    }
+
+    if (!isVoterCertified) {
+      setError("Please certify that you are at least 18 years of age and legally eligible to vote in your jurisdiction.");
       return;
     }
 
@@ -492,6 +498,22 @@ export default function SignupPage() {
           )}
         </div>
       ) : null}
+
+      <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={isVoterCertified}
+          onChange={(e) => {
+            setIsVoterCertified(e.target.checked);
+            clearMessages();
+          }}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+        />
+        <span>
+          I certify that I am at least 18 years of age and legally eligible to vote in my
+          jurisdiction.
+        </span>
+      </label>
 
       <button
         onClick={handleSignup}
