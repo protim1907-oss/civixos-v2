@@ -53,6 +53,7 @@ export default function Sidebar() {
 
   const [myActivityCount, setMyActivityCount] = useState<number>(0);
   const [officialUpdatesCount, setOfficialUpdatesCount] = useState<number>(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   async function loadBadgeCounts() {
     try {
@@ -68,6 +69,18 @@ export default function Sidebar() {
       let nextMyActivityCount = 0;
 
       if (user?.id) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Sidebar profile load error:", profileError);
+        } else {
+          setUserRole(profile?.role ?? null);
+        }
+
         const [
           { count: commentCount, error: commentsError },
           { count: upvoteCount, error: upvotesError },
@@ -105,7 +118,7 @@ export default function Sidebar() {
         console.error("Sidebar official updates count error:", updatesError);
         setOfficialUpdatesCount(0);
       } else {
-        setOfficialUpdatesCount(updatesCount ?? 0);
+      setOfficialUpdatesCount(updatesCount ?? 0);
       }
     } catch (error) {
       console.error("Sidebar badge load error:", error);
@@ -206,7 +219,7 @@ export default function Sidebar() {
       label: "My Representative",
       icon: UserCircle2,
     },
-  ];
+  ].filter((item) => !(userRole === "admin" && item.href === "/my-representatives"));
 
   return (
     <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white lg:block">
