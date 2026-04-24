@@ -87,6 +87,34 @@ type ActivityLogRow = {
   created_at: string | null;
 };
 
+function normalizeDistrict(value: string | null | undefined) {
+  const raw = (value || "").trim();
+  if (!raw) return "Unassigned";
+
+  const upper = raw.toUpperCase();
+
+  if (upper === "DISTRICT 12") return "CA-42";
+  if (upper === "DISTRICT 42") return "CA-42";
+  if (upper === "CA42") return "CA-42";
+  if (upper === "TX35") return "TX-35";
+  if (upper === "TX20") return "TX-20";
+  if (upper === "TX12") return "TX-12";
+  if (upper === "NH01") return "NH-01";
+  if (upper === "NH02") return "NH-02";
+
+  const compactMatch = upper.match(/^([A-Z]{2})(\d{1,2})$/);
+  if (compactMatch) {
+    return `${compactMatch[1]}-${Number(compactMatch[2])}`;
+  }
+
+  const spacedMatch = upper.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
+  if (spacedMatch) {
+    return `${spacedMatch[1]}-${Number(spacedMatch[2])}`;
+  }
+
+  return raw;
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -365,6 +393,7 @@ export default function AdminDashboardPage() {
   }
 
   function computeDistrictRiskSignals() {
+    const defaultDistricts = ["CA-42"];
     const districtMap = new Map<
       string,
       {
@@ -372,11 +401,20 @@ export default function AdminDashboardPage() {
         escalatedPosts: number;
         removedPosts: number;
         resolutionHours: number[];
-      }
+        }
     >();
 
+    for (const district of defaultDistricts) {
+      districtMap.set(district, {
+        totalPosts: 0,
+        escalatedPosts: 0,
+        removedPosts: 0,
+        resolutionHours: [],
+      });
+    }
+
     for (const issue of issues) {
-      const district = issue.district?.trim() || "Unassigned";
+      const district = normalizeDistrict(issue.district);
 
       if (!districtMap.has(district)) {
         districtMap.set(district, {
@@ -408,7 +446,7 @@ export default function AdminDashboardPage() {
       if (!row.reviewed_at || !row.created_at || !row.post_id) continue;
 
       const linkedIssue = issueMap.get(row.post_id);
-      const district = linkedIssue?.district?.trim() || "Unassigned";
+      const district = normalizeDistrict(linkedIssue?.district);
 
       if (!districtMap.has(district)) {
         districtMap.set(district, {
@@ -463,6 +501,18 @@ export default function AdminDashboardPage() {
         };
       })
       .sort((a, b) => {
+        const preferredDistrictOrder = ["Unassigned", "CA-42"];
+        const aPreferredIndex = preferredDistrictOrder.indexOf(a.district);
+        const bPreferredIndex = preferredDistrictOrder.indexOf(b.district);
+
+        if (aPreferredIndex !== -1 || bPreferredIndex !== -1) {
+          if (aPreferredIndex === -1) return 1;
+          if (bPreferredIndex === -1) return -1;
+          if (aPreferredIndex !== bPreferredIndex) {
+            return aPreferredIndex - bPreferredIndex;
+          }
+        }
+
         const rank = { High: 3, Medium: 2, Low: 1 };
         if (rank[b.riskLevel] !== rank[a.riskLevel]) {
           return rank[b.riskLevel] - rank[a.riskLevel];
