@@ -168,7 +168,7 @@ export default function Sidebar() {
     };
   }, [supabase]);
 
-  const navItems: NavItem[] = [
+  const navItems = [
     {
       href: "/dashboard",
       label: "Dashboard",
@@ -185,7 +185,7 @@ export default function Sidebar() {
       label: "My Activity",
       icon: Activity,
       badge: myActivityCount > 0 ? myActivityCount : null,
-      badgeColor: "red",
+      badgeColor: "red" as const,
     },
     {
       href: "/feed",
@@ -197,7 +197,7 @@ export default function Sidebar() {
       label: "Official Updates",
       icon: Megaphone,
       badge: officialUpdatesCount > 0 ? officialUpdatesCount : null,
-      badgeColor: "green",
+      badgeColor: "green" as const,
     },
     {
       href: "/create-post",
@@ -219,7 +219,11 @@ export default function Sidebar() {
       label: "My Representative",
       icon: UserCircle2,
     },
-  ].filter((item) => !(userRole === "admin" && item.href === "/my-representatives"));
+  ] satisfies NavItem[];
+
+  const visibleNavItems = navItems.filter(
+    (item) => !(userRole === "admin" && item.href === "/my-representatives")
+  );
 
   return (
     <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white lg:block">
@@ -240,7 +244,7 @@ export default function Sidebar() {
 
         <nav className="flex-1 px-4 py-5">
           <div className="space-y-2">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const active = isActivePath(pathname, item.href, item.exact);
               const Icon = item.icon;
 
