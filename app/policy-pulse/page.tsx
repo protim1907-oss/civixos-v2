@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
-import { createClient } from "@/lib/supabase/client";
 import {
   initialVotes,
   loadPolicyPulseSurveys,
@@ -65,14 +64,12 @@ function escapeHtml(value: string) {
 
 function PolicyPulsePageContent() {
   const router = useRouter();
-  const supabase = createClient();
   const searchParams = useSearchParams();
   const responsesRef = useRef<HTMLDivElement | null>(null);
 
   const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>([]);
   const [activeSurveyId, setActiveSurveyId] = useState<string>("");
   const [createdMessage, setCreatedMessage] = useState("");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
   const [respondentName, setRespondentName] = useState("");
@@ -98,16 +95,6 @@ function PolicyPulsePageContent() {
       setCreatedMessage(`Survey "${selectedSurvey.title}" was published successfully.`);
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      setCurrentUserId(user?.id ?? null);
-    })();
-  }, [supabase]);
 
   const activeSurvey = useMemo(() => {
     return surveys.find((survey) => survey.id === activeSurveyId) || null;
