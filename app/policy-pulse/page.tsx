@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
 import {
@@ -53,7 +53,7 @@ function formatDisplayDate(value: string) {
   return date.toLocaleDateString();
 }
 
-export default function PolicyPulsePage() {
+function PolicyPulsePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const responsesRef = useRef<HTMLDivElement | null>(null);
@@ -610,5 +610,27 @@ export default function PolicyPulsePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PolicyPulsePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen bg-slate-100">
+          <Sidebar />
+          <main className="flex-1 p-6">
+            <div className="mx-auto max-w-7xl">
+              <div className="rounded-2xl bg-white p-6 shadow-sm">
+                <h1 className="text-3xl font-bold text-slate-900">Policy Pulse</h1>
+                <p className="mt-3 text-slate-600">Loading survey workspace...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <PolicyPulsePageContent />
+    </Suspense>
   );
 }
