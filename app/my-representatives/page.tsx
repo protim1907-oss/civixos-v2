@@ -242,7 +242,7 @@ function mapRepresentativeRow(row: RepresentativeRow): Official {
   const badge =
     levelValue === "senate"
       ? { text: "Senate", tone: "red" as const }
-      : levelValue === "state"
+      : levelValue === "state" || levelValue === "state senate"
         ? { text: "State", tone: "green" as const }
         : { text: "House", tone: "blue" as const };
 
@@ -609,7 +609,14 @@ export default function MyRepresentativePage() {
           ((statewideRows as RepresentativeRow[] | null) || [])
             .filter((row) => {
               const level = String(row.level || "").toLowerCase();
-              return level === "senate" || level === "state";
+              if (level === "senate" || level === "state") return true;
+              if (level !== "state senate") return false;
+
+              const rowDistrict = normalizeDistrict(
+                row.district || row.district_id,
+                row.state
+              );
+              return rowDistrict === normalizedDistrict;
             })
             .map(mapRepresentativeRow)
         );

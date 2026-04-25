@@ -36,6 +36,7 @@ where state = 'California'
     'Robert Garcia',
     'Alex Padilla',
     'Adam Schiff',
+    'Lena Gonzalez',
     'Gavin Newsom',
     'Rob Bonta'
   );
@@ -118,6 +119,26 @@ values
     '/chat/adam-schiff',
     'https://www.schiff.senate.gov/contact/',
     null,
+    false,
+    true
+  ),
+  (
+    'Lena Gonzalez',
+    'California State Senator, District 33',
+    'California',
+    'CA-42',
+    'Democrat',
+    '',
+    null,
+    'https://sd33.senate.ca.gov/',
+    'Lena Gonzalez',
+    'California State Senator, District 33',
+    'State Senate',
+    '',
+    'https://sd33.senate.ca.gov/',
+    '/chat/lena-gonzalez',
+    'https://sd33.senate.ca.gov/contact',
+    'CA-42',
     false,
     true
   ),
