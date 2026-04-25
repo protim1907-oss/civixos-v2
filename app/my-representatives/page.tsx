@@ -70,6 +70,25 @@ type DistrictRepresentativeRow = {
   is_active: boolean;
 };
 
+type RepresentativeRow = {
+  id: string;
+  full_name: string | null;
+  name: string | null;
+  office_title: string | null;
+  office: string | null;
+  state: string | null;
+  district: string | null;
+  district_id: string | null;
+  party: string | null;
+  photo_url: string | null;
+  photo: string | null;
+  linkedin_url: string | null;
+  email_href: string | null;
+  is_primary: boolean | null;
+  is_active: boolean | null;
+  level: string | null;
+};
+
 function inferOfficialBadge(row: DistrictRepresentativeRow) {
   const value = `${row.title} ${row.office_label}`.toLowerCase();
 
@@ -212,6 +231,37 @@ function mapDistrictRepRow(row: DistrictRepresentativeRow): Official {
     contactUrl: row.contact_url || row.website || "#",
     phone: row.phone || undefined,
     imageUrl: row.image_url || "",
+    badge,
+  };
+}
+
+function mapRepresentativeRow(row: RepresentativeRow): Official {
+  const name = row.full_name || row.name || "Official";
+  const title = row.office_title || row.office || "Public Office";
+  const levelValue = (row.level || "").toLowerCase();
+  const badge =
+    levelValue === "senate"
+      ? { text: "Senate", tone: "red" as const }
+      : levelValue === "state"
+        ? { text: "State", tone: "green" as const }
+        : { text: "House", tone: "blue" as const };
+
+  return {
+    id: row.id,
+    name,
+    title,
+    officeLabel:
+      row.district ||
+      row.district_id ||
+      row.state ||
+      "Statewide Office",
+    level: badge.text === "State" ? "state" : "federal",
+    district: row.district || row.district_id || undefined,
+    state: row.state || "",
+    party: row.party || undefined,
+    website: row.linkedin_url || "#",
+    contactUrl: row.email_href || row.linkedin_url || "#",
+    imageUrl: row.photo_url || row.photo || "",
     badge,
   };
 }
@@ -536,30 +586,53 @@ export default function MyRepresentativePage() {
         setDistrict(normalizedDistrict);
         setResolvedState(finalStateCode);
 
-        const { data: representativeRows } = await supabase
+        const { data: districtRepRow } = await supabase
           .from("district_representatives")
           .select(
             "id, district_code, state, district_number, name, title, office_label, party, website, contact_url, phone, image_url, is_active"
           )
           .eq("district_code", normalizedDistrict)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        const { data: statewideRows } = await supabase
+          .from("representatives")
+          .select(
+            "id, full_name, name, office_title, office, state, district, district_id, party, photo_url, photo, linkedin_url, email_href, is_primary, is_active, level"
+          )
+          .eq("state", normalizeStateName(finalStateCode))
           .eq("is_active", true);
 
         if (!mounted) return;
 
-        const mappedOfficials = sortOfficials(
-          ((representativeRows as DistrictRepresentativeRow[] | null) || []).map(mapDistrictRepRow)
+        const mappedStatewideLeaders = sortOfficials(
+          ((statewideRows as RepresentativeRow[] | null) || [])
+            .filter((row) => {
+              const level = String(row.level || "").toLowerCase();
+              return level === "senate" || level === "state";
+            })
+            .map(mapRepresentativeRow)
         );
 
-        const dbPrimaryRepresentative =
-          mappedOfficials.find((official) => official.badge.text === "House") || null;
-        const dbStatewideLeaders = mappedOfficials.filter(
-          (official) => official.badge.text !== "House"
-        );
+        const fallbackPrimaryFromRepresentatives =
+          ((statewideRows as RepresentativeRow[] | null) || [])
+            .filter((row) => {
+              const rowDistrict = normalizeDistrict(
+                row.district || row.district_id,
+                row.state
+              );
+              return rowDistrict === normalizedDistrict;
+            })
+            .map(mapRepresentativeRow)[0] || null;
 
-        setPrimaryRepresentative(dbPrimaryRepresentative);
+        setPrimaryRepresentative(
+          districtRepRow
+            ? mapDistrictRepRow(districtRepRow as DistrictRepresentativeRow)
+            : fallbackPrimaryFromRepresentatives
+        );
         setStatewideLeaders(
-          dbStatewideLeaders.length > 0
-            ? dbStatewideLeaders
+          mappedStatewideLeaders.length > 0
+            ? mappedStatewideLeaders
             : STATEWIDE_LEADERS[finalStateCode] || []
         );
       } catch (error) {
