@@ -24,6 +24,8 @@ export type PolicyPulseSurvey = {
   id: string;
   title: string;
   district: string;
+  createdByUserId: string | null;
+  createdByName: string;
   summary: string;
   primaryQuestion: string;
   deadline: string;

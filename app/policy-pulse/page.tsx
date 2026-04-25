@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
+import { createClient } from "@/lib/supabase/client";
 import {
   initialVotes,
   loadPolicyPulseSurveys,
@@ -53,14 +54,25 @@ function formatDisplayDate(value: string) {
   return date.toLocaleDateString();
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function PolicyPulsePageContent() {
   const router = useRouter();
+  const supabase = createClient();
   const searchParams = useSearchParams();
   const responsesRef = useRef<HTMLDivElement | null>(null);
 
   const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>([]);
   const [activeSurveyId, setActiveSurveyId] = useState<string>("");
   const [createdMessage, setCreatedMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
   const [respondentName, setRespondentName] = useState("");
@@ -87,9 +99,28 @@ function PolicyPulsePageContent() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setCurrentUserId(user?.id ?? null);
+    })();
+  }, [supabase]);
+
   const activeSurvey = useMemo(() => {
     return surveys.find((survey) => survey.id === activeSurveyId) || null;
   }, [surveys, activeSurveyId]);
+
+  const canExportActiveSurvey = useMemo(() => {
+    return Boolean(
+      activeSurvey &&
+        currentUserId &&
+        activeSurvey.createdByUserId &&
+        activeSurvey.createdByUserId === currentUserId
+    );
+  }, [activeSurvey, currentUserId]);
 
   const surveyVotes = activeSurvey?.votes || initialVotes;
 
@@ -154,6 +185,104 @@ function PolicyPulsePageContent() {
 
   const handleViewResponses = () => {
     responsesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleExportPdf = () => {
+    if (!activeSurvey || !canExportActiveSurvey) return;
+
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=720");
+    if (!printWindow) return;
+
+    const responsesMarkup =
+      activeSurvey.recentResponses.length > 0
+        ? activeSurvey.recentResponses
+            .map(
+              (response) => `
+                <tr>
+                  <td>${escapeHtml(response.citizenLabel)}</td>
+                  <td>${escapeHtml(response.supportLevel)}</td>
+                  <td>${escapeHtml(response.topConcern)}</td>
+                  <td>${escapeHtml(response.recommendation)}</td>
+                </tr>
+              `
+            )
+            .join("")
+        : `
+          <tr>
+            <td colspan="4">No responses submitted yet.</td>
+          </tr>
+        `;
+
+    const voteRows = voteOptions
+      .map((option) => {
+        const value = activeSurvey.votes[option];
+        const total = Object.values(activeSurvey.votes).reduce((sum, count) => sum + count, 0);
+        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
+        return `
+          <tr>
+            <td>${escapeHtml(option)}</td>
+            <td>${value}</td>
+            <td>${percentage}%</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(activeSurvey.title)} - Survey Results</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 32px; color: #0f172a; }
+            h1, h2 { margin-bottom: 8px; }
+            p { line-height: 1.6; }
+            .meta { margin: 20px 0; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; vertical-align: top; }
+            th { background: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(activeSurvey.title)}</h1>
+          <p>${escapeHtml(activeSurvey.summary)}</p>
+          <div class="meta">
+            <p><strong>District:</strong> ${escapeHtml(activeSurvey.district)}</p>
+            <p><strong>Question:</strong> ${escapeHtml(activeSurvey.primaryQuestion)}</p>
+            <p><strong>Deadline:</strong> ${escapeHtml(formatDisplayDate(activeSurvey.deadline))}</p>
+            <p><strong>Created By:</strong> ${escapeHtml(activeSurvey.createdByName || "Survey Creator")}</p>
+          </div>
+
+          <h2>Vote Breakdown</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Option</th>
+                <th>Votes</th>
+                <th>Share</th>
+              </tr>
+            </thead>
+            <tbody>${voteRows}</tbody>
+          </table>
+
+          <h2>Recent Responses</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Citizen</th>
+                <th>Support Level</th>
+                <th>Top Concern</th>
+                <th>Recommendation</th>
+              </tr>
+            </thead>
+            <tbody>${responsesMarkup}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   const handleVoteSubmit = () => {
@@ -224,6 +353,15 @@ function PolicyPulsePageContent() {
               >
                 View Responses
               </button>
+
+              {canExportActiveSurvey ? (
+                <button
+                  onClick={handleExportPdf}
+                  className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Export to PDF
+                </button>
+              ) : null}
             </div>
 
             {createdMessage ? (

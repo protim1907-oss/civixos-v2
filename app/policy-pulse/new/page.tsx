@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
+import { createClient } from "@/lib/supabase/client";
 import {
   initialVotes,
   PolicyPulseSurvey,
@@ -18,6 +19,7 @@ function formatFileSize(bytes: number) {
 
 export default function NewPolicyPulseSurveyPage() {
   const router = useRouter();
+  const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [title, setTitle] = useState("");
@@ -29,6 +31,21 @@ export default function NewPolicyPulseSurveyPage() {
   const [deadline, setDeadline] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<PolicyPulseUploadedFile[]>([]);
   const [error, setError] = useState("");
+  const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [creatorName, setCreatorName] = useState("Survey Creator");
+
+  useEffect(() => {
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setCreatorId(user?.id ?? null);
+      setCreatorName(
+        String(user?.user_metadata?.full_name || user?.email || "Survey Creator")
+      );
+    })();
+  }, [supabase]);
 
   const isReady = useMemo(() => {
     return (
@@ -69,6 +86,8 @@ export default function NewPolicyPulseSurveyPage() {
       id: `survey-${Date.now()}`,
       title: title.trim(),
       district: district.trim().toUpperCase(),
+      createdByUserId: creatorId,
+      createdByName: creatorName,
       summary: summary.trim(),
       primaryQuestion: primaryQuestion.trim(),
       deadline,
