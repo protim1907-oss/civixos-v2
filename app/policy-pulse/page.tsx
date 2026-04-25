@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
 import {
@@ -67,9 +67,9 @@ function PolicyPulsePageContent() {
   const searchParams = useSearchParams();
   const responsesRef = useRef<HTMLDivElement | null>(null);
 
-  const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>([]);
-  const [activeSurveyId, setActiveSurveyId] = useState<string>("");
-  const [createdMessage, setCreatedMessage] = useState("");
+  const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>(() =>
+    loadPolicyPulseSurveys()
+  );
 
   const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
   const [respondentName, setRespondentName] = useState("");
@@ -77,28 +77,15 @@ function PolicyPulsePageContent() {
   const [recommendation, setRecommendation] = useState("");
   const [voteSubmittedMessage, setVoteSubmittedMessage] = useState("");
 
-  useEffect(() => {
-    const stored = loadPolicyPulseSurveys();
-    setSurveys(stored);
-
-    const requestedSurveyId = searchParams.get("survey");
-    const created = searchParams.get("created");
-
-    const selectedSurvey =
-      stored.find((survey) => survey.id === requestedSurveyId) || stored[0] || null;
-
-    if (selectedSurvey) {
-      setActiveSurveyId(selectedSurvey.id);
-    }
-
-    if (created === "1" && selectedSurvey) {
-      setCreatedMessage(`Survey "${selectedSurvey.title}" was published successfully.`);
-    }
-  }, [searchParams]);
-
   const activeSurvey = useMemo(() => {
-    return surveys.find((survey) => survey.id === activeSurveyId) || null;
-  }, [surveys, activeSurveyId]);
+    const requestedSurveyId = searchParams.get("survey");
+    return surveys.find((survey) => survey.id === requestedSurveyId) || surveys[0] || null;
+  }, [searchParams, surveys]);
+
+  const createdMessage = useMemo(() => {
+    if (searchParams.get("created") !== "1" || !activeSurvey) return "";
+    return `Survey "${activeSurvey.title}" was published successfully.`;
+  }, [activeSurvey, searchParams]);
 
   const canExportActiveSurvey = Boolean(activeSurvey);
 
