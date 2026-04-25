@@ -1,0 +1,163 @@
+delete from public.district_representatives
+where district_code = 'TX-35';
+
+insert into public.district_representatives (
+  district_code,
+  state,
+  district_number,
+  name,
+  title,
+  office_label,
+  party,
+  website,
+  contact_url,
+  phone,
+  image_url,
+  is_active
+)
+values (
+  'TX-35',
+  'Texas',
+  35,
+  'Greg Casar',
+  'U.S. Representative',
+  'Texas 35th Congressional District',
+  'Democrat',
+  'https://casar.house.gov/',
+  'https://casar.house.gov/contact',
+  '(202) 225-5645',
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Greg_Casar_118th_Congress.jpeg/640px-Greg_Casar_118th_Congress.jpeg',
+  true
+);
+
+delete from public.representatives
+where state = 'Texas'
+  and name in (
+    'Greg Casar',
+    'Ted Cruz',
+    'John Cornyn',
+    'Greg Abbott',
+    'Ken Paxton'
+  );
+
+insert into public.representatives (
+  full_name,
+  office_title,
+  state,
+  district,
+  party,
+  photo_url,
+  email,
+  linkedin_url,
+  name,
+  office,
+  level,
+  photo,
+  linkedin,
+  chat_href,
+  email_href,
+  district_id,
+  is_primary,
+  is_active
+)
+values
+  (
+    'Greg Casar',
+    'U.S. Representative, Texas 35th District',
+    'Texas',
+    'TX-35',
+    'Democrat',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Greg_Casar_118th_Congress.jpeg/640px-Greg_Casar_118th_Congress.jpeg',
+    null,
+    'https://casar.house.gov/',
+    'Greg Casar',
+    'U.S. Representative, Texas 35th District',
+    'Congress',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Greg_Casar_118th_Congress.jpeg/640px-Greg_Casar_118th_Congress.jpeg',
+    'https://casar.house.gov/',
+    '/chat/greg-casar',
+    'https://casar.house.gov/contact',
+    'TX-35',
+    true,
+    true
+  ),
+  (
+    'Ted Cruz',
+    'U.S. Senator, Texas',
+    'Texas',
+    null,
+    'Republican',
+    'https://www.cruz.senate.gov/imo/media/image/cruz_headshot.jpg',
+    null,
+    'https://www.cruz.senate.gov/',
+    'Ted Cruz',
+    'U.S. Senator, Texas',
+    'Senate',
+    'https://www.cruz.senate.gov/imo/media/image/cruz_headshot.jpg',
+    'https://www.cruz.senate.gov/',
+    '/chat/ted-cruz',
+    'https://www.cruz.senate.gov/contact/write-ted',
+    null,
+    false,
+    true
+  ),
+  (
+    'John Cornyn',
+    'U.S. Senator, Texas',
+    'Texas',
+    null,
+    'Republican',
+    '',
+    null,
+    'https://www.cornyn.senate.gov/',
+    'John Cornyn',
+    'U.S. Senator, Texas',
+    'Senate',
+    '',
+    'https://www.cornyn.senate.gov/',
+    '/chat/john-cornyn',
+    'https://www.cornyn.senate.gov/contact/',
+    null,
+    false,
+    true
+  ),
+  (
+    'Greg Abbott',
+    'Governor of Texas',
+    'Texas',
+    null,
+    'Republican',
+    'https://gov.texas.gov/uploads/images/general/2024-GovernorAbbott-Portrait.jpg',
+    null,
+    'https://gov.texas.gov/',
+    'Greg Abbott',
+    'Governor of Texas',
+    'State',
+    'https://gov.texas.gov/uploads/images/general/2024-GovernorAbbott-Portrait.jpg',
+    'https://gov.texas.gov/',
+    '/chat/greg-abbott',
+    'https://gov.texas.gov/apps/contact/contactus.aspx?contact=6548961',
+    null,
+    false,
+    true
+  ),
+  (
+    'Ken Paxton',
+    'Attorney General of Texas',
+    'Texas',
+    null,
+    'Republican',
+    '',
+    null,
+    'https://www.texasattorneygeneral.gov/',
+    'Ken Paxton',
+    'Attorney General of Texas',
+    'State',
+    '',
+    'https://www.texasattorneygeneral.gov/',
+    '/chat/ken-paxton',
+    'https://www.texasattorneygeneral.gov/contact-us-online-form',
+    null,
+    false,
+    true
+  );
