@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:ca42-leaders": "node --env-file=.env.local scripts/seed-ca42-leaders.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

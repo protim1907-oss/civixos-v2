@@ -70,6 +70,25 @@ type DistrictRepresentativeRow = {
   is_active: boolean;
 };
 
+function inferOfficialBadge(row: DistrictRepresentativeRow) {
+  const value = `${row.title} ${row.office_label}`.toLowerCase();
+
+  if (value.includes("senator")) {
+    return { text: "Senate", tone: "red" as const };
+  }
+
+  if (value.includes("governor") || value.includes("attorney general")) {
+    return { text: "State", tone: "green" as const };
+  }
+
+  return { text: "House", tone: "blue" as const };
+}
+
+function inferOfficialLevel(row: DistrictRepresentativeRow): "federal" | "state" {
+  const badge = inferOfficialBadge(row);
+  return badge.text === "State" ? "state" : "federal";
+}
+
 function normalizeStateCode(state?: string | null): string {
   const value = String(state || "").trim().toLowerCase();
 
@@ -178,12 +197,14 @@ function getInitials(name: string) {
 }
 
 function mapDistrictRepRow(row: DistrictRepresentativeRow): Official {
+  const badge = inferOfficialBadge(row);
+
   return {
     id: row.id,
     name: row.name,
     title: row.title,
     officeLabel: row.office_label,
-    level: "federal",
+    level: inferOfficialLevel(row),
     district: row.district_code,
     state: row.state,
     party: row.party || undefined,
@@ -191,11 +212,36 @@ function mapDistrictRepRow(row: DistrictRepresentativeRow): Official {
     contactUrl: row.contact_url || row.website || "#",
     phone: row.phone || undefined,
     imageUrl: row.image_url || "",
-    badge: {
-      text: "House",
-      tone: "blue",
-    },
+    badge,
   };
+}
+
+function sortOfficials(items: Official[]) {
+  const badgeRank: Record<Official["badge"]["text"], number> = {
+    House: 0,
+    Senate: 1,
+    State: 2,
+    Office: 3,
+  };
+
+  const stateOfficeRank = (title: string) => {
+    const value = title.toLowerCase();
+    if (value.includes("governor")) return 0;
+    if (value.includes("attorney general")) return 1;
+    return 2;
+  };
+
+  return [...items].sort((a, b) => {
+    if (badgeRank[a.badge.text] !== badgeRank[b.badge.text]) {
+      return badgeRank[a.badge.text] - badgeRank[b.badge.text];
+    }
+
+    if (a.badge.text === "State" && b.badge.text === "State") {
+      return stateOfficeRank(a.title) - stateOfficeRank(b.title);
+    }
+
+    return a.name.localeCompare(b.name);
+  });
 }
 
 const STATEWIDE_LEADERS: Record<string, Official[]> = {
@@ -490,19 +536,32 @@ export default function MyRepresentativePage() {
         setDistrict(normalizedDistrict);
         setResolvedState(finalStateCode);
 
-        const { data: districtRepRow } = await supabase
+        const { data: representativeRows } = await supabase
           .from("district_representatives")
           .select(
             "id, district_code, state, district_number, name, title, office_label, party, website, contact_url, phone, image_url, is_active"
           )
           .eq("district_code", normalizedDistrict)
-          .eq("is_active", true)
-          .maybeSingle();
+          .eq("is_active", true);
 
         if (!mounted) return;
 
-        setPrimaryRepresentative(districtRepRow ? mapDistrictRepRow(districtRepRow) : null);
-        setStatewideLeaders(STATEWIDE_LEADERS[finalStateCode] || []);
+        const mappedOfficials = sortOfficials(
+          ((representativeRows as DistrictRepresentativeRow[] | null) || []).map(mapDistrictRepRow)
+        );
+
+        const dbPrimaryRepresentative =
+          mappedOfficials.find((official) => official.badge.text === "House") || null;
+        const dbStatewideLeaders = mappedOfficials.filter(
+          (official) => official.badge.text !== "House"
+        );
+
+        setPrimaryRepresentative(dbPrimaryRepresentative);
+        setStatewideLeaders(
+          dbStatewideLeaders.length > 0
+            ? dbStatewideLeaders
+            : STATEWIDE_LEADERS[finalStateCode] || []
+        );
       } catch (error) {
         console.error("Failed to load representative page:", error);
       } finally {
