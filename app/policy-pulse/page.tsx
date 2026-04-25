@@ -113,14 +113,7 @@ function PolicyPulsePageContent() {
     return surveys.find((survey) => survey.id === activeSurveyId) || null;
   }, [surveys, activeSurveyId]);
 
-  const canExportActiveSurvey = useMemo(() => {
-    return Boolean(
-      activeSurvey &&
-        currentUserId &&
-        activeSurvey.createdByUserId &&
-        activeSurvey.createdByUserId === currentUserId
-    );
-  }, [activeSurvey, currentUserId]);
+  const canExportActiveSurvey = Boolean(activeSurvey);
 
   const surveyVotes = activeSurvey?.votes || initialVotes;
 
@@ -188,7 +181,7 @@ function PolicyPulsePageContent() {
   };
 
   const handleExportPdf = () => {
-    if (!activeSurvey || !canExportActiveSurvey) return;
+    if (!activeSurvey) return;
 
     const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=720");
     if (!printWindow) return;
@@ -354,14 +347,18 @@ function PolicyPulsePageContent() {
                 View Responses
               </button>
 
-              {canExportActiveSurvey ? (
-                <button
-                  onClick={handleExportPdf}
-                  className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Export to PDF
-                </button>
-              ) : null}
+              <button
+                onClick={handleExportPdf}
+                disabled={!canExportActiveSurvey}
+                title={
+                  canExportActiveSurvey
+                    ? "Export survey results to PDF"
+                    : "Launch a survey before exporting results"
+                }
+                className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              >
+                Export to PDF
+              </button>
             </div>
 
             {createdMessage ? (
