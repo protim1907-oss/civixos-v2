@@ -981,13 +981,9 @@ function OfficialCard({
   wide?: boolean;
   onChat: (official: Official) => void;
 }) {
-  const [imgSrc, setImgSrc] = useState(official.imageUrl || "");
-  const [imageFailed, setImageFailed] = useState(false);
-
-  useEffect(() => {
-    setImgSrc(official.imageUrl || "");
-    setImageFailed(false);
-  }, [official.imageUrl]);
+  const imageUrl = official.imageUrl || "";
+  const [failedImageUrl, setFailedImageUrl] = useState("");
+  const canShowImage = Boolean(imageUrl) && failedImageUrl !== imageUrl;
 
   return (
     <div
@@ -997,14 +993,14 @@ function OfficialCard({
     >
       <div className="flex h-full flex-col items-center text-center">
         <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
-          {imgSrc && !imageFailed ? (
+          {canShowImage ? (
             <img
-              src={imgSrc}
+              src={imageUrl}
               alt={official.name}
               className="h-full w-full object-cover"
               loading="lazy"
               referrerPolicy="no-referrer"
-              onError={() => setImageFailed(true)}
+              onError={() => setFailedImageUrl(imageUrl)}
             />
           ) : (
             <span className="text-4xl font-bold text-slate-500">
