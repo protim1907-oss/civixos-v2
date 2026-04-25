@@ -1,0 +1,163 @@
+delete from public.district_representatives
+where district_code = 'CA-42';
+
+insert into public.district_representatives (
+  district_code,
+  state,
+  district_number,
+  name,
+  title,
+  office_label,
+  party,
+  website,
+  contact_url,
+  phone,
+  image_url,
+  is_active
+)
+values (
+  'CA-42',
+  'California',
+  42,
+  'Robert Garcia',
+  'U.S. Representative',
+  'CA-42',
+  'Democrat',
+  'https://robertgarcia.house.gov/',
+  'https://robertgarcia.house.gov/contact',
+  '(202) 225-7924',
+  '',
+  true
+);
+
+delete from public.representatives
+where state = 'California'
+  and name in (
+    'Robert Garcia',
+    'Alex Padilla',
+    'Adam Schiff',
+    'Gavin Newsom',
+    'Rob Bonta'
+  );
+
+insert into public.representatives (
+  full_name,
+  office_title,
+  state,
+  district,
+  party,
+  photo_url,
+  email,
+  linkedin_url,
+  name,
+  office,
+  level,
+  photo,
+  linkedin,
+  chat_href,
+  email_href,
+  district_id,
+  is_primary,
+  is_active
+)
+values
+  (
+    'Robert Garcia',
+    'U.S. Representative, California 42nd District',
+    'California',
+    'CA-42',
+    'Democrat',
+    '',
+    null,
+    'https://robertgarcia.house.gov/',
+    'Robert Garcia',
+    'U.S. Representative, California 42nd District',
+    'Congress',
+    '',
+    'https://robertgarcia.house.gov/',
+    '/chat/robert-garcia',
+    'https://robertgarcia.house.gov/contact',
+    'CA-42',
+    true,
+    true
+  ),
+  (
+    'Alex Padilla',
+    'U.S. Senator, California',
+    'California',
+    null,
+    'Democrat',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg/640px-Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg',
+    null,
+    'https://www.padilla.senate.gov/',
+    'Alex Padilla',
+    'U.S. Senator, California',
+    'Senate',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg/640px-Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg',
+    'https://www.padilla.senate.gov/',
+    '/chat/alex-padilla',
+    'https://www.padilla.senate.gov/contact/contact-form/',
+    null,
+    false,
+    true
+  ),
+  (
+    'Adam Schiff',
+    'U.S. Senator, California',
+    'California',
+    null,
+    'Democrat',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg/640px-Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg',
+    null,
+    'https://www.schiff.senate.gov/',
+    'Adam Schiff',
+    'U.S. Senator, California',
+    'Senate',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg/640px-Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg',
+    'https://www.schiff.senate.gov/',
+    '/chat/adam-schiff',
+    'https://www.schiff.senate.gov/contact/',
+    null,
+    false,
+    true
+  ),
+  (
+    'Gavin Newsom',
+    'Governor of California',
+    'California',
+    null,
+    'Democrat',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Gavin_Newsom_by_Gage_Skidmore.jpg/640px-Gavin_Newsom_by_Gage_Skidmore.jpg',
+    null,
+    'https://www.gov.ca.gov/',
+    'Gavin Newsom',
+    'Governor of California',
+    'State',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Gavin_Newsom_by_Gage_Skidmore.jpg/640px-Gavin_Newsom_by_Gage_Skidmore.jpg',
+    'https://www.gov.ca.gov/',
+    '/chat/gavin-newsom',
+    'https://www.gov.ca.gov/contact/',
+    null,
+    false,
+    true
+  ),
+  (
+    'Rob Bonta',
+    'Attorney General of California',
+    'California',
+    null,
+    'Democrat',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Rob_Bonta_official_portrait.jpg/640px-Rob_Bonta_official_portrait.jpg',
+    null,
+    'https://oag.ca.gov/',
+    'Rob Bonta',
+    'Attorney General of California',
+    'State',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Rob_Bonta_official_portrait.jpg/640px-Rob_Bonta_official_portrait.jpg',
+    'https://oag.ca.gov/',
+    '/chat/rob-bonta',
+    'https://oag.ca.gov/contact',
+    null,
+    false,
+    true
+  );

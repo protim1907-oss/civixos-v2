@@ -47,8 +47,6 @@ const ca42PlatformRepresentatives = [
     photo_url: "",
     email: null,
     linkedin_url: "https://robertgarcia.house.gov/",
-    name: "Robert Garcia",
-    office: "U.S. Representative, California 42nd District",
     level: "Congress",
     photo: "",
     linkedin: "https://robertgarcia.house.gov/",
@@ -70,7 +68,6 @@ const ca42PlatformRepresentatives = [
       "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg/640px-Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg",
     email: null,
     linkedin_url: "https://www.padilla.senate.gov/",
-    office: "U.S. Senator, California",
     level: "Senate",
     photo:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg/640px-Alex_Padilla%2C_official_portrait%2C_117th_Congress.jpg",
@@ -93,7 +90,6 @@ const ca42PlatformRepresentatives = [
       "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg/640px-Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg",
     email: null,
     linkedin_url: "https://www.schiff.senate.gov/",
-    office: "U.S. Senator, California",
     level: "Senate",
     photo:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg/640px-Adam_Schiff%2C_official_portrait%2C_118th_Congress.jpg",
@@ -116,7 +112,6 @@ const ca42PlatformRepresentatives = [
       "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Gavin_Newsom_by_Gage_Skidmore.jpg/640px-Gavin_Newsom_by_Gage_Skidmore.jpg",
     email: null,
     linkedin_url: "https://www.gov.ca.gov/",
-    office: "Governor of California",
     level: "State",
     photo:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Gavin_Newsom_by_Gage_Skidmore.jpg/640px-Gavin_Newsom_by_Gage_Skidmore.jpg",
@@ -139,7 +134,6 @@ const ca42PlatformRepresentatives = [
       "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Rob_Bonta_official_portrait.jpg/640px-Rob_Bonta_official_portrait.jpg",
     email: null,
     linkedin_url: "https://oag.ca.gov/",
-    office: "Attorney General of California",
     level: "State",
     photo:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Rob_Bonta_official_portrait.jpg/640px-Rob_Bonta_official_portrait.jpg",
