@@ -24,6 +24,9 @@ import {
   MapPinned,
   TrendingUp,
   History,
+  Video,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 type Issue = {
@@ -87,6 +90,26 @@ type ActivityLogRow = {
   created_at: string | null;
 };
 
+type VideoMeetingRequestRow = {
+  id: string;
+  citizen_id: string | null;
+  citizen_name: string | null;
+  citizen_email: string | null;
+  district: string | null;
+  representative_id: string | null;
+  representative_name: string | null;
+  representative_title: string | null;
+  representative_office: string | null;
+  topic: string | null;
+  preferred_times: string | null;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected" | "completed" | null;
+  meeting_url: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+};
+
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
   if (!raw) return "Unassigned";
@@ -127,6 +150,9 @@ export default function AdminDashboardPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [moderationQueue, setModerationQueue] = useState<ModerationQueueRow[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
+  const [videoMeetingRequests, setVideoMeetingRequests] = useState<
+    VideoMeetingRequestRow[]
+  >([]);
 
   const [moderationInsights, setModerationInsights] = useState<ModerationInsightStats>({
     approvedPct: 0,
@@ -143,6 +169,9 @@ export default function AdminDashboardPage() {
 
   const [issueActionLoadingId, setIssueActionLoadingId] = useState<string | null>(null);
   const [roleActionLoadingId, setRoleActionLoadingId] = useState<string | null>(null);
+  const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -232,12 +261,24 @@ export default function AdminDashboardPage() {
       )
       .subscribe();
 
+    const videoMeetingRequestsChannel = supabase
+      .channel("admin-live-video-meeting-requests")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "video_meeting_requests" },
+        async () => {
+          await loadVideoMeetingRequests();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       supabase.removeChannel(issuesChannel);
       supabase.removeChannel(profilesChannel);
       supabase.removeChannel(moderationQueueChannel);
       supabase.removeChannel(activityLogsChannel);
+      supabase.removeChannel(videoMeetingRequestsChannel);
     };
   }, [router, supabase]);
 
@@ -252,6 +293,7 @@ export default function AdminDashboardPage() {
       loadProfiles(),
       loadModerationQueue(),
       loadActivityLogs(),
+      loadVideoMeetingRequests(),
     ]);
   }
 
@@ -299,6 +341,21 @@ export default function AdminDashboardPage() {
 
     if (!error) {
       setActivityLogs((data ?? []) as ActivityLogRow[]);
+    }
+  }
+
+  async function loadVideoMeetingRequests() {
+    const { data, error } = await supabase
+      .from("video_meeting_requests")
+      .select(
+        "id, citizen_id, citizen_name, citizen_email, district, representative_id, representative_name, representative_title, representative_office, topic, preferred_times, notes, status, meeting_url, reviewed_by, reviewed_at, created_at"
+      )
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setVideoMeetingRequests((data ?? []) as VideoMeetingRequestRow[]);
+    } else {
+      console.error("Failed to load video meeting requests:", error.message);
     }
   }
 
@@ -654,6 +711,63 @@ export default function AdminDashboardPage() {
     }
   }
 
+  function buildMeetingUrl(requestId: string) {
+    const token = requestId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
+    return `https://meet.jit.si/civix250-${token}`;
+  }
+
+  async function updateMeetingRequestStatus(
+    request: VideoMeetingRequestRow,
+    nextStatus: "approved" | "rejected"
+  ) {
+    try {
+      setMeetingActionLoadingId(request.id);
+
+      const meetingUrl =
+        nextStatus === "approved"
+          ? request.meeting_url || buildMeetingUrl(request.id)
+          : null;
+
+      const { error } = await supabase
+        .from("video_meeting_requests")
+        .update({
+          status: nextStatus,
+          meeting_url: meetingUrl,
+          reviewed_by: currentUserProfile?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", request.id);
+
+      if (error) {
+        console.error("Failed to update meeting request:", error.message);
+        return;
+      }
+
+      await writeActivityLog({
+        actorId: currentUserProfile?.id ?? null,
+        actorRole: currentUserProfile?.role ?? "admin",
+        entityType: "video_meeting_request",
+        entityId: request.id,
+        eventType: "video_meeting_request_updated",
+        details: {
+          citizen_name: request.citizen_name ?? null,
+          representative_name: request.representative_name ?? null,
+          topic: request.topic ?? null,
+          district: request.district ?? null,
+          new_status: nextStatus,
+          meeting_url: meetingUrl,
+        },
+      });
+
+      await loadVideoMeetingRequests();
+      await loadActivityLogs();
+    } catch (error) {
+      console.error("Unexpected meeting request update error:", error);
+    } finally {
+      setMeetingActionLoadingId(null);
+    }
+  }
+
   const escalatedIssues = useMemo(() => {
     let list = issues.filter((issue) => issue.status === "under_review");
 
@@ -696,6 +810,9 @@ export default function AdminDashboardPage() {
     const moderators = profiles.filter((p) => p.role === "moderator").length;
     const officials = profiles.filter((p) => p.role === "official").length;
     const admins = profiles.filter((p) => p.role === "admin").length;
+    const pendingMeetings = videoMeetingRequests.filter(
+      (request) => request.status === "pending"
+    ).length;
 
     return {
       totalUsers,
@@ -705,8 +822,9 @@ export default function AdminDashboardPage() {
       moderators,
       officials,
       admins,
+      pendingMeetings,
     };
-  }, [issues, profiles]);
+  }, [issues, profiles, videoMeetingRequests]);
 
   function formatDate(dateString: string | null) {
     if (!dateString) return "—";
