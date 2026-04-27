@@ -86,7 +86,7 @@ type ActivityLogRow = {
   entity_type: string | null;
   entity_id: string | null;
   event_type: string | null;
-  details: Record<string, any> | null;
+  details: Record<string, unknown> | null;
   created_at: string | null;
 };
 
@@ -586,7 +586,7 @@ export default function AdminDashboardPage() {
     entityType: string;
     entityId: string;
     eventType: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
   }) {
     try {
       await supabase.from("activity_logs").insert({
@@ -919,35 +919,39 @@ export default function AdminDashboardPage() {
 
   function renderAuditDescription(log: ActivityLogRow) {
     const details = log.details ?? {};
+    const detail = (key: string) =>
+      typeof details[key] === "string" ? details[key] : "";
 
     if (log.event_type === "issue_status_updated") {
-      return `${details.title || "Issue"} changed from ${details.previous_status || "unknown"} to ${details.new_status || "unknown"}.`;
+      return `${detail("title") || "Issue"} changed from ${detail("previous_status") || "unknown"} to ${detail("new_status") || "unknown"}.`;
     }
 
     if (log.event_type === "user_role_updated") {
-      return `${details.full_name || details.email || "User"} changed from ${details.previous_role || "unknown"} to ${details.new_role || "unknown"}.`;
+      return `${detail("full_name") || detail("email") || "User"} changed from ${detail("previous_role") || "unknown"} to ${detail("new_role") || "unknown"}.`;
     }
 
     if (log.event_type === "video_meeting_request_updated") {
-      return `${details.representative_name || "Representative"} meeting request was ${details.new_status || "reviewed"}.`;
+      return `${detail("representative_name") || "Representative"} meeting request was ${detail("new_status") || "reviewed"}.`;
     }
 
-    return details?.summary || "Governance action recorded.";
+    return detail("summary") || "Governance action recorded.";
   }
 
   function renderAuditMeta(log: ActivityLogRow) {
     const details = log.details ?? {};
+    const detail = (key: string) =>
+      typeof details[key] === "string" ? details[key] : "";
 
     if (log.event_type === "issue_status_updated") {
-      return [details.district, details.category].filter(Boolean).join(" • ");
+      return [detail("district"), detail("category")].filter(Boolean).join(" • ");
     }
 
     if (log.event_type === "user_role_updated") {
-      return [details.email, details.district].filter(Boolean).join(" • ");
+      return [detail("email"), detail("district")].filter(Boolean).join(" • ");
     }
 
     if (log.event_type === "video_meeting_request_updated") {
-      return [details.citizen_name, details.district, details.topic]
+      return [detail("citizen_name"), detail("district"), detail("topic")]
         .filter(Boolean)
         .join(" • ");
     }
