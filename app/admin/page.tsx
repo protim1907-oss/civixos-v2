@@ -802,6 +802,10 @@ export default function AdminDashboardPage() {
     return list;
   }, [profiles, userSearch]);
 
+  const pendingMeetingRequests = useMemo(() => {
+    return videoMeetingRequests.filter((request) => request.status === "pending");
+  }, [videoMeetingRequests]);
+
   const stats = useMemo(() => {
     const totalUsers = profiles.length;
     const totalPosts = issues.length;
@@ -861,6 +865,20 @@ export default function AdminDashboardPage() {
     }
   }
 
+  function getMeetingStatusClasses(status: string | null) {
+    switch (status) {
+      case "approved":
+        return "bg-green-100 text-green-700 border-green-200";
+      case "rejected":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "completed":
+        return "bg-slate-100 text-slate-700 border-slate-200";
+      case "pending":
+      default:
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    }
+  }
+
   function getRiskBadgeClasses(level: "Low" | "Medium" | "High") {
     switch (level) {
       case "High":
@@ -879,6 +897,8 @@ export default function AdminDashboardPage() {
         return "Issue status updated";
       case "user_role_updated":
         return "User role updated";
+      case "video_meeting_request_updated":
+        return "Video meeting reviewed";
       default:
         return log.event_type?.replaceAll("_", " ") || "Governance event";
     }
@@ -890,6 +910,8 @@ export default function AdminDashboardPage() {
         return "bg-blue-100 text-blue-700 border-blue-200";
       case "user_role_updated":
         return "bg-purple-100 text-purple-700 border-purple-200";
+      case "video_meeting_request_updated":
+        return "bg-indigo-100 text-indigo-700 border-indigo-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
@@ -906,6 +928,10 @@ export default function AdminDashboardPage() {
       return `${details.full_name || details.email || "User"} changed from ${details.previous_role || "unknown"} to ${details.new_role || "unknown"}.`;
     }
 
+    if (log.event_type === "video_meeting_request_updated") {
+      return `${details.representative_name || "Representative"} meeting request was ${details.new_status || "reviewed"}.`;
+    }
+
     return details?.summary || "Governance action recorded.";
   }
 
@@ -918,6 +944,12 @@ export default function AdminDashboardPage() {
 
     if (log.event_type === "user_role_updated") {
       return [details.email, details.district].filter(Boolean).join(" • ");
+    }
+
+    if (log.event_type === "video_meeting_request_updated") {
+      return [details.citizen_name, details.district, details.topic]
+        .filter(Boolean)
+        .join(" • ");
     }
 
     return log.entity_type || "platform";
@@ -996,7 +1028,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* KPI Cards */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-4">
             <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -1077,6 +1109,20 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="rounded-2xl bg-emerald-100 p-3">
                   <Building2 className="h-5 w-5 text-emerald-700" />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Meetings</p>
+                  <p className="mt-2 text-3xl font-bold text-indigo-700">
+                    {stats.pendingMeetings}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-indigo-100 p-3">
+                  <Video className="h-5 w-5 text-indigo-700" />
                 </div>
               </div>
             </div>
@@ -1306,6 +1352,161 @@ export default function AdminDashboardPage() {
                               style={{ width: `${Math.min(row.removalRate, 100)}%` }}
                             />
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Video Meeting Requests */}
+          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    Video Meeting Requests
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Review constituent meeting requests and generate video links only
+                    after approval.
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">
+                  <Video className="h-4 w-4" />
+                  {pendingMeetingRequests.length} pending
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {videoMeetingRequests.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
+                  <Video className="mx-auto h-8 w-8 text-slate-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                    No video meeting requests yet
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Requests submitted from representative cards will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {videoMeetingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-sm transition"
+                    >
+                      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="min-w-0 flex-1 space-y-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getMeetingStatusClasses(
+                                request.status
+                              )}`}
+                            >
+                              {request.status || "pending"}
+                            </span>
+
+                            {request.district ? (
+                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                                {request.district}
+                              </span>
+                            ) : null}
+
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                              {formatDate(request.created_at)}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-lg font-semibold text-slate-900">
+                              {request.topic || "Meeting request"}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">
+                              {request.citizen_name || "Citizen"} requested time with{" "}
+                              {request.representative_name || "Representative"}.
+                            </p>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-xl bg-slate-50 px-4 py-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Representative
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {request.representative_name || "—"}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {request.representative_title || request.representative_office || "—"}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-slate-50 px-4 py-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Preferred Times
+                              </p>
+                              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                                {request.preferred_times || "—"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {request.notes ? (
+                            <div className="rounded-xl bg-slate-50 px-4 py-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Notes
+                              </p>
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                                {request.notes}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {request.meeting_url ? (
+                            <a
+                              href={request.meeting_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                            >
+                              <Video className="h-4 w-4" />
+                              Open approved meeting link
+                            </a>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 xl:min-w-[190px] xl:flex-col">
+                          <button
+                            onClick={() => updateMeetingRequestStatus(request, "approved")}
+                            disabled={
+                              meetingActionLoadingId === request.id ||
+                              request.status === "approved"
+                            }
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            {meetingActionLoadingId === request.id
+                              ? "Updating..."
+                              : "Approve"}
+                          </button>
+
+                          <button
+                            onClick={() => updateMeetingRequestStatus(request, "rejected")}
+                            disabled={
+                              meetingActionLoadingId === request.id ||
+                              request.status === "rejected"
+                            }
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            {meetingActionLoadingId === request.id
+                              ? "Updating..."
+                              : "Reject"}
+                          </button>
                         </div>
                       </div>
                     </div>
