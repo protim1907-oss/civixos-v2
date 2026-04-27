@@ -16,6 +16,7 @@ import {
   Send,
   Loader2,
   User2,
+  LogOut,
 } from "lucide-react";
 
 type ProfileRow = {
@@ -785,6 +786,11 @@ export default function MyRepresentativePage() {
     }, 700);
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -811,18 +817,28 @@ export default function MyRepresentativePage() {
         <Sidebar />
 
         <main className="flex-1 p-6 md:p-8">
-          <div className="mb-6 flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
-              Civix250 Representative Hub
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              My Representative
-            </h1>
-            <p className="max-w-4xl text-sm text-slate-600">
-              Federal, state, and statewide leaders relevant to your district are shown
-              below. You can review office details, open official websites, and draft a
-              constituent message.
-            </p>
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">
+                Civix250 Representative Hub
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                My Representative
+              </h1>
+              <p className="max-w-4xl text-sm text-slate-600">
+                Federal, state, and statewide leaders relevant to your district are shown
+                below. You can review office details, open official websites, and draft a
+                constituent message.
+              </p>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 lg:mt-1"
+            >
+              <LogOut className="h-4 w-4" />
+              LogOut
+            </button>
           </div>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.02fr_1.18fr]">
