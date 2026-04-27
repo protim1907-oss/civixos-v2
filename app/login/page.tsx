@@ -1,9 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+
+const SESSION_CHECK_TIMEOUT_MS = 6000;
+
+type ProfileSummary = {
+  role: string | null;
+  district: string | null;
+};
+
+function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(message));
+    }, SESSION_CHECK_TIMEOUT_MS);
+
+    Promise.resolve(promise)
+      .then(resolve, reject)
+      .finally(() => window.clearTimeout(timeoutId));
+  });
+}
 
 function getDistrictMappingFromEmail(email?: string | null) {
   const normalized = (email || "").trim().toLowerCase();
@@ -29,7 +49,7 @@ function getDistrictMappingFromEmail(email?: string | null) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
@@ -43,7 +63,7 @@ export default function LoginPage() {
 
   const redirectingRef = useRef(false);
 
-  function getRedirectPath({
+  const getRedirectPath = useCallback(({
     accountType,
     role,
     districtId,
@@ -51,32 +71,35 @@ export default function LoginPage() {
     accountType?: string | null;
     role?: string | null;
     districtId?: string | null;
-  }) {
+  }) => {
     if (role === "admin") return "/admin";
     if (role === "moderator") return "/moderator";
     if (accountType === "official") return "/official-dashboard";
     if (!districtId) return "/district";
     return "/dashboard";
-  }
+  }, []);
 
-  async function getProfile(userId?: string) {
+  const getProfile = useCallback(async (userId?: string) => {
     if (!userId) return null;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role, district")
-      .eq("id", userId)
-      .maybeSingle();
+    const { data, error } = await withTimeout(
+      supabase
+        .from("profiles")
+        .select("role, district")
+        .eq("id", userId)
+        .maybeSingle(),
+      "Profile lookup timed out."
+    );
 
     if (error) {
       console.error("Failed to fetch profile:", error);
       return null;
     }
 
-    return data ?? null;
-  }
+    return (data ?? null) as ProfileSummary | null;
+  }, [supabase]);
 
-  async function syncDistrictFromEmail(user: any) {
+  const syncDistrictFromEmail = useCallback(async (user: User) => {
     if (!user?.email) return user;
 
     const mapped = getDistrictMappingFromEmail(user.email);
@@ -96,14 +119,17 @@ export default function LoginPage() {
       return user;
     }
 
-    const { data, error } = await supabase.auth.updateUser({
-      data: {
-        ...user.user_metadata,
-        state: mapped.state,
-        district: mapped.district,
-        district_id: mapped.district_id,
-      },
-    });
+    const { data, error } = await withTimeout(
+      supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
+          state: mapped.state,
+          district: mapped.district,
+          district_id: mapped.district_id,
+        },
+      }),
+      "District sync timed out."
+    );
 
     if (error) {
       console.error("Failed to sync district from email:", error);
@@ -111,9 +137,9 @@ export default function LoginPage() {
     }
 
     return data.user || user;
-  }
+  }, [supabase]);
 
-  async function handleSessionRedirect(session: any) {
+  const handleSessionRedirect = useCallback(async (session: Session) => {
     if (!session?.user || redirectingRef.current) return;
 
     redirectingRef.current = true;
@@ -145,7 +171,13 @@ export default function LoginPage() {
     } catch (error) {
       console.error("Session redirect error:", error);
 
-      const profile = await getProfile(session.user?.id);
+      let profile: ProfileSummary | null = null;
+      try {
+        profile = await getProfile(session.user?.id);
+      } catch (profileError) {
+        console.error("Fallback profile lookup error:", profileError);
+      }
+
       const accountType = session.user?.user_metadata?.account_type ?? null;
       const role = profile?.role ?? null;
       const districtId =
@@ -165,7 +197,7 @@ export default function LoginPage() {
     } finally {
       setPageChecking(false);
     }
-  }
+  }, [getProfile, getRedirectPath, router, syncDistrictFromEmail]);
 
   useEffect(() => {
     let mounted = true;
@@ -174,7 +206,10 @@ export default function LoginPage() {
       try {
         const {
           data: { session },
-        } = await supabase.auth.getSession();
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          "Session check timed out."
+        );
 
         if (!mounted) return;
 
@@ -203,7 +238,7 @@ export default function LoginPage() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [router, supabase]);
+  }, [handleSessionRedirect, supabase]);
 
   async function handleEmailLogin(e: FormEvent) {
     e.preventDefault();
