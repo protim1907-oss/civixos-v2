@@ -10,6 +10,7 @@ import {
   MessageCircle,
   ExternalLink,
   Mail,
+  Video,
   Shield,
   X,
   Send,
@@ -52,6 +53,12 @@ type ChatMessage = {
   id: string;
   sender: "user" | "assistant";
   text: string;
+};
+
+type MeetingRequestForm = {
+  topic: string;
+  preferredTimes: string;
+  notes: string;
 };
 
 type DistrictRepresentativeRow = {
@@ -524,6 +531,7 @@ export default function MyRepresentativePage() {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [district, setDistrict] = useState("N/A");
   const [resolvedState, setResolvedState] = useState("");
@@ -535,6 +543,16 @@ export default function MyRepresentativePage() {
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingOfficial, setMeetingOfficial] = useState<Official | null>(null);
+  const [meetingForm, setMeetingForm] = useState<MeetingRequestForm>({
+    topic: "",
+    preferredTimes: "",
+    notes: "",
+  });
+  const [meetingSubmitting, setMeetingSubmitting] = useState(false);
+  const [meetingMessage, setMeetingMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -560,6 +578,8 @@ export default function MyRepresentativePage() {
           .single();
 
         if (!mounted) return;
+
+        setCurrentUserId(user.id);
 
         const mergedProfile = profileRow ?? null;
         setProfile(mergedProfile);
@@ -678,6 +698,66 @@ export default function MyRepresentativePage() {
     ]);
     setChatInput("");
     setChatOpen(true);
+  }
+
+  function openMeetingRequest(official: Official) {
+    setMeetingOfficial(official);
+    setMeetingForm({
+      topic: "",
+      preferredTimes: "",
+      notes: "",
+    });
+    setMeetingMessage("");
+    setMeetingOpen(true);
+  }
+
+  async function submitMeetingRequest() {
+    if (!meetingOfficial || !currentUserId || meetingSubmitting) return;
+
+    if (!meetingForm.topic.trim() || !meetingForm.preferredTimes.trim()) {
+      setMeetingMessage("Please add a topic and at least one preferred meeting time.");
+      return;
+    }
+
+    try {
+      setMeetingSubmitting(true);
+      setMeetingMessage("");
+
+      const { error } = await supabase.from("video_meeting_requests").insert({
+        citizen_id: currentUserId,
+        citizen_name: profile?.full_name || "Citizen",
+        citizen_email: profile?.email || null,
+        district,
+        representative_id: meetingOfficial.id,
+        representative_name: meetingOfficial.name,
+        representative_title: meetingOfficial.title,
+        representative_office: meetingOfficial.officeLabel,
+        topic: meetingForm.topic.trim(),
+        preferred_times: meetingForm.preferredTimes.trim(),
+        notes: meetingForm.notes.trim() || null,
+        status: "pending",
+      });
+
+      if (error) {
+        console.error("Failed to submit video meeting request:", error);
+        setMeetingMessage("Unable to submit the request right now.");
+        return;
+      }
+
+      setMeetingMessage(
+        "Request submitted. Staff will review it and create a video link after approval."
+      );
+      setMeetingForm({
+        topic: "",
+        preferredTimes: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Unexpected video meeting request error:", error);
+      setMeetingMessage("Unable to submit the request right now.");
+    } finally {
+      setMeetingSubmitting(false);
+    }
   }
 
   function handleSendChat() {
@@ -841,6 +921,7 @@ export default function MyRepresentativePage() {
                     official={primaryRepresentative}
                     featured
                     onChat={startChat}
+                    onMeetingRequest={openMeetingRequest}
                   />
                 </div>
               ) : (
@@ -872,6 +953,7 @@ export default function MyRepresentativePage() {
                     official={official}
                     wide
                     onChat={startChat}
+                    onMeetingRequest={openMeetingRequest}
                   />
                 ))}
               </div>
@@ -966,6 +1048,116 @@ export default function MyRepresentativePage() {
           </div>
         </div>
       )}
+
+      {meetingOpen && meetingOfficial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 sm:p-6">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Video Meeting Request
+                </p>
+                <h4 className="mt-1 text-2xl font-bold text-slate-900">
+                  {meetingOfficial.name}
+                </h4>
+                <p className="mt-1 text-sm text-slate-600">
+                  {meetingOfficial.title} • {meetingOfficial.officeLabel}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setMeetingOpen(false)}
+                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close meeting request"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Meeting topic
+                </label>
+                <input
+                  value={meetingForm.topic}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => ({
+                      ...prev,
+                      topic: event.target.value,
+                    }))
+                  }
+                  placeholder="Example: Flood mitigation support for my neighborhood"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Preferred times
+                </label>
+                <textarea
+                  value={meetingForm.preferredTimes}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => ({
+                      ...prev,
+                      preferredTimes: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="Share 2-3 windows with timezone, such as Tue 2-4 PM ET"
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Notes for staff
+                </label>
+                <textarea
+                  value={meetingForm.notes}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => ({
+                      ...prev,
+                      notes: event.target.value,
+                    }))
+                  }
+                  rows={4}
+                  placeholder="Add background, affected location, case number, or accessibility needs."
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {meetingMessage ? (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  {meetingMessage}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => setMeetingOpen(false)}
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitMeetingRequest}
+                disabled={meetingSubmitting}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {meetingSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Video className="h-4 w-4" />
+                )}
+                {meetingSubmitting ? "Submitting..." : "Submit Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -975,11 +1167,13 @@ function OfficialCard({
   featured = false,
   wide = false,
   onChat,
+  onMeetingRequest,
 }: {
   official: Official;
   featured?: boolean;
   wide?: boolean;
   onChat: (official: Official) => void;
+  onMeetingRequest: (official: Official) => void;
 }) {
   const imageUrl = official.imageUrl || "";
   const [failedImageUrl, setFailedImageUrl] = useState("");
@@ -1037,6 +1231,14 @@ function OfficialCard({
           >
             <MessageCircle className="h-5 w-5" />
             Chat with Representative
+          </button>
+
+          <button
+            onClick={() => onMeetingRequest(official)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-4 text-base font-semibold text-white transition hover:bg-indigo-700"
+          >
+            <Video className="h-5 w-5" />
+            Request Video Meeting
           </button>
 
           <a
