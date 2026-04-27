@@ -1197,12 +1197,12 @@ function OfficialCard({
 
   return (
     <div
-      className={`rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm ${
-        featured ? "md:p-7" : ""
+      className={`rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm ${
+        featured ? "md:p-5" : ""
       } ${wide ? "h-full" : ""}`}
     >
       <div className="flex h-full flex-col items-center text-center">
-        <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
+        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 shadow-inner">
           {canShowImage ? (
             <img
               src={imageUrl}
@@ -1213,47 +1213,47 @@ function OfficialCard({
               onError={() => setFailedImageUrl(imageUrl)}
             />
           ) : (
-            <span className="text-4xl font-bold text-slate-500">
+            <span className="text-2xl font-bold text-slate-500">
               {getInitials(official.name)}
             </span>
           )}
         </div>
 
         <span
-          className={`mt-5 rounded-full border px-3 py-1 text-xs font-semibold ${getBadgeClasses(
+          className={`mt-3 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getBadgeClasses(
             official.badge.tone
           )}`}
         >
           {official.badge.text}
         </span>
 
-        <h4 className="mt-5 text-3xl font-bold tracking-tight text-slate-900">
+        <h4 className="mt-3 text-xl font-bold tracking-tight text-slate-900">
           {official.name}
         </h4>
 
-        <p className="mt-2 text-lg text-slate-700">{official.title}</p>
-        <p className="mt-1 text-base text-slate-500">{official.officeLabel}</p>
+        <p className="mt-1 text-sm text-slate-700">{official.title}</p>
+        <p className="mt-1 text-xs text-slate-500">{official.officeLabel}</p>
 
         {official.phone ? (
-          <p className="mt-3 text-sm font-medium text-slate-600">
+          <p className="mt-2 text-xs font-medium text-slate-600">
             {official.phone}
           </p>
         ) : null}
 
-        <div className="mt-6 flex w-full flex-col gap-3">
+        <div className="mt-4 flex w-full flex-col gap-2">
           <button
             onClick={() => onChat(official)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-4 text-base font-semibold text-white transition hover:bg-blue-700"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="h-4 w-4" />
             Chat with Representative
           </button>
 
           <button
             onClick={() => onMeetingRequest(official)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-4 text-base font-semibold text-white transition hover:bg-indigo-700"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
           >
-            <Video className="h-5 w-5" />
+            <Video className="h-4 w-4" />
             Request Video Meeting
           </button>
 
@@ -1261,9 +1261,9 @@ function OfficialCard({
             href={official.contactUrl || official.website || "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
           >
-            <Mail className="h-5 w-5" />
+            <Mail className="h-4 w-4" />
             Send Email
           </a>
 
@@ -1271,9 +1271,9 @@ function OfficialCard({
             href={official.website || "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-4 text-base font-semibold text-slate-800 transition hover:bg-slate-200"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
           >
-            <ExternalLink className="h-5 w-5" />
+            <ExternalLink className="h-4 w-4" />
             Official Website
           </a>
         </div>
