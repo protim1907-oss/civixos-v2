@@ -77,6 +77,9 @@ type RepresentativeRow = {
   representative_name?: string | null;
   full_name?: string | null;
   district?: string | null;
+  district_id?: string | null;
+  office?: string | null;
+  office_title?: string | null;
 };
 
 type CommentMap = Record<string, CommentRow[]>;
@@ -87,6 +90,12 @@ type ChatMessage = {
   sender: "user" | "rep";
   text: string;
   time: string;
+};
+
+type MeetingForm = {
+  topic: string;
+  preferredTimes: string;
+  notes: string;
 };
 
 function displayDistrictName(value?: string | null) {
@@ -288,6 +297,18 @@ export default function FeedPage() {
   const [chatRepresentative, setChatRepresentative] = useState("Representative");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
+
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingRepresentative, setMeetingRepresentative] = useState("Representative");
+  const [meetingRepresentativeTitle, setMeetingRepresentativeTitle] =
+    useState("District Representative");
+  const [meetingForm, setMeetingForm] = useState<MeetingForm>({
+    topic: "",
+    preferredTimes: "",
+    notes: "",
+  });
+  const [meetingSubmitting, setMeetingSubmitting] = useState(false);
+  const [meetingMessage, setMeetingMessage] = useState("");
 
   useEffect(() => {
     async function loadFeed() {
@@ -843,6 +864,76 @@ export default function FeedPage() {
     setChatOpen(true);
   }
 
+  function openVideoMeetingRequest(post: FeedPost) {
+    setMeetingRepresentative(post.representative || currentRepresentative);
+    setMeetingRepresentativeTitle("District Representative");
+    setMeetingForm({
+      topic: `Video meeting about: ${post.title}`,
+      preferredTimes: "",
+      notes: `District feed ${post.kind}: ${post.title}\n\n${post.description}`,
+    });
+    setMeetingMessage("");
+    setMeetingOpen(true);
+  }
+
+  async function submitVideoMeetingRequest() {
+    if (!currentUserId) {
+      setMeetingMessage("Please sign in before requesting a video meeting.");
+      return;
+    }
+
+    if (!meetingForm.topic.trim() || !meetingForm.preferredTimes.trim()) {
+      setMeetingMessage("Please add a topic and at least one preferred meeting time.");
+      return;
+    }
+
+    try {
+      setMeetingSubmitting(true);
+      setMeetingMessage("");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, name, email")
+        .eq("id", currentUserId)
+        .maybeSingle();
+
+      const { error } = await supabase.from("video_meeting_requests").insert({
+        citizen_id: currentUserId,
+        citizen_name: getProfileDisplayName(profile as ProfileRow | null),
+        citizen_email: (profile as ProfileRow | null)?.email || null,
+        district: currentDistrict,
+        representative_id: null,
+        representative_name: meetingRepresentative,
+        representative_title: meetingRepresentativeTitle,
+        representative_office: currentDistrict || null,
+        topic: meetingForm.topic.trim(),
+        preferred_times: meetingForm.preferredTimes.trim(),
+        notes: meetingForm.notes.trim() || null,
+        status: "pending",
+      });
+
+      if (error) {
+        console.error("Video meeting request error:", error);
+        setMeetingMessage("Unable to submit this request right now.");
+        return;
+      }
+
+      setMeetingMessage(
+        "Request submitted. Staff will approve it before a video link is created."
+      );
+      setMeetingForm({
+        topic: "",
+        preferredTimes: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Unexpected video meeting request error:", error);
+      setMeetingMessage("Unable to submit this request right now.");
+    } finally {
+      setMeetingSubmitting(false);
+    }
+  }
+
   function sendChatMessage() {
     const text = chatInput.trim();
     if (!text) return;
@@ -1090,6 +1181,13 @@ export default function FeedPage() {
                           className="rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
                         >
                           Chat with my representative
+                        </button>
+
+                        <button
+                          onClick={() => openVideoMeetingRequest(post)}
+                          className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700"
+                        >
+                          Video Call with my representative
                         </button>
 
                         <button
