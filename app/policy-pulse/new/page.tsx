@@ -98,20 +98,20 @@ export default function NewPolicyPulseSurveyPage() {
           ? await uploadPolicyPulseFiles(supabase, surveyId, selectedFiles)
           : [];
 
-    const survey: PolicyPulseSurvey = {
-      id: surveyId,
-      title: title.trim(),
-      district: district.trim().toUpperCase(),
-      createdByUserId: creatorId,
-      createdByName: creatorName,
-      summary: summary.trim(),
-      primaryQuestion: primaryQuestion.trim(),
-      deadline,
-      uploadedFiles: publishedFiles,
-      createdAt: new Date().toISOString(),
-      votes: { ...initialVotes },
-      recentResponses: [],
-    };
+      const survey: PolicyPulseSurvey = {
+        id: surveyId,
+        title: title.trim(),
+        district: district.trim().toUpperCase(),
+        createdByUserId: creatorId,
+        createdByName: creatorName,
+        summary: summary.trim(),
+        primaryQuestion: primaryQuestion.trim(),
+        deadline,
+        uploadedFiles: publishedFiles,
+        createdAt: new Date().toISOString(),
+        votes: { ...initialVotes },
+        recentResponses: [],
+      };
 
       await publishPolicyPulseSurvey(supabase, survey);
       router.push(`/policy-pulse?survey=${encodeURIComponent(survey.id)}&created=1`);

@@ -1,14 +1,15 @@
 "use client";
 
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
+import { createClient } from "@/lib/supabase/client";
 import {
   initialVotes,
-  loadPolicyPulseSurveys,
+  loadPublishedPolicyPulseSurveys,
   PolicyPulseResponse,
   PolicyPulseSurvey,
-  savePolicyPulseSurveys,
+  updatePublishedPolicyPulseSurvey,
   VoteOption,
   voteOptions,
 } from "@/lib/policy-pulse";
@@ -64,18 +65,41 @@ function escapeHtml(value: string) {
 
 function PolicyPulsePageContent() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const searchParams = useSearchParams();
   const responsesRef = useRef<HTMLDivElement | null>(null);
 
-  const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>(() =>
-    loadPolicyPulseSurveys()
-  );
+  const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>([]);
+  const [loadingSurveys, setLoadingSurveys] = useState(true);
 
   const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
   const [respondentName, setRespondentName] = useState("");
   const [topConcern, setTopConcern] = useState("");
   const [recommendation, setRecommendation] = useState("");
   const [voteSubmittedMessage, setVoteSubmittedMessage] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSurveys() {
+      try {
+        const publishedSurveys = await loadPublishedPolicyPulseSurveys(supabase);
+        if (mounted) {
+          setSurveys(publishedSurveys);
+        }
+      } finally {
+        if (mounted) {
+          setLoadingSurveys(false);
+        }
+      }
+    }
+
+    void loadSurveys();
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
 
   const activeSurvey = useMemo(() => {
     const requestedSurveyId = searchParams.get("survey");
@@ -252,7 +276,7 @@ function PolicyPulsePageContent() {
     printWindow.print();
   };
 
-  const handleVoteSubmit = () => {
+  const handleVoteSubmit = async () => {
     setVoteSubmittedMessage("");
 
     if (!activeSurvey) {
@@ -282,14 +306,19 @@ function PolicyPulsePageContent() {
       survey.id === nextSurvey.id ? nextSurvey : survey
     );
 
-    setSurveys(nextSurveys);
-    savePolicyPulseSurveys(nextSurveys);
+    try {
+      await updatePublishedPolicyPulseSurvey(supabase, nextSurvey);
+      setSurveys(nextSurveys);
 
-    setVoteSubmittedMessage(`Your response has been recorded for "${activeSurvey.title}".`);
-    setRespondentName("");
-    setTopConcern("");
-    setRecommendation("");
-    setSelectedVote("Neutral");
+      setVoteSubmittedMessage(`Your response has been recorded for "${activeSurvey.title}".`);
+      setRespondentName("");
+      setTopConcern("");
+      setRecommendation("");
+      setSelectedVote("Neutral");
+    } catch (error) {
+      console.error("Failed to save survey response:", error);
+      setVoteSubmittedMessage("Unable to save this response. Please try again.");
+    }
   };
 
   return (
@@ -301,7 +330,9 @@ function PolicyPulsePageContent() {
           <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
             <h1 className="text-3xl font-bold text-slate-900">Policy Pulse</h1>
             <p className="mt-3 max-w-4xl leading-7 text-slate-600">
-              {activeSurvey
+              {loadingSurveys
+                ? "Loading published surveys..."
+                : activeSurvey
                 ? `${activeSurvey.title} is live for ${activeSurvey.district}. ${activeSurvey.summary}`
                 : "Test policies before they become decisions. Policy Pulse lets you run quick surveys, capture citizen sentiment, and identify key concerns. Get instant insights on support levels, risks, and recommendations. Make smarter, faster policy decisions."}
             </p>
