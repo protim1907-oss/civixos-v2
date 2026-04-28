@@ -81,7 +81,7 @@ using (
     select 1
     from public.profiles
     where profiles.id = auth.uid()
-      and profiles.role in ('admin', 'moderator', 'official')
+      and profiles.role::text in ('admin', 'moderator', 'official')
   )
 );
 
@@ -97,7 +97,7 @@ using (
     select 1
     from public.profiles
     where profiles.id = auth.uid()
-      and profiles.role in ('admin', 'moderator', 'official')
+      and profiles.role::text in ('admin', 'moderator', 'official')
   )
 )
 with check (
@@ -105,6 +105,6 @@ with check (
     select 1
     from public.profiles
     where profiles.id = auth.uid()
-      and profiles.role in ('admin', 'moderator', 'official')
+      and profiles.role::text in ('admin', 'moderator', 'official')
   )
 );
