@@ -95,31 +95,9 @@ with check (bucket_id = 'policy-pulse-files');
 drop policy if exists "Owners and staff can update policy pulse files"
   on storage.objects;
 
-create policy "Owners and staff can update policy pulse files"
+create policy "Authenticated users can update policy pulse files"
 on storage.objects
 for update
 to authenticated
-using (
-  bucket_id = 'policy-pulse-files'
-  and (
-    owner = auth.uid()
-    or exists (
-      select 1
-      from public.profiles
-      where profiles.id = auth.uid()
-        and profiles.role::text in ('admin', 'moderator', 'official')
-    )
-  )
-)
-with check (
-  bucket_id = 'policy-pulse-files'
-  and (
-    owner = auth.uid()
-    or exists (
-      select 1
-      from public.profiles
-      where profiles.id = auth.uid()
-        and profiles.role::text in ('admin', 'moderator', 'official')
-    )
-  )
-);
+using (bucket_id = 'policy-pulse-files')
+with check (bucket_id = 'policy-pulse-files');
