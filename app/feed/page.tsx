@@ -1316,6 +1316,109 @@ export default function FeedPage() {
           </div>
         </div>
       )}
+
+      {meetingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-2xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Video Call Request
+                </p>
+                <h3 className="mt-1 text-2xl font-bold text-slate-900">
+                  {meetingRepresentative}
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  A meeting link is created only after staff approval.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setMeetingOpen(false)}
+                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close video meeting request"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Meeting topic
+                </label>
+                <input
+                  value={meetingForm.topic}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => ({
+                      ...prev,
+                      topic: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Preferred times
+                </label>
+                <textarea
+                  value={meetingForm.preferredTimes}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => ({
+                      ...prev,
+                      preferredTimes: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="Share 2-3 windows with timezone, such as Tue 2-4 PM ET"
+                  className="w-full resize-none rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Notes for staff
+                </label>
+                <textarea
+                  value={meetingForm.notes}
+                  onChange={(event) =>
+                    setMeetingForm((prev) => ({
+                      ...prev,
+                      notes: event.target.value,
+                    }))
+                  }
+                  rows={4}
+                  className="w-full resize-none rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400"
+                />
+              </div>
+
+              {meetingMessage ? (
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                  {meetingMessage}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => setMeetingOpen(false)}
+                className="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitVideoMeetingRequest}
+                disabled={meetingSubmitting}
+                className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {meetingSubmitting ? "Submitting..." : "Submit Video Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
