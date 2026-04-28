@@ -206,8 +206,8 @@ function getSentimentLabel(score: number) {
 }
 
 function getRiskLevelFromScore(score: number): "Low" | "Medium" | "High" {
-  if (score >= 70) return "High";
-  if (score >= 35) return "Medium";
+  if (score >= 90) return "High";
+  if (score >= 70) return "Medium";
   return "Low";
 }
 
