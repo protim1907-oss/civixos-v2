@@ -88,6 +88,11 @@ export default function NewPolicyPulseSurveyPage() {
       return;
     }
 
+    if (!creatorId) {
+      setError("Please log in before publishing a district survey.");
+      return;
+    }
+
     setPublishing(true);
 
     const surveyId = `survey-${Date.now()}`;

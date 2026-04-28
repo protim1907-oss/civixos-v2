@@ -60,31 +60,15 @@ for insert
 to authenticated
 with check (auth.uid() = created_by_user_id);
 
-drop policy if exists "Creators and staff can update policy pulse surveys"
+drop policy if exists "Authenticated users can update policy pulse survey results"
   on public.policy_pulse_surveys;
 
-create policy "Creators and staff can update policy pulse surveys"
+create policy "Authenticated users can update policy pulse survey results"
 on public.policy_pulse_surveys
 for update
 to authenticated
-using (
-  auth.uid() = created_by_user_id
-  or exists (
-    select 1
-    from public.profiles
-    where profiles.id = auth.uid()
-      and profiles.role::text in ('admin', 'moderator', 'official')
-  )
-)
-with check (
-  auth.uid() = created_by_user_id
-  or exists (
-    select 1
-    from public.profiles
-    where profiles.id = auth.uid()
-      and profiles.role::text in ('admin', 'moderator', 'official')
-  )
-);
+using (true)
+with check (true);
 
 insert into storage.buckets (id, name, public)
 values ('policy-pulse-files', 'policy-pulse-files', true)
