@@ -956,6 +956,11 @@ export default function FeedPage() {
     setChatInput("");
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 lg:flex">
       <Sidebar />
@@ -963,15 +968,28 @@ export default function FeedPage() {
       <main className="flex-1 p-4 md:p-6">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm">
-            <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
-            <p className="mt-2 text-slate-600">
-              Browse civic issues, track status, and connect with your representative in{" "}
-              <span className="font-semibold text-slate-900">
-                {displayDistrictName(currentDistrict)}
-              </span>
-              .
-            </p>
-            {debugMessage ? <p className="mt-3 text-sm text-amber-600">{debugMessage}</p> : null}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
+                <p className="mt-2 text-slate-600">
+                  Browse civic issues, track status, and connect with your representative in{" "}
+                  <span className="font-semibold text-slate-900">
+                    {displayDistrictName(currentDistrict)}
+                  </span>
+                  .
+                </p>
+                {debugMessage ? (
+                  <p className="mt-3 text-sm text-amber-600">{debugMessage}</p>
+                ) : null}
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+              >
+                Logout
+              </button>
+            </div>
           </div>
 
           <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
