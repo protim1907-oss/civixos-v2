@@ -35,6 +35,11 @@ type IssueRow = {
 type PostRow = {
   id: string;
   content: string | null;
+  title: string | null;
+  description: string | null;
+  district: string | null;
+  category: string | null;
+  sentiment: string | null;
   created_at: string | null;
   discussion_id: string | null;
 };
@@ -93,6 +98,35 @@ type ThemeRow = {
   count: number;
   districts: number;
 };
+
+const CA42_OFFICIAL_UPDATE_POSTS: PostRow[] = [
+  {
+    id: "ca42-port-cleanup",
+    title: "Port-area cleanup and traffic control plan announced",
+    description:
+      "District operations teams will begin a cleanup and logistics improvement initiative near key freight corridors.",
+    content:
+      "The district has announced a cleanup and traffic-control effort focused on freight mobility and neighborhood access near the port area.",
+    district: "CA-42",
+    category: "Infrastructure",
+    sentiment: "positive",
+    created_at: "2026-04-16T12:00:00.000Z",
+    discussion_id: null,
+  },
+  {
+    id: "ca42-school-grants",
+    title: "District education office opens community school grant cycle",
+    description:
+      "Applications are now open for district-supported community learning and after-school improvement grants.",
+    content:
+      "The District Education Office opened a new application round for community schools and after-school enrichment programs.",
+    district: "CA-42",
+    category: "Education",
+    sentiment: "positive",
+    created_at: "2026-04-12T12:00:00.000Z",
+    discussion_id: null,
+  },
+];
 
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
@@ -186,6 +220,27 @@ function scoreSentiment(text: string) {
   if (score > 0) return 1;
   if (score < 0) return -1;
   return 0;
+}
+
+function getPostText(post: PostRow, discussion?: DiscussionRow) {
+  return [
+    post.title,
+    post.description,
+    post.content,
+    discussion?.title,
+    discussion?.topic,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function scorePostSentiment(post: PostRow, discussion?: DiscussionRow) {
+  const explicitSentiment = String(post.sentiment || "").toLowerCase();
+  if (explicitSentiment.includes("positive")) return 1;
+  if (explicitSentiment.includes("negative")) return -1;
+  if (explicitSentiment.includes("neutral")) return 0;
+
+  return scoreSentiment(getPostText(post, discussion));
 }
 
 function getHeatColor(total: number, max: number) {
@@ -328,7 +383,9 @@ export default function DistrictAnalyticsPage() {
 
           supabase
             .from("posts")
-            .select("id, content, created_at, discussion_id, status")
+            .select(
+              "id, content, title, description, district, category, sentiment, created_at, discussion_id, status"
+            )
             .eq("status", "active"),
 
           supabase
@@ -351,6 +408,11 @@ export default function DistrictAnalyticsPage() {
         setPosts(((postsRes.data as Array<Record<string, unknown>>) ?? []).map((row) => ({
           id: String(row.id ?? ""),
           content: (row.content as string | null) ?? null,
+          title: (row.title as string | null) ?? null,
+          description: (row.description as string | null) ?? null,
+          district: (row.district as string | null) ?? null,
+          category: (row.category as string | null) ?? null,
+          sentiment: (row.sentiment as string | null) ?? null,
           created_at: (row.created_at as string | null) ?? null,
           discussion_id: (row.discussion_id as string | null) ?? null,
         })));
@@ -375,6 +437,14 @@ export default function DistrictAnalyticsPage() {
     });
     return map;
   }, [discussions]);
+
+  const analyticsPosts = useMemo(() => {
+    const existingIds = new Set(posts.map((post) => post.id));
+    return [
+      ...posts,
+      ...CA42_OFFICIAL_UPDATE_POSTS.filter((post) => !existingIds.has(post.id)),
+    ];
+  }, [posts]);
 
   const trendData = useMemo<TrendPoint[]>(() => {
     const now = new Date();
@@ -411,12 +481,12 @@ export default function DistrictAnalyticsPage() {
       else point.neutral += 1;
     }
 
-    for (const post of posts) {
+    for (const post of analyticsPosts) {
       const key = toDayKey(post.created_at);
       if (!key || !baseMap.has(key)) continue;
 
       const point = baseMap.get(key)!;
-      const sentiment = scoreSentiment(post.content || "");
+      const sentiment = scorePostSentiment(post);
       point.posts += 1;
       point.total += 1;
 
@@ -426,7 +496,7 @@ export default function DistrictAnalyticsPage() {
     }
 
     return keys.map((key) => baseMap.get(key)!);
-  }, [issues, posts]);
+  }, [analyticsPosts, issues]);
 
   const districtMetrics = useMemo<DistrictMetric[]>(() => {
     const metrics: Record<string, DistrictMetric> = {};
@@ -506,24 +576,22 @@ export default function DistrictAnalyticsPage() {
       }
     }
 
-    for (const post of posts) {
+    for (const post of analyticsPosts) {
       const discussion = post.discussion_id ? discussionMap.get(post.discussion_id) : undefined;
-      const district = normalizeDistrict(discussion?.district);
+      const district = normalizeDistrict(post.district || discussion?.district);
       ensureMetric(district);
 
       metrics[district].posts += 1;
       metrics[district].total += 1;
 
-      const postSentiment = scoreSentiment(post.content || "");
+      const postSentiment = scorePostSentiment(post, discussion);
       if (postSentiment > 0) metrics[district].positive += 1;
       else if (postSentiment < 0) metrics[district].negative += 1;
       else metrics[district].neutral += 1;
 
       metrics[district].sentimentScore += postSentiment;
 
-      const bucket = categoryBucket(
-        `${discussion?.topic || ""} ${discussion?.title || ""} ${post.content || ""}`
-      );
+      const bucket = categoryBucket(post.category || getPostText(post, discussion));
       districtCategories[district] = districtCategories[district] || {};
       districtCategories[district][bucket] = (districtCategories[district][bucket] || 0) + 1;
 
@@ -585,7 +653,7 @@ export default function DistrictAnalyticsPage() {
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [issues, posts, discussionMap]);
+  }, [analyticsPosts, issues, discussionMap]);
 
   const availableDistricts = useMemo(() => {
     return ["All", ...districtMetrics.map((d) => d.district)];
@@ -722,12 +790,10 @@ export default function DistrictAnalyticsPage() {
       themeMap.set(bucket, current);
     }
 
-    for (const post of posts) {
+    for (const post of analyticsPosts) {
       const discussion = post.discussion_id ? discussionMap.get(post.discussion_id) : undefined;
-      const district = normalizeDistrict(discussion?.district);
-      const bucket = categoryBucket(
-        `${discussion?.topic || ""} ${discussion?.title || ""} ${post.content || ""}`
-      );
+      const district = normalizeDistrict(post.district || discussion?.district);
+      const bucket = categoryBucket(post.category || getPostText(post, discussion));
       const current = themeMap.get(bucket) || { count: 0, districts: new Set<string>() };
       current.count += 1;
       current.districts.add(district);
@@ -742,7 +808,7 @@ export default function DistrictAnalyticsPage() {
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [issues, posts, discussionMap]);
+  }, [analyticsPosts, issues, discussionMap]);
 
   const alerts = useMemo<AlertSignal[]>(() => {
     const items: AlertSignal[] = [];
