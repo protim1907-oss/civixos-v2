@@ -921,7 +921,7 @@ export default function DistrictAnalyticsPage() {
 
                 <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-slate-500">Dominant Sentiment</p>
+                    <p className="text-sm text-slate-500">Overall Sentiment</p>
                     {summary.avgSentiment > 0.2 ? (
                       <Smile className="h-5 w-5 text-green-600" />
                     ) : summary.avgSentiment < -0.2 ? (
@@ -934,8 +934,8 @@ export default function DistrictAnalyticsPage() {
                     {getSentimentLabel(summary.avgSentiment)}
                   </p>
                   <p className="mt-3 text-sm text-slate-500">
-                    {summary.negativePct}% negative · {summary.neutralPct}% neutral ·{" "}
-                    {summary.positivePct}% positive
+                    Across visible districts · {summary.negativePct}% negative ·{" "}
+                    {summary.neutralPct}% neutral · {summary.positivePct}% positive
                   </p>
                 </div>
 
