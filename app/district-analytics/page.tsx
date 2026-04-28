@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   BarChart3,
   MapPinned,
-  MessageSquare,
   TrendingUp,
   Smile,
   Meh,
