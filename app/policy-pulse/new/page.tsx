@@ -6,9 +6,10 @@ import Sidebar from "@/components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
 import {
   initialVotes,
+  publishPolicyPulseSurvey,
   PolicyPulseSurvey,
   PolicyPulseUploadedFile,
-  upsertPolicyPulseSurvey,
+  uploadPolicyPulseFiles,
 } from "@/lib/policy-pulse";
 
 function formatFileSize(bytes: number) {
@@ -19,7 +20,7 @@ function formatFileSize(bytes: number) {
 
 export default function NewPolicyPulseSurveyPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [title, setTitle] = useState("");
@@ -29,8 +30,10 @@ export default function NewPolicyPulseSurveyPage() {
     "Do you support this policy proposal for your district?"
   );
   const [deadline, setDeadline] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<PolicyPulseUploadedFile[]>([]);
   const [error, setError] = useState("");
+  const [publishing, setPublishing] = useState(false);
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [creatorName, setCreatorName] = useState("Survey Creator");
 
@@ -61,12 +64,15 @@ export default function NewPolicyPulseSurveyPage() {
     const files = event.target.files;
 
     if (!files || files.length === 0) {
+      setSelectedFiles([]);
       setUploadedFiles([]);
       return;
     }
 
+    const nextFiles = Array.from(files);
+    setSelectedFiles(nextFiles);
     setUploadedFiles(
-      Array.from(files).map((file) => ({
+      nextFiles.map((file) => ({
         name: file.name,
         size: formatFileSize(file.size),
         type: file.type || "Unknown file type",
@@ -74,7 +80,7 @@ export default function NewPolicyPulseSurveyPage() {
     );
   }
 
-  function handleLaunchSurvey() {
+  async function handleLaunchSurvey() {
     setError("");
 
     if (!isReady) {
@@ -82,8 +88,18 @@ export default function NewPolicyPulseSurveyPage() {
       return;
     }
 
+    setPublishing(true);
+
+    const surveyId = `survey-${Date.now()}`;
+
+    try {
+      const publishedFiles =
+        selectedFiles.length > 0
+          ? await uploadPolicyPulseFiles(supabase, surveyId, selectedFiles)
+          : [];
+
     const survey: PolicyPulseSurvey = {
-      id: `survey-${Date.now()}`,
+      id: surveyId,
       title: title.trim(),
       district: district.trim().toUpperCase(),
       createdByUserId: creatorId,
@@ -91,14 +107,22 @@ export default function NewPolicyPulseSurveyPage() {
       summary: summary.trim(),
       primaryQuestion: primaryQuestion.trim(),
       deadline,
-      uploadedFiles,
+      uploadedFiles: publishedFiles,
       createdAt: new Date().toISOString(),
       votes: { ...initialVotes },
       recentResponses: [],
     };
 
-    upsertPolicyPulseSurvey(survey);
-    router.push(`/policy-pulse?survey=${encodeURIComponent(survey.id)}&created=1`);
+      await publishPolicyPulseSurvey(supabase, survey);
+      router.push(`/policy-pulse?survey=${encodeURIComponent(survey.id)}&created=1`);
+    } catch (publishError) {
+      console.error("Failed to publish policy pulse survey:", publishError);
+      setError(
+        "Unable to publish this survey. Confirm the Supabase table and storage bucket are set up."
+      );
+    } finally {
+      setPublishing(false);
+    }
   }
 
   return (
@@ -241,9 +265,10 @@ export default function NewPolicyPulseSurveyPage() {
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={handleLaunchSurvey}
-                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+                    disabled={publishing}
+                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Publish Survey
+                    {publishing ? "Publishing..." : "Publish Survey"}
                   </button>
 
                   <button
