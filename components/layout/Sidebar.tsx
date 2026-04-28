@@ -222,7 +222,11 @@ export default function Sidebar() {
   ] satisfies NavItem[];
 
   const visibleNavItems = navItems.filter(
-    (item) => !(userRole === "admin" && item.href === "/my-representatives")
+    (item) =>
+      !(
+        (userRole === "admin" || userRole === "moderator") &&
+        item.href === "/my-representatives"
+      )
   );
 
   return (
