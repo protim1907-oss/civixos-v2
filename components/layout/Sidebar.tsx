@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -55,7 +55,7 @@ export default function Sidebar() {
   const [officialUpdatesCount, setOfficialUpdatesCount] = useState<number>(0);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  async function loadBadgeCounts() {
+  const loadBadgeCounts = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -123,10 +123,10 @@ export default function Sidebar() {
     } catch (error) {
       console.error("Sidebar badge load error:", error);
     }
-  }
+  }, [supabase]);
 
   useEffect(() => {
-    loadBadgeCounts();
+    void Promise.resolve().then(() => loadBadgeCounts());
 
     const commentsChannel = supabase
       .channel("sidebar-news-comments")
@@ -166,7 +166,7 @@ export default function Sidebar() {
       supabase.removeChannel(interactionsChannel);
       supabase.removeChannel(officialUpdatesChannel);
     };
-  }, [supabase]);
+  }, [loadBadgeCounts, supabase]);
 
   const navItems = [
     {
