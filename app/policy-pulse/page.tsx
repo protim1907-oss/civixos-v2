@@ -449,7 +449,18 @@ function PolicyPulsePageContent() {
                             key={`${file.name}-${index}`}
                             className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
                           >
-                            <p className="font-semibold text-slate-900">{file.name}</p>
+                            {file.url ? (
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-blue-700 hover:underline"
+                              >
+                                {file.name}
+                              </a>
+                            ) : (
+                              <p className="font-semibold text-slate-900">{file.name}</p>
+                            )}
                             <p className="text-sm text-slate-600">
                               {file.type} • {file.size}
                             </p>
