@@ -176,17 +176,19 @@ function PolicyPulsePageContent() {
   );
 
   const topConcernLabel = useMemo(() => {
-    if (activeSurvey?.recentResponses?.length) {
-      return activeSurvey.recentResponses[0]?.topConcern || "No concern yet";
-    }
-    return "Budget / Access";
+    return getMostCommonResponseValue(
+      activeSurvey?.recentResponses ?? [],
+      "topConcern",
+      activeSurvey ? "No concern yet" : "Launch a survey"
+    );
   }, [activeSurvey]);
 
   const recommendedActionLabel = useMemo(() => {
-    if (activeSurvey?.recentResponses?.length) {
-      return activeSurvey.recentResponses[0]?.recommendation || "No recommendation yet";
-    }
-    return activeSurvey ? "Review Survey Feedback" : "Launch A Survey";
+    return getMostCommonResponseValue(
+      activeSurvey?.recentResponses ?? [],
+      "recommendation",
+      activeSurvey ? "No recommendation yet" : "Launch a survey"
+    );
   }, [activeSurvey]);
 
   const chartData = useMemo(() => {
@@ -211,18 +213,23 @@ function PolicyPulsePageContent() {
     });
   }, [surveyVotes, totalVotes]);
 
-  const linePoints = useMemo(() => {
-    if (trendData.length === 0) return "";
+  const concernTrendData = useMemo(
+    () => getConcernTrendData(activeSurvey?.recentResponses ?? []),
+    [activeSurvey]
+  );
 
-    const maxX = trendData.length - 1;
-    const points = trendData.map((item, index) => {
+  const linePoints = useMemo(() => {
+    if (concernTrendData.length === 0) return "";
+
+    const maxX = concernTrendData.length - 1;
+    const points = concernTrendData.map((item, index) => {
       const x = maxX === 0 ? 0 : (index / maxX) * 100;
       const y = 100 - item.supportScore;
       return `${x},${y}`;
     });
 
     return points.join(" ");
-  }, []);
+  }, [concernTrendData]);
 
   const handleViewResponses = () => {
     responsesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -740,6 +747,7 @@ function PolicyPulsePageContent() {
                   the survey.
                 </p>
 
+                {concernTrendData.length > 0 ? (
                 <div className="mt-6">
                   <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
                     <span>Lower Support</span>
@@ -772,8 +780,8 @@ function PolicyPulsePageContent() {
                         points={linePoints}
                       />
 
-                      {trendData.map((item, index) => {
-                        const maxX = trendData.length - 1;
+                      {concernTrendData.map((item, index) => {
+                        const maxX = concernTrendData.length - 1;
                         const x = maxX === 0 ? 0 : (index / maxX) * 100;
                         const y = 100 - item.supportScore;
 
@@ -786,7 +794,7 @@ function PolicyPulsePageContent() {
                     </svg>
 
                     <div className="mt-4 space-y-2">
-                      {trendData.map((item, index) => (
+                      {concernTrendData.map((item, index) => (
                         <div
                           key={item.concern}
                           className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
@@ -805,6 +813,11 @@ function PolicyPulsePageContent() {
                     </div>
                   </div>
                 </div>
+                ) : (
+                  <div className="mt-6 rounded-xl bg-white px-5 py-10 text-center text-sm text-slate-600 shadow-sm">
+                    Concern trends will appear after residents submit survey responses.
+                  </div>
+                )}
               </div>
             </div>
           </div>
