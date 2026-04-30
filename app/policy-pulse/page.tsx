@@ -748,71 +748,71 @@ function PolicyPulsePageContent() {
                 </p>
 
                 {concernTrendData.length > 0 ? (
-                <div className="mt-6">
-                  <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
-                    <span>Lower Support</span>
-                    <span>Higher Support</span>
-                  </div>
+                  <div className="mt-6">
+                    <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
+                      <span>Lower Support</span>
+                      <span>Higher Support</span>
+                    </div>
 
-                  <div className="rounded-xl bg-white p-4 shadow-sm">
-                    <svg viewBox="0 0 100 100" className="h-64 w-full">
-                      <line
-                        x1="0"
-                        y1="100"
-                        x2="100"
-                        y2="100"
-                        stroke="#cbd5e1"
-                        strokeWidth="0.8"
-                      />
-                      <line
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="100"
-                        stroke="#cbd5e1"
-                        strokeWidth="0.8"
-                      />
+                    <div className="rounded-xl bg-white p-4 shadow-sm">
+                      <svg viewBox="0 0 100 100" className="h-64 w-full">
+                        <line
+                          x1="0"
+                          y1="100"
+                          x2="100"
+                          y2="100"
+                          stroke="#cbd5e1"
+                          strokeWidth="0.8"
+                        />
+                        <line
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="100"
+                          stroke="#cbd5e1"
+                          strokeWidth="0.8"
+                        />
 
-                      <polyline
-                        fill="none"
-                        stroke="#2563eb"
-                        strokeWidth="2"
-                        points={linePoints}
-                      />
+                        <polyline
+                          fill="none"
+                          stroke="#2563eb"
+                          strokeWidth="2"
+                          points={linePoints}
+                        />
 
-                      {concernTrendData.map((item, index) => {
-                        const maxX = concernTrendData.length - 1;
-                        const x = maxX === 0 ? 0 : (index / maxX) * 100;
-                        const y = 100 - item.supportScore;
+                        {concernTrendData.map((item, index) => {
+                          const maxX = concernTrendData.length - 1;
+                          const x = maxX === 0 ? 0 : (index / maxX) * 100;
+                          const y = 100 - item.supportScore;
 
-                        return (
-                          <g key={item.concern}>
-                            <circle cx={x} cy={y} r="2.2" fill="#2563eb" />
-                          </g>
-                        );
-                      })}
-                    </svg>
+                          return (
+                            <g key={item.concern}>
+                              <circle cx={x} cy={y} r="2.2" fill="#2563eb" />
+                            </g>
+                          );
+                        })}
+                      </svg>
 
-                    <div className="mt-4 space-y-2">
-                      {concernTrendData.map((item, index) => (
-                        <div
-                          key={item.concern}
-                          className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-blue-600" />
-                            <span className="text-slate-700">
-                              {index + 1}. {item.concern}
+                      <div className="mt-4 space-y-2">
+                        {concernTrendData.map((item, index) => (
+                          <div
+                            key={item.concern}
+                            className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-blue-600" />
+                              <span className="text-slate-700">
+                                {index + 1}. {item.concern}
+                              </span>
+                            </div>
+                            <span className="font-semibold text-slate-900">
+                              {item.supportScore}%
                             </span>
                           </div>
-                          <span className="font-semibold text-slate-900">
-                            {item.supportScore}%
-                          </span>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
                 ) : (
                   <div className="mt-6 rounded-xl bg-white px-5 py-10 text-center text-sm text-slate-600 shadow-sm">
                     Concern trends will appear after residents submit survey responses.
