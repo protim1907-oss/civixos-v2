@@ -19,7 +19,14 @@ import {
   RefreshCw,
   ThumbsUp,
   MessageCircle,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
+import {
+  loadPublishedPolicyPulseSurveys,
+  PolicyPulseSurvey,
+} from "@/lib/policy-pulse";
 
 type Issue = {
   id: string;
@@ -85,6 +92,15 @@ type MyUpvoteRow = {
   created_at: string;
 };
 
+type DistrictBriefing = {
+  headline: string;
+  summary: string;
+  recommendedAction: string;
+  actionHref: string;
+  actionLabel: string;
+  proofPoints: string[];
+};
+
 function getDistrictMappingFromEmail(email?: string | null) {
   const normalized = (email || "").trim().toLowerCase();
 
@@ -144,6 +160,7 @@ export default function DashboardPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [discussions, setDiscussions] = useState<DiscussionRow[]>([]);
+  const [policyPulseSurveys, setPolicyPulseSurveys] = useState<PolicyPulseSurvey[]>([]);
   const [userName, setUserName] = useState("Citizen");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -276,11 +293,12 @@ export default function DashboardPage() {
             setIssues([]);
             setPosts([]);
             setDiscussions([]);
+            setPolicyPulseSurveys([]);
             setDashboardReady(true);
             return;
           }
 
-          const [issuesRes, discussionsRes] = await Promise.all([
+          const [issuesRes, discussionsRes, surveys] = await Promise.all([
             supabase
               .from("issues")
               .select(
@@ -295,6 +313,8 @@ export default function DashboardPage() {
               .select("id, title, topic, district, status")
               .eq("district", guestDistrict)
               .eq("status", "active"),
+
+            loadPublishedPolicyPulseSurveys(supabase),
           ]);
 
           if (issuesRes.error) {
@@ -306,6 +326,12 @@ export default function DashboardPage() {
 
           const discussionRows = (discussionsRes.data || []) as DiscussionRow[];
           setDiscussions(discussionRows);
+          setPolicyPulseSurveys(
+            surveys.filter(
+              (survey) =>
+                normalizeDistrict(survey.district) === normalizeDistrict(guestDistrict)
+            )
+          );
 
           const discussionIds = discussionRows.map((d) => d.id);
 
@@ -391,11 +417,12 @@ export default function DashboardPage() {
         setIssues([]);
         setPosts([]);
         setDiscussions([]);
+        setPolicyPulseSurveys([]);
         setDashboardReady(true);
         return;
       }
 
-      const [issuesRes, discussionsRes] = await Promise.all([
+      const [issuesRes, discussionsRes, surveys] = await Promise.all([
         supabase
           .from("issues")
           .select(
@@ -410,6 +437,8 @@ export default function DashboardPage() {
           .select("id, title, topic, district, status")
           .eq("district", resolvedDistrict)
           .eq("status", "active"),
+
+        loadPublishedPolicyPulseSurveys(supabase),
       ]);
 
       if (issuesRes.error) {
@@ -421,6 +450,12 @@ export default function DashboardPage() {
 
       const discussionRows = (discussionsRes.data || []) as DiscussionRow[];
       setDiscussions(discussionRows);
+      setPolicyPulseSurveys(
+        surveys.filter(
+          (survey) =>
+            normalizeDistrict(survey.district) === normalizeDistrict(resolvedDistrict)
+        )
+      );
 
       const discussionIds = discussionRows.map((d) => d.id);
 
@@ -487,6 +522,13 @@ export default function DashboardPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "news_interactions" },
+        async () => {
+          await loadDashboard("refresh");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "policy_pulse_surveys" },
         async () => {
           await loadDashboard("refresh");
         }
