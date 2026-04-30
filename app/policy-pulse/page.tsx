@@ -19,14 +19,6 @@ type TrendPoint = {
   supportScore: number;
 };
 
-const trendData: TrendPoint[] = [
-  { concern: "Budget Clarity", supportScore: 78 },
-  { concern: "Access & Fairness", supportScore: 64 },
-  { concern: "Implementation Timeline", supportScore: 58 },
-  { concern: "Data Privacy", supportScore: 71 },
-  { concern: "Service Quality", supportScore: 83 },
-];
-
 function getSentimentSummary(votes: Record<VoteOption, number>) {
   const positive = votes["Strongly Support"] + votes["Support"];
   const neutral = votes["Neutral"];
@@ -39,6 +31,64 @@ function getSentimentSummary(votes: Record<VoteOption, number>) {
     return "Generally Negative";
   }
   return "Mixed / Neutral";
+}
+
+function getVoteSupportScore(vote: VoteOption) {
+  if (vote === "Strongly Support") return 100;
+  if (vote === "Support") return 75;
+  if (vote === "Neutral") return 50;
+  if (vote === "Oppose") return 25;
+  return 0;
+}
+
+function getMostCommonResponseValue(
+  responses: PolicyPulseResponse[],
+  field: "topConcern" | "recommendation",
+  emptyLabel: string
+) {
+  const counts = new Map<string, { label: string; count: number; latestIndex: number }>();
+
+  responses.forEach((response, index) => {
+    const label = response[field].trim();
+    if (!label || label.startsWith("No ")) return;
+
+    const key = label.toLocaleLowerCase();
+    const current = counts.get(key);
+    counts.set(key, {
+      label,
+      count: (current?.count ?? 0) + 1,
+      latestIndex: current?.latestIndex ?? index,
+    });
+  });
+
+  const [topValue] = Array.from(counts.values()).sort(
+    (a, b) => b.count - a.count || a.latestIndex - b.latestIndex
+  );
+
+  return topValue?.label ?? emptyLabel;
+}
+
+function getConcernTrendData(responses: PolicyPulseResponse[]): TrendPoint[] {
+  const grouped = new Map<string, { label: string; totalScore: number; count: number }>();
+
+  responses.forEach((response) => {
+    const label = response.topConcern.trim();
+    if (!label || label.startsWith("No ")) return;
+
+    const key = label.toLocaleLowerCase();
+    const current = grouped.get(key) ?? { label, totalScore: 0, count: 0 };
+    current.totalScore += getVoteSupportScore(response.supportLevel);
+    current.count += 1;
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values())
+    .map((item) => ({
+      concern: item.label,
+      supportScore: Math.round(item.totalScore / item.count),
+    }))
+    .sort((a, b) => b.supportScore - a.supportScore || a.concern.localeCompare(b.concern))
+    .slice(0, 5);
 }
 
 function getSupportDescriptor(vote: VoteOption) {

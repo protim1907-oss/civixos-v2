@@ -51,11 +51,11 @@ export const voteOptions: VoteOption[] = [
 ];
 
 export const initialVotes: Record<VoteOption, number> = {
-  "Strongly Support": 24,
-  Support: 18,
-  Neutral: 9,
-  Oppose: 6,
-  "Strongly Oppose": 3,
+  "Strongly Support": 0,
+  Support: 0,
+  Neutral: 0,
+  Oppose: 0,
+  "Strongly Oppose": 0,
 };
 
 export function loadPolicyPulseSurveys(): PolicyPulseSurvey[] {
@@ -102,10 +102,11 @@ type PolicyPulseSurveyRow = {
 };
 
 function normalizeVotes(value: Record<VoteOption, number> | null | undefined) {
-  return {
-    ...initialVotes,
-    ...(value ?? {}),
-  };
+  return voteOptions.reduce<Record<VoteOption, number>>((votes, option) => {
+    const rawValue = value?.[option];
+    votes[option] = typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : 0;
+    return votes;
+  }, { ...initialVotes });
 }
 
 function mapSurveyRow(row: PolicyPulseSurveyRow): PolicyPulseSurvey {
