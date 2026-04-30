@@ -629,9 +629,15 @@ export default function DashboardPage() {
     }
 
     if (categoryFilter !== "all") {
-      result = result.filter(
-        (item) => (item.category || "").toLowerCase() === categoryFilter
-      );
+      result = result.filter((item) => {
+        const normalizedCategory = (item.category || "").toLowerCase();
+
+        if (categoryFilter === "community discussion") {
+          return item.kind === "post" || normalizedCategory === categoryFilter;
+        }
+
+        return normalizedCategory === categoryFilter;
+      });
     }
 
     if (sortBy === "oldest") {
