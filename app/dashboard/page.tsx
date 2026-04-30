@@ -742,6 +742,96 @@ export default function DashboardPage() {
       .slice(0, 3);
   }, [districtFeed]);
 
+  const latestPolicyPulseSurvey = useMemo(() => {
+    return policyPulseSurveys[0] || null;
+  }, [policyPulseSurveys]);
+
+  const districtBriefing = useMemo<DistrictBriefing>(() => {
+    const districtLabel = formatDistrictLabel(currentDistrict);
+    const topTrendTitle = trendingIssues[0]?.[0] || "";
+    const topTrendMentions = trendingIssues[0]?.[1] || 0;
+    const activeFeedCount = districtFeed.length;
+    const activeSurveyVotes = latestPolicyPulseSurvey
+      ? Object.values(latestPolicyPulseSurvey.votes).reduce((sum, count) => sum + count, 0)
+      : 0;
+
+    const proofPoints = [
+      `${activeFeedCount} district item${activeFeedCount === 1 ? "" : "s"} in view`,
+      `${underReviewCount} under review`,
+      latestPolicyPulseSurvey
+        ? `${activeSurveyVotes} Policy Pulse vote${activeSurveyVotes === 1 ? "" : "s"}`
+        : "No active Policy Pulse survey",
+    ];
+
+    if (latestPolicyPulseSurvey && activeSurveyVotes === 0) {
+      return {
+        headline: `${latestPolicyPulseSurvey.title} is waiting for first signal`,
+        summary: `A live Policy Pulse survey is open for ${districtLabel}. Be one of the first people to shape the outcome before the issue gets stale.`,
+        recommendedAction: "Submit your support level, concern, and recommendation.",
+        actionHref: `/policy-pulse?survey=${encodeURIComponent(latestPolicyPulseSurvey.id)}`,
+        actionLabel: "Take survey",
+        proofPoints,
+      };
+    }
+
+    if (underReviewCount > 0) {
+      return {
+        headline: `${districtLabel} has ${underReviewCount} item${
+          underReviewCount === 1 ? "" : "s"
+        } under review`,
+        summary: topTrendTitle
+          ? `${topTrendTitle} is the clearest signal to inspect right now. Your comment can help clarify what residents need from officials.`
+          : "There are active review signals in your district. Adding context now can help moderators and officials prioritize the right next step.",
+        recommendedAction: "Review the district feed and add context where it matters.",
+        actionHref: topTrendTitle ? `/feed?issue=${encodeURIComponent(topTrendTitle)}` : "/feed",
+        actionLabel: "Review feed",
+        proofPoints,
+      };
+    }
+
+    if (topTrendTitle) {
+      return {
+        headline: `${topTrendTitle} is gaining attention`,
+        summary: `${topTrendMentions} mention${
+          topTrendMentions === 1 ? "" : "s"
+        } make this the strongest district signal today. A quick vote or comment helps separate noise from real priority.`,
+        recommendedAction: "Add your perspective while the issue is still moving.",
+        actionHref: `/feed?issue=${encodeURIComponent(topTrendTitle)}`,
+        actionLabel: "Join discussion",
+        proofPoints,
+      };
+    }
+
+    if (latestPolicyPulseSurvey) {
+      return {
+        headline: "Your district has a live Policy Pulse survey",
+        summary: `${latestPolicyPulseSurvey.title} has ${activeSurveyVotes} vote${
+          activeSurveyVotes === 1 ? "" : "s"
+        }. Add your response to make the snapshot more representative.`,
+        recommendedAction: "Contribute to the live survey.",
+        actionHref: `/policy-pulse?survey=${encodeURIComponent(latestPolicyPulseSurvey.id)}`,
+        actionLabel: "Open survey",
+        proofPoints,
+      };
+    }
+
+    return {
+      headline: `Help ${districtLabel} find its next priority`,
+      summary:
+        "There is not enough activity yet to identify a strong trend. Creating or supporting the first useful post gives the district a signal to organize around.",
+      recommendedAction: "Start with a concrete local issue residents can respond to.",
+      actionHref: "/create-post",
+      actionLabel: "Create post",
+      proofPoints,
+    };
+  }, [
+    currentDistrict,
+    districtFeed,
+    latestPolicyPulseSurvey,
+    trendingIssues,
+    underReviewCount,
+  ]);
+
   if (loading || !dashboardReady) {
     return (
       <main className="min-h-screen bg-slate-100">
@@ -841,6 +931,68 @@ export default function DashboardPage() {
                       <FileText className="h-5 w-5 text-white/85" />
                     </div>
                     <p className="mt-4 text-3xl font-bold">{totalCount}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-[28px] border border-blue-200 bg-white shadow-sm">
+                <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-6 md:p-7">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+                        <Sparkles className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-blue-700">
+                          Your District Briefing
+                        </p>
+                        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+                          {districtBriefing.headline}
+                        </h2>
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 md:text-base">
+                          {districtBriefing.summary}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <Link
+                        href={districtBriefing.actionHref}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98]"
+                      >
+                        {districtBriefing.actionLabel}
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+
+                      <Link
+                        href="/policy-pulse"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Policy Pulse
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-blue-100 bg-slate-950 p-6 text-white lg:border-l lg:border-t-0 md:p-7">
+                    <p className="text-sm font-semibold text-blue-200">
+                      Recommended Action
+                    </p>
+                    <p className="mt-3 text-xl font-bold leading-8">
+                      {districtBriefing.recommendedAction}
+                    </p>
+
+                    <div className="mt-6 space-y-3">
+                      {districtBriefing.proofPoints.map((point) => (
+                        <div
+                          key={point}
+                          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100"
+                        >
+                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                          <span>{point}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </section>
