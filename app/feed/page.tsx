@@ -67,6 +67,7 @@ type ProfileRow = {
   full_name?: string | null;
   name?: string | null;
   email?: string | null;
+  role?: string | null;
   district?: string | null;
   state?: string | null;
 };
@@ -262,6 +263,10 @@ function normalizeDistrict(value?: string | null) {
   return (value || "").trim().toLowerCase();
 }
 
+function isStaffRole(role?: string | null) {
+  return role === "admin" || role === "moderator" || role === "official";
+}
+
 function getProfileDisplayName(profile?: ProfileRow | null) {
   if (!profile) return "Citizen";
   if (profile.full_name?.trim()) return profile.full_name.trim();
@@ -280,6 +285,8 @@ export default function FeedPage() {
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [currentDistrict, setCurrentDistrict] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("All");
+  const [canViewAllDistricts, setCanViewAllDistricts] = useState(false);
   const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
   const [loading, setLoading] = useState(true);
   const [debugMessage, setDebugMessage] = useState("");
