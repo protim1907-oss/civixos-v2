@@ -306,6 +306,7 @@ export default function FeedPage() {
   const [chatInput, setChatInput] = useState("");
 
   const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingDistrict, setMeetingDistrict] = useState("");
   const [meetingRepresentative, setMeetingRepresentative] = useState("Representative");
   const [meetingRepresentativeTitle, setMeetingRepresentativeTitle] =
     useState("District Representative");
@@ -371,7 +372,7 @@ export default function FeedPage() {
         setCurrentUserId(signedInUserId);
         setCanViewAllDistricts(canViewEverything);
         setCurrentDistrict(canViewEverything ? "All" : district);
-        setSelectedDistrict("All");
+        setSelectedDistrict(canViewEverything ? "All" : district);
 
         if (!district && !canViewEverything) {
           setFeedPosts([]);
@@ -892,6 +893,7 @@ export default function FeedPage() {
   }
 
   function openVideoMeetingRequest(post: FeedPost) {
+    setMeetingDistrict(post.district || currentDistrict);
     setMeetingRepresentative(post.representative || currentRepresentative);
     setMeetingRepresentativeTitle("District Representative");
     setMeetingForm({
@@ -928,11 +930,11 @@ export default function FeedPage() {
         citizen_id: currentUserId,
         citizen_name: getProfileDisplayName(profile as ProfileRow | null),
         citizen_email: (profile as ProfileRow | null)?.email || null,
-        district: currentDistrict,
+        district: meetingDistrict || null,
         representative_id: null,
         representative_name: meetingRepresentative,
         representative_title: meetingRepresentativeTitle,
-        representative_office: currentDistrict || null,
+        representative_office: meetingDistrict || currentDistrict || null,
         topic: meetingForm.topic.trim(),
         preferred_times: meetingForm.preferredTimes.trim(),
         notes: meetingForm.notes.trim() || null,
@@ -999,9 +1001,11 @@ export default function FeedPage() {
               <div>
                 <h1 className="text-3xl font-bold text-slate-900">District Feed</h1>
                 <p className="mt-2 text-slate-600">
-                  Browse civic issues, track status, and connect with your representative in{" "}
+                  Browse civic issues, track status, and connect with representatives in{" "}
                   <span className="font-semibold text-slate-900">
-                    {displayDistrictName(currentDistrict)}
+                    {selectedDistrict === "All"
+                      ? "All Districts"
+                      : displayDistrictName(selectedDistrict)}
                   </span>
                   .
                 </p>
@@ -1020,7 +1024,7 @@ export default function FeedPage() {
           </div>
 
           <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <input
                 type="text"
                 placeholder="Search issues..."
@@ -1028,6 +1032,20 @@ export default function FeedPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
               />
+
+              {canViewAllDistricts ? (
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-blue-500"
+                >
+                  {availableDistricts.map((district) => (
+                    <option key={district} value={district}>
+                      {district === "All" ? "All Districts" : district}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
 
               <select
                 value={typeFilter}
@@ -1276,10 +1294,18 @@ export default function FeedPage() {
             <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-slate-500 shadow-sm">
               Showing {filteredPosts.length} item{filteredPosts.length === 1 ? "" : "s"} for{" "}
               <span className="font-semibold text-slate-700">
-                {displayDistrictName(currentDistrict)}
+                {selectedDistrict === "All"
+                  ? "All Districts"
+                  : displayDistrictName(selectedDistrict)}
               </span>
-              . Primary representative:{" "}
-              <span className="font-semibold text-slate-700">{currentRepresentative}</span>.
+              {selectedDistrict !== "All" ? (
+                <>
+                  . Primary representative:{" "}
+                  <span className="font-semibold text-slate-700">{currentRepresentative}</span>.
+                </>
+              ) : (
+                "."
+              )}
             </div>
           )}
         </div>
