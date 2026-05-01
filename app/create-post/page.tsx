@@ -24,6 +24,8 @@ type CategoryOption =
   | "Housing"
   | "Community";
 
+const KNOWN_DISTRICT_OPTIONS = ["CA-42", "TX-12", "TX-20", "TX-35", "NH-01", "NH-02"];
+
 function prettifyDistrictLabel(district: string | null, state: string | null) {
   if (!district && !state) return "Your district";
   if (!district) return `${state ?? "Your state"} district`;
@@ -40,6 +42,28 @@ function prettifyDistrictLabel(district: string | null, state: string | null) {
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function normalizeDistrictCode(value?: string | null) {
+  return normalizeWhitespace(value || "").toUpperCase();
+}
+
+function isStaffRole(role?: string | null) {
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "moderator" || normalized === "official";
+}
+
+function buildDistrictOptions(values: Array<string | null | undefined>) {
+  const options = new Set<string>();
+
+  values.forEach((value) => {
+    const normalized = normalizeDistrictCode(value);
+    if (normalized && normalized !== "ALL") options.add(normalized);
+  });
+
+  KNOWN_DISTRICT_OPTIONS.forEach((district) => options.add(district));
+
+  return Array.from(options).sort((a, b) => a.localeCompare(b));
 }
 
 function inferCategory(title: string, description: string): CategoryOption {
@@ -152,6 +176,9 @@ export default function CreatePostPage() {
   const [reviewing, setReviewing] = useState(false);
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [canChooseDistrict, setCanChooseDistrict] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -161,7 +188,12 @@ export default function CreatePostPage() {
   const [error, setError] = useState("");
   const [aiNote, setAiNote] = useState("");
 
-  const districtLabel = prettifyDistrictLabel(profile?.district ?? null, profile?.state ?? null);
+  const activeDistrict = canChooseDistrict ? selectedDistrict : profile?.district ?? "";
+  const districtLabel = activeDistrict
+    ? prettifyDistrictLabel(activeDistrict, profile?.state ?? null)
+    : canChooseDistrict
+    ? "Choose a district"
+    : prettifyDistrictLabel(profile?.district ?? null, profile?.state ?? null);
 
   useEffect(() => {
     let mounted = true;
@@ -197,9 +229,62 @@ export default function CreatePostPage() {
 
         if (!mounted) return;
 
-        setProfile((profileData as ProfileRow | null) ?? null);
+        const loadedProfile = (profileData as ProfileRow | null) ?? null;
+        const staffCanChoose = isStaffRole(loadedProfile?.role);
+        const districtSources: Array<string | null | undefined> = [
+          loadedProfile?.district,
+          user.user_metadata?.district,
+          user.user_metadata?.district_id,
+          user.user_metadata?.district_name,
+        ];
 
-        if (!profileData?.district) {
+        if (staffCanChoose) {
+          const [
+            { data: issueDistricts, error: issuesError },
+            { data: discussionDistricts, error: discussionsError },
+            { data: representativeDistricts, error: representativesError },
+          ] = await Promise.all([
+            supabase.from("issues").select("district").limit(500),
+            supabase.from("discussions").select("district").limit(500),
+            supabase.from("representatives").select("district, district_id").limit(500),
+          ]);
+
+          if (issuesError) console.error("Create Post issue districts error:", issuesError);
+          if (discussionsError) console.error("Create Post discussion districts error:", discussionsError);
+          if (representativesError) {
+            console.error("Create Post representative districts error:", representativesError);
+          }
+
+          (issueDistricts as Array<{ district?: string | null }> | null)?.forEach((row) => {
+            districtSources.push(row.district);
+          });
+          (discussionDistricts as Array<{ district?: string | null }> | null)?.forEach((row) => {
+            districtSources.push(row.district);
+          });
+          (
+            representativeDistricts as
+              | Array<{ district?: string | null; district_id?: string | null }>
+              | null
+          )?.forEach((row) => {
+            districtSources.push(row.district, row.district_id);
+          });
+        }
+
+        const nextDistricts = staffCanChoose
+          ? buildDistrictOptions(districtSources)
+          : buildDistrictOptions([loadedProfile?.district]);
+
+        setProfile(loadedProfile);
+        setCanChooseDistrict(staffCanChoose);
+        setAvailableDistricts(nextDistricts);
+
+        if (staffCanChoose) {
+          setSelectedDistrict("");
+        } else {
+          setSelectedDistrict(normalizeDistrictCode(loadedProfile?.district));
+        }
+
+        if (!loadedProfile?.district && !staffCanChoose) {
           setError("Your account does not have a district assigned yet. Please update your profile before posting.");
         }
       } catch (err) {
@@ -278,12 +363,16 @@ export default function CreatePostPage() {
         return;
       }
 
-      if (!profile?.district) {
-        setError("Your district could not be found. Please update your profile and try again.");
+      const normalizedDistrict = normalizeDistrictCode(activeDistrict);
+
+      if (!normalizedDistrict) {
+        setError(
+          canChooseDistrict
+            ? "Please choose the district where this post should appear."
+            : "Your district could not be found. Please update your profile and try again."
+        );
         return;
       }
-
-      const normalizedDistrict = profile.district.trim().toUpperCase();
 
       const issuePayload = {
         user_id: user.id,
@@ -319,8 +408,10 @@ export default function CreatePostPage() {
     ? "Loading your profile..."
     : submitting
     ? "Creating your post..."
-    : !profile?.district
-    ? "Your district is missing from your profile."
+    : !activeDistrict
+    ? canChooseDistrict
+      ? "Choose the district where this post should appear."
+      : "Your district is missing from your profile."
     : !normalizeWhitespace(title)
     ? "Please enter a title."
     : !normalizeWhitespace(description)
@@ -354,7 +445,7 @@ export default function CreatePostPage() {
                         Create Post
                       </h1>
                       <p className="mt-4 max-w-3xl text-xl text-slate-600 md:text-2xl">
-                        Start a civic discussion for your district.
+                        Start a civic discussion for a district.
                       </p>
                     </div>
 
@@ -364,11 +455,39 @@ export default function CreatePostPage() {
                   </div>
 
                   <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                    <p className="text-sm text-slate-500">Posting in</p>
-                    <p className="mt-1 text-base font-semibold text-slate-900">{districtLabel}</p>
-                    {profile?.state ? (
-                      <p className="mt-1 text-sm text-slate-500">State: {profile.state}</p>
-                    ) : null}
+                    <div className="grid gap-4 lg:grid-cols-[1fr_320px] lg:items-end">
+                      <div>
+                        <p className="text-sm text-slate-500">Posting in</p>
+                        <p className="mt-1 text-base font-semibold text-slate-900">{districtLabel}</p>
+                        {profile?.state && !canChooseDistrict ? (
+                          <p className="mt-1 text-sm text-slate-500">State: {profile.state}</p>
+                        ) : null}
+                      </div>
+
+                      {canChooseDistrict ? (
+                        <div>
+                          <label
+                            htmlFor="post-district"
+                            className="mb-2 block text-sm font-medium text-slate-600"
+                          >
+                            District
+                          </label>
+                          <select
+                            id="post-district"
+                            value={selectedDistrict}
+                            onChange={(e) => setSelectedDistrict(e.target.value)}
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-900 outline-none transition focus:border-slate-400"
+                          >
+                            <option value="">Choose district...</option>
+                            {availableDistricts.map((district) => (
+                              <option key={district} value={district}>
+                                {district}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="mt-8 space-y-8">
@@ -381,7 +500,9 @@ export default function CreatePostPage() {
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder={`Example: Waterlogging issues affecting residents in ${profile?.district ?? "your district"}`}
+                        placeholder={`Example: Waterlogging issues affecting residents in ${
+                          activeDistrict || "the selected district"
+                        }`}
                         maxLength={120}
                         className="w-full rounded-[28px] border border-slate-300 bg-slate-50 px-7 py-6 text-xl text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
                       />
