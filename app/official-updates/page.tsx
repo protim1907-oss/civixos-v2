@@ -127,6 +127,10 @@ function normalizeStateName(state?: string | null): string {
   return map[value] || String(state || "").trim() || "State";
 }
 
+function isStaffRole(role?: string | null) {
+  return role === "admin" || role === "moderator" || role === "official";
+}
+
 const OFFICIAL_UPDATES: OfficialUpdate[] = [
   {
     id: "tx35-road-resurfacing",
@@ -285,6 +289,7 @@ export default function OfficialUpdatesPage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [district, setDistrict] = useState("N/A");
   const [stateName, setStateName] = useState("State");
+  const [canViewAllDistricts, setCanViewAllDistricts] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<
     "All" | OfficialUpdateCategory
@@ -351,22 +356,34 @@ export default function OfficialUpdatesPage() {
         const metadataDistrict =
           (user.user_metadata?.district as string | undefined) ||
           (user.user_metadata?.district_name as string | undefined) ||
+          (user.user_metadata?.district_id as string | undefined) ||
           "";
 
+        const requestedDistrict =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("district")
+            : null;
+        const userCanViewAllDistricts = isStaffRole(mergedProfile?.role);
         const effectiveState = mergedProfile?.state || metadataState || "";
         const effectiveDistrict =
-          mergedProfile?.district || metadataDistrict || effectiveState || "N/A";
+          requestedDistrict ||
+          (userCanViewAllDistricts ? "All" : mergedProfile?.district || metadataDistrict || effectiveState || "N/A");
 
-        const normalizedDistrict = normalizeDistrict(
-          effectiveDistrict,
-          effectiveState
-        );
+        const normalizedDistrict =
+          effectiveDistrict === "All"
+            ? "All"
+            : normalizeDistrict(effectiveDistrict, effectiveState);
         const derivedStateCode = normalizedDistrict.includes("-")
           ? normalizedDistrict.split("-")[0]
           : normalizeStateCode(effectiveState || normalizedDistrict);
 
+        setCanViewAllDistricts(userCanViewAllDistricts);
         setDistrict(normalizedDistrict);
-        setStateName(normalizeStateName(derivedStateCode));
+        setStateName(
+          normalizedDistrict === "All"
+            ? "all tracked states"
+            : normalizeStateName(derivedStateCode)
+        );
       } catch (error) {
         console.error("Failed to load official updates page:", error);
       } finally {
@@ -382,8 +399,13 @@ export default function OfficialUpdatesPage() {
   }, [supabase]);
 
   const districtUpdates = useMemo(() => {
+    if (district === "All") return OFFICIAL_UPDATES;
     return OFFICIAL_UPDATES.filter((item) => item.district === district);
   }, [district]);
+
+  const availableDistricts = useMemo(() => {
+    return Array.from(new Set(OFFICIAL_UPDATES.map((item) => item.district))).sort();
+  }, []);
 
   const filteredUpdates = useMemo(() => {
     return districtUpdates.filter((item) => {
@@ -527,11 +549,12 @@ export default function OfficialUpdatesPage() {
                     Verified Communication Feed
                   </p>
                   <h1 className="mt-3 text-3xl font-bold tracking-tight">
-                    Official Updates for {district}
+                    Official Updates for {district === "All" ? "All Districts" : district}
                   </h1>
                   <p className="mt-3 max-w-3xl text-base leading-8 text-blue-100/90">
                     View verified announcements, public notices, policy changes,
-                    and official communications for {district} in {stateName}.
+                    and official communications for{" "}
+                    {district === "All" ? "all tracked districts" : district} in {stateName}.
                     Each update can be opened, upvoted, commented on, and shared.
                   </p>
                 </div>
@@ -736,7 +759,8 @@ export default function OfficialUpdatesPage() {
                   })
                 ) : (
                   <div className="rounded-[26px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-slate-500">
-                    No official updates were found for {district} with the current filters.
+                    No official updates were found for{" "}
+                    {district === "All" ? "the selected districts" : district} with the current filters.
                   </div>
                 )}
               </div>
@@ -763,7 +787,27 @@ export default function OfficialUpdatesPage() {
                   <h3 className="text-2xl font-bold text-slate-900">Filters</h3>
                 </div>
 
-                <div className="mt-7">
+                {canViewAllDistricts ? (
+                  <div className="mt-7">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      District
+                    </p>
+                    <select
+                      value={district}
+                      onChange={(event) => setDistrict(event.target.value)}
+                      className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-base text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="All">All Districts</option>
+                      {availableDistricts.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                <div className={canViewAllDistricts ? "mt-8" : "mt-7"}>
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Category
                   </p>
