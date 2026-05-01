@@ -24,6 +24,10 @@ import {
   Timer,
   ArrowRight,
   ListChecks,
+  Video,
+  ClipboardCheck,
+  MapPinned,
+  PenLine,
 } from "lucide-react";
 
 type Issue = {
@@ -65,6 +69,26 @@ type AuditLogRow = {
   created_at: string | null;
 };
 
+type VideoMeetingRequestRow = {
+  id: string;
+  citizen_id: string | null;
+  citizen_name: string | null;
+  citizen_email: string | null;
+  district: string | null;
+  representative_id: string | null;
+  representative_name: string | null;
+  representative_title: string | null;
+  representative_office: string | null;
+  topic: string;
+  preferred_times: string;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected" | "completed";
+  meeting_url: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+};
+
 type FilterType =
   | "all"
   | "active"
@@ -101,6 +125,18 @@ type TriageItem = {
   bulkEligible: boolean;
 };
 
+type DistrictOverview = {
+  district: string;
+  total: number;
+  active: number;
+  underReview: number;
+  removed: number;
+  approved: number;
+  pendingMeetings: number;
+  topCategory: string;
+  riskScore: number;
+};
+
 export default function ModeratorDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -109,10 +145,12 @@ export default function ModeratorDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+  const [meetingRequests, setMeetingRequests] = useState<VideoMeetingRequestRow[]>([]);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(null);
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -144,7 +182,7 @@ export default function ModeratorDashboardPage() {
           setProfile((profileData as ProfileRow) ?? null);
         }
 
-        await Promise.all([fetchIssues(), fetchAuditLogs()]);
+        await Promise.all([fetchIssues(), fetchAuditLogs(), fetchMeetingRequests()]);
 
         if (mounted) {
           setLoading(false);
@@ -181,10 +219,22 @@ export default function ModeratorDashboardPage() {
       )
       .subscribe();
 
+    const meetingsChannel = supabase
+      .channel("moderator-live-video-meetings")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "video_meeting_requests" },
+        async () => {
+          await fetchMeetingRequests();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       supabase.removeChannel(issuesChannel);
       supabase.removeChannel(auditChannel);
+      supabase.removeChannel(meetingsChannel);
     };
   }, [router, supabase]);
 
@@ -221,10 +271,26 @@ export default function ModeratorDashboardPage() {
     setAuditLogs((data as AuditLogRow[]) ?? []);
   }
 
+  async function fetchMeetingRequests() {
+    const { data, error } = await supabase
+      .from("video_meeting_requests")
+      .select(
+        "id, citizen_id, citizen_name, citizen_email, district, representative_id, representative_name, representative_title, representative_office, topic, preferred_times, notes, status, meeting_url, reviewed_by, reviewed_at, created_at"
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to fetch meeting requests:", error.message);
+      return;
+    }
+
+    setMeetingRequests((data as VideoMeetingRequestRow[]) ?? []);
+  }
+
   async function handleRefresh() {
     try {
       setRefreshing(true);
-      await Promise.all([fetchIssues(), fetchAuditLogs()]);
+      await Promise.all([fetchIssues(), fetchAuditLogs(), fetchMeetingRequests()]);
     } finally {
       setRefreshing(false);
     }
@@ -233,6 +299,11 @@ export default function ModeratorDashboardPage() {
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  function buildMeetingUrl(requestId: string) {
+    const token = requestId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
+    return `https://meet.jit.si/civix250-${token}`;
   }
 
   async function insertAuditLog(
@@ -311,6 +382,64 @@ export default function ModeratorDashboardPage() {
       console.error("Unexpected moderation error:", err);
     } finally {
       setActionLoadingId(null);
+    }
+  }
+
+  async function updateMeetingRequestStatus(
+    request: VideoMeetingRequestRow,
+    nextStatus: "approved" | "rejected" | "completed"
+  ) {
+    try {
+      setMeetingActionLoadingId(request.id);
+
+      const meetingUrl =
+        nextStatus === "approved"
+          ? request.meeting_url || buildMeetingUrl(request.id)
+          : request.meeting_url;
+
+      const { error } = await supabase
+        .from("video_meeting_requests")
+        .update({
+          status: nextStatus,
+          meeting_url: meetingUrl,
+          reviewed_by: profile?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", request.id);
+
+      if (error) {
+        console.error("Failed to update meeting request:", error.message);
+        return;
+      }
+
+      const details: AuditLogDetails = {
+        actor_name: profile?.full_name || profile?.email || "Moderator",
+        target_title: request.topic,
+        district: request.district || undefined,
+        previous_status: request.status,
+        new_status: nextStatus,
+        notes:
+          nextStatus === "approved"
+            ? `Meeting approved with ${request.representative_name || "representative"}`
+            : nextStatus === "completed"
+            ? "Meeting marked completed by moderator"
+            : "Meeting request rejected by moderator",
+      };
+
+      await supabase.from("audit_logs").insert({
+        actor_id: profile?.id || null,
+        actor_role: profile?.role || "moderator",
+        entity_type: "video_meeting_request",
+        entity_id: request.id,
+        event_type: "video_meeting_request_updated",
+        details,
+      });
+
+      await Promise.all([fetchMeetingRequests(), fetchAuditLogs()]);
+    } catch (error) {
+      console.error("Unexpected meeting coordination error:", error);
+    } finally {
+      setMeetingActionLoadingId(null);
     }
   }
 
@@ -499,6 +628,78 @@ export default function ModeratorDashboardPage() {
   const lowRiskQueueIds = triageQueue
     .filter((item) => item.bulkEligible)
     .map((item) => item.issue.id);
+
+  const pendingMeetingRequests = meetingRequests.filter(
+    (request) => request.status === "pending"
+  );
+
+  const districtOverview = useMemo<DistrictOverview[]>(() => {
+    const map = new Map<string, DistrictOverview & { categories: Record<string, number> }>();
+
+    function ensureDistrict(districtValue: string | null | undefined) {
+      const district = districtValue?.trim() || "Unassigned";
+      if (!map.has(district)) {
+        map.set(district, {
+          district,
+          total: 0,
+          active: 0,
+          underReview: 0,
+          removed: 0,
+          approved: 0,
+          pendingMeetings: 0,
+          topCategory: "—",
+          riskScore: 0,
+          categories: {},
+        });
+      }
+      return map.get(district)!;
+    }
+
+    issues.forEach((issue) => {
+      const entry = ensureDistrict(issue.district);
+      const status = issue.status || "active";
+      const category = issue.category || "Uncategorized";
+
+      entry.total += 1;
+      entry.categories[category] = (entry.categories[category] || 0) + 1;
+
+      if (status === "under_review") entry.underReview += 1;
+      else if (status === "removed") entry.removed += 1;
+      else if (status === "approved") entry.approved += 1;
+      else entry.active += 1;
+    });
+
+    meetingRequests
+      .filter((request) => request.status === "pending")
+      .forEach((request) => {
+        ensureDistrict(request.district).pendingMeetings += 1;
+      });
+
+    return [...map.values()]
+      .map(({ categories, ...entry }) => {
+        const [topCategory] =
+          Object.entries(categories).sort((a, b) => b[1] - a[1])[0] || [];
+        const riskScore =
+          entry.total > 0
+            ? Math.round(((entry.underReview + entry.removed) / entry.total) * 100)
+            : entry.pendingMeetings > 0
+            ? 10
+            : 0;
+
+        return {
+          ...entry,
+          topCategory: topCategory || "—",
+          riskScore,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.riskScore - a.riskScore ||
+          b.pendingMeetings - a.pendingMeetings ||
+          b.total - a.total
+      )
+      .slice(0, 6);
+  }, [issues, meetingRequests]);
 
   const moderationInsights = useMemo(() => {
     const issueMap = new Map<string, Issue>();
