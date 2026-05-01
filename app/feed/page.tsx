@@ -332,13 +332,14 @@ export default function FeedPage() {
 
         let district = "";
         let signedInUserId: string | null = null;
+        let canViewEverything = false;
 
         if (session?.user) {
           signedInUserId = session.user.id;
 
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
-            .select("id, full_name, name, email, district, state")
+            .select("id, full_name, name, email, role, district, state")
             .eq("id", session.user.id)
             .maybeSingle();
 
@@ -346,6 +347,8 @@ export default function FeedPage() {
             console.error("Feed profile load error:", profileError);
           }
 
+          const profile = profileData as ProfileRow | null;
+          canViewEverything = isStaffRole(profile?.role);
           district =
             (profileData as ProfileRow | null)?.district ||
             session.user.user_metadata?.district ||
@@ -366,19 +369,20 @@ export default function FeedPage() {
         }
 
         setCurrentUserId(signedInUserId);
-        setCurrentDistrict(district);
+        setCanViewAllDistricts(canViewEverything);
+        setCurrentDistrict(canViewEverything ? "All" : district);
+        setSelectedDistrict("All");
 
-        if (!district) {
+        if (!district && !canViewEverything) {
           setFeedPosts([]);
           setDebugMessage("No district is assigned to this account yet.");
           return;
         }
 
-        const { data: repsData, error: repsError } = await supabase
-          .from("representatives")
-          .select("*")
-          .eq("district", district)
-          .limit(5);
+        const representativesQuery = supabase.from("representatives").select("*").limit(5);
+        const { data: repsData, error: repsError } = canViewEverything
+          ? await representativesQuery
+          : await representativesQuery.eq("district", district);
 
         if (repsError) {
           console.error("Representative load error:", repsError);
@@ -393,18 +397,19 @@ export default function FeedPage() {
 
         setCurrentRepresentative(representativeName);
 
+        const issuesQuery = supabase
+          .from("issues")
+          .select("id, title, description, user_id, district, category, status, created_at")
+          .order("created_at", { ascending: false })
+          .limit(100);
+        const discussionsQuery = supabase
+          .from("discussions")
+          .select("id, title, topic, district, status")
+          .eq("status", "active");
+
         const [issuesRes, discussionsRes] = await Promise.all([
-          supabase
-            .from("issues")
-            .select("id, title, description, user_id, district, category, status, created_at")
-            .eq("district", district)
-            .order("created_at", { ascending: false })
-            .limit(100),
-          supabase
-            .from("discussions")
-            .select("id, title, topic, district, status")
-            .eq("district", district)
-            .eq("status", "active"),
+          canViewEverything ? issuesQuery : issuesQuery.eq("district", district),
+          canViewEverything ? discussionsQuery : discussionsQuery.eq("district", district),
         ]);
 
         if (issuesRes.error) {
@@ -415,7 +420,10 @@ export default function FeedPage() {
         }
 
         const issues = ((issuesRes.data as IssueRow[]) || []).filter(
-          (issue) => issue?.id && normalizeDistrict(issue.district) === normalizeDistrict(district)
+          (issue) =>
+            issue?.id &&
+            (canViewEverything ||
+              normalizeDistrict(issue.district) === normalizeDistrict(district))
         );
 
         const discussions = (discussionsRes.data as DiscussionRow[]) || [];
@@ -554,7 +562,11 @@ export default function FeedPage() {
         const merged = [...mappedIssues, ...mappedDiscussionPosts];
 
         if (merged.length === 0) {
-          setDebugMessage(`No issues or posts found for ${displayDistrictName(district)}.`);
+          setDebugMessage(
+            canViewEverything
+              ? "No issues or posts found across districts."
+              : `No issues or posts found for ${displayDistrictName(district)}.`
+          );
         }
 
         setFeedPosts(merged);
@@ -585,14 +597,22 @@ export default function FeedPage() {
       const matchesType = typeFilter === "All" || post.category === typeFilter;
       const matchesStatus = statusFilter === "All" || post.status === statusFilter;
       const matchesUrgency = urgencyFilter === "All" || post.urgency === urgencyFilter;
+      const matchesDistrict =
+        selectedDistrict === "All" ||
+        normalizeDistrict(post.district) === normalizeDistrict(selectedDistrict);
 
-      return matchesSearch && matchesType && matchesStatus && matchesUrgency;
+      return matchesSearch && matchesType && matchesStatus && matchesUrgency && matchesDistrict;
     });
-  }, [feedPosts, search, typeFilter, statusFilter, urgencyFilter]);
+  }, [feedPosts, search, typeFilter, statusFilter, urgencyFilter, selectedDistrict]);
 
   const availableCategories = useMemo(() => {
     const categories = Array.from(new Set(feedPosts.map((post) => post.category).filter(Boolean)));
     return ["All", ...categories];
+  }, [feedPosts]);
+
+  const availableDistricts = useMemo(() => {
+    const districts = Array.from(new Set(feedPosts.map((post) => post.district).filter(Boolean)));
+    return ["All", ...districts.sort()];
   }, [feedPosts]);
 
   async function handleShare(post: FeedPost) {
