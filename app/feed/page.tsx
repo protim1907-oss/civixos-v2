@@ -264,7 +264,8 @@ function normalizeDistrict(value?: string | null) {
 }
 
 function isStaffRole(role?: string | null) {
-  return role === "admin" || role === "moderator" || role === "official";
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "moderator" || normalized === "official";
 }
 
 function getProfileDisplayName(profile?: ProfileRow | null) {
@@ -349,9 +350,14 @@ export default function FeedPage() {
           }
 
           const profile = profileData as ProfileRow | null;
-          canViewEverything = isStaffRole(profile?.role);
+          const metadataRole =
+            (session.user.user_metadata?.role as string | undefined) ||
+            (session.user.user_metadata?.account_type as string | undefined) ||
+            "";
+
+          canViewEverything = isStaffRole(profile?.role) || isStaffRole(metadataRole);
           district =
-            (profileData as ProfileRow | null)?.district ||
+            profile?.district ||
             session.user.user_metadata?.district ||
             session.user.user_metadata?.district_name ||
             session.user.user_metadata?.district_id ||
