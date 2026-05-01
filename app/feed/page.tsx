@@ -341,7 +341,7 @@ export default function FeedPage() {
 
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
-            .select("id, full_name, name, email, role, district, state")
+            .select("id, full_name, email, role, district, state")
             .eq("id", session.user.id)
             .maybeSingle();
 
