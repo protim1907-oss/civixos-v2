@@ -297,7 +297,6 @@ export default function OfficialUpdatesPage() {
   const [activeItem, setActiveItem] = useState<OfficialUpdate | null>(null);
 
   const [voteState, setVoteState] = useState<Record<string, number>>({});
-  const [commentState, setCommentState] = useState<Record<string, number>>({});
   const [shareState, setShareState] = useState<Record<string, number>>({});
 
   const [commentsByItem, setCommentsByItem] = useState<
@@ -367,7 +366,9 @@ export default function OfficialUpdatesPage() {
         const effectiveState = mergedProfile?.state || metadataState || "";
         const effectiveDistrict =
           requestedDistrict ||
-          (userCanViewAllDistricts ? "All" : mergedProfile?.district || metadataDistrict || effectiveState || "N/A");
+          (userCanViewAllDistricts
+            ? "All"
+            : mergedProfile?.district || metadataDistrict || effectiveState || "N/A");
 
         const normalizedDistrict =
           effectiveDistrict === "All"
@@ -402,6 +403,14 @@ export default function OfficialUpdatesPage() {
     if (district === "All") return OFFICIAL_UPDATES;
     return OFFICIAL_UPDATES.filter((item) => item.district === district);
   }, [district]);
+
+  const displayStateName = useMemo(() => {
+    if (district === "All") return "all tracked states";
+    const stateCode = district.includes("-")
+      ? district.split("-")[0]
+      : normalizeStateCode(stateName || district);
+    return normalizeStateName(stateCode);
+  }, [district, stateName]);
 
   const availableDistricts = useMemo(() => {
     return Array.from(new Set(OFFICIAL_UPDATES.map((item) => item.district))).sort();
@@ -441,7 +450,6 @@ export default function OfficialUpdatesPage() {
 
   function handleOpenComments(item: OfficialUpdate) {
     setActiveItem(item);
-    setCommentState((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
   }
 
   function handleAddComment() {
@@ -549,12 +557,14 @@ export default function OfficialUpdatesPage() {
                     Verified Communication Feed
                   </p>
                   <h1 className="mt-3 text-3xl font-bold tracking-tight">
-                    Official Updates for {district === "All" ? "All Districts" : district}
+                    Official Updates for{" "}
+                    {district === "All" ? "All Districts" : district}
                   </h1>
                   <p className="mt-3 max-w-3xl text-base leading-8 text-blue-100/90">
                     View verified announcements, public notices, policy changes,
                     and official communications for{" "}
-                    {district === "All" ? "all tracked districts" : district} in {stateName}.
+                    {district === "All" ? "all tracked districts" : district} in{" "}
+                    {displayStateName}.
                     Each update can be opened, upvoted, commented on, and shared.
                   </p>
                 </div>
