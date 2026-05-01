@@ -512,7 +512,7 @@ export default function FeedPage() {
         if (commentUserIds.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
             .from("profiles")
-            .select("id, full_name, name, email")
+            .select("id, full_name, email")
             .in("id", commentUserIds);
 
           if (profilesError) {
@@ -774,7 +774,7 @@ export default function FeedPage() {
       try {
         const { data: currentProfile } = await supabase
           .from("profiles")
-          .select("id, full_name, name, email")
+          .select("id, full_name, email")
           .eq("id", currentUserId)
           .maybeSingle();
 
@@ -840,7 +840,7 @@ export default function FeedPage() {
       if (currentUserId) {
         const { data: currentProfile } = await supabase
           .from("profiles")
-          .select("id, full_name, name, email")
+          .select("id, full_name, email")
           .eq("id", currentUserId)
           .maybeSingle();
 
@@ -928,7 +928,7 @@ export default function FeedPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, full_name, name, email")
+        .select("id, full_name, email")
         .eq("id", currentUserId)
         .maybeSingle();
 
