@@ -352,6 +352,85 @@ export default function ModeratorDashboardPage() {
     );
   }
 
+  function getIssueAgeHours(issue: Issue) {
+    if (!issue.created_at) return 0;
+    const createdAt = new Date(issue.created_at).getTime();
+    if (Number.isNaN(createdAt)) return 0;
+    return Math.max(0, Math.round((Date.now() - createdAt) / 3600000));
+  }
+
+  function buildTriageItem(issue: Issue): TriageItem {
+    const status = issue.status || "active";
+    const ageHours = getIssueAgeHours(issue);
+    const category = (issue.category || "").toLowerCase();
+    const content = `${issue.title} ${issue.description}`.toLowerCase();
+    const reasonChips: string[] = [];
+    let score = 10;
+
+    if (status === "under_review") {
+      score += 45;
+      reasonChips.push("Under review");
+    } else {
+      score += 18;
+      reasonChips.push("New queue item");
+    }
+
+    if (ageHours >= 48) {
+      score += 25;
+      reasonChips.push("Overdue");
+    } else if (ageHours >= 24) {
+      score += 18;
+      reasonChips.push("Needs action today");
+    } else if (ageHours >= 8) {
+      score += 10;
+      reasonChips.push("Aging");
+    }
+
+    if (["safety", "transportation", "environment"].some((risk) => category.includes(risk))) {
+      score += 15;
+      reasonChips.push(issue.category || "Risk category");
+    }
+
+    if (
+      ["urgent", "unsafe", "hazard", "emergency", "threat", "misinformation"].some((word) =>
+        content.includes(word)
+      )
+    ) {
+      score += 20;
+      reasonChips.push("Risk language");
+    }
+
+    const slaLabel =
+      ageHours >= 48 ? "Overdue" : status === "under_review" || ageHours >= 24 ? "Needs action today" : "On track";
+    const slaClass =
+      ageHours >= 48
+        ? "bg-red-100 text-red-700"
+        : status === "under_review" || ageHours >= 24
+        ? "bg-yellow-100 text-yellow-700"
+        : "bg-emerald-100 text-emerald-700";
+
+    const suggestedStatus =
+      score >= 75 ? "under_review" : score <= 38 && status !== "under_review" ? "approved" : "under_review";
+    const suggestedAction =
+      suggestedStatus === "approved"
+        ? "Approve low-risk post"
+        : status === "under_review"
+        ? "Resolve review decision"
+        : "Escalate for closer review";
+
+    return {
+      issue,
+      score: Math.min(score, 100),
+      ageHours,
+      slaLabel,
+      slaClass,
+      suggestedAction,
+      suggestedStatus,
+      reasonChips: [...new Set(reasonChips)].slice(0, 4),
+      bulkEligible: suggestedStatus === "approved" && status !== "under_review",
+    };
+  }
+
   const filteredIssues = useMemo(() => {
     let list = [...issues];
 
@@ -402,6 +481,16 @@ export default function ModeratorDashboardPage() {
 
     return { total, active, underReview, removed, approved };
   }, [issues]);
+
+  const triageQueue = issues
+    .filter((issue) => !["approved", "removed"].includes(issue.status || "active"))
+    .map((issue) => buildTriageItem(issue))
+    .sort((a, b) => b.score - a.score || b.ageHours - a.ageHours)
+    .slice(0, 6);
+
+  const lowRiskQueueIds = triageQueue
+    .filter((item) => item.bulkEligible)
+    .map((item) => item.issue.id);
 
   const moderationInsights = useMemo(() => {
     const issueMap = new Map<string, Issue>();
