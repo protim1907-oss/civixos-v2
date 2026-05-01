@@ -22,6 +22,8 @@ import {
   TrendingUp,
   Users,
   Timer,
+  ArrowRight,
+  ListChecks,
 } from "lucide-react";
 
 type Issue = {
@@ -87,6 +89,18 @@ type CategoryMetric = {
   escalated: number;
 };
 
+type TriageItem = {
+  issue: Issue;
+  score: number;
+  ageHours: number;
+  slaLabel: string;
+  slaClass: string;
+  suggestedAction: string;
+  suggestedStatus: "approved" | "removed" | "under_review";
+  reasonChips: string[];
+  bulkEligible: boolean;
+};
+
 export default function ModeratorDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -99,6 +113,7 @@ export default function ModeratorDashboardPage() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -297,6 +312,44 @@ export default function ModeratorDashboardPage() {
     } finally {
       setActionLoadingId(null);
     }
+  }
+
+  async function handleBulkApproveSelected() {
+    const selectedIssues = issues.filter((issue) => selectedQueueIds.includes(issue.id));
+    if (selectedIssues.length === 0) return;
+
+    try {
+      setActionLoadingId("bulk-approve");
+
+      for (const issue of selectedIssues) {
+        const { error } = await supabase
+          .from("issues")
+          .update({ status: "approved" })
+          .eq("id", issue.id);
+
+        if (error) {
+          console.error("Failed to bulk approve issue:", error.message);
+          continue;
+        }
+
+        await insertAuditLog(issue, "approved", profile);
+      }
+
+      setSelectedQueueIds([]);
+      await Promise.all([fetchIssues(), fetchAuditLogs()]);
+    } catch (err) {
+      console.error("Unexpected bulk moderation error:", err);
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
+  function toggleQueueSelection(issueId: string) {
+    setSelectedQueueIds((current) =>
+      current.includes(issueId)
+        ? current.filter((id) => id !== issueId)
+        : [...current, issueId]
+    );
   }
 
   const filteredIssues = useMemo(() => {
