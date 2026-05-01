@@ -38,7 +38,8 @@ type OfficialUpdateCategory =
   | "Infrastructure"
   | "Public Safety"
   | "Education"
-  | "Community";
+  | "Community"
+  | "Video Meeting";
 
 type OfficialUpdate = {
   id: string;
@@ -63,6 +64,22 @@ type CommentItem = {
   author: string;
   text: string;
   createdAt: string;
+};
+
+type VideoMeetingRequestRow = {
+  id: string;
+  citizen_name: string | null;
+  district: string | null;
+  representative_name: string | null;
+  representative_title: string | null;
+  representative_office: string | null;
+  topic: string;
+  preferred_times: string;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected" | "completed";
+  meeting_url: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
 };
 
 function normalizeStateCode(state?: string | null): string {
@@ -129,6 +146,52 @@ function normalizeStateName(state?: string | null): string {
 
 function isStaffRole(role?: string | null) {
   return role === "admin" || role === "moderator" || role === "official";
+}
+
+function formatDisplayDate(dateString?: string | null) {
+  if (!dateString) return new Date().toLocaleDateString();
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function buildMeetingAnnouncement(request: VideoMeetingRequestRow): OfficialUpdate {
+  const district = request.district?.trim().toUpperCase() || "N/A";
+  const representativeName = request.representative_name || "Representative";
+  const citizenLabel = request.citizen_name || "district residents";
+  const office =
+    request.representative_office ||
+    request.representative_title ||
+    "Representative Office";
+
+  return {
+    id: `meeting-${request.id}`,
+    district,
+    state: normalizeStateName(district.includes("-") ? district.split("-")[0] : district),
+    title: `Video meeting scheduled with ${representativeName}`,
+    summary: `${citizenLabel} will meet with ${representativeName} about ${request.topic}.`,
+    body: [
+      `A video meeting has been approved for ${district}.`,
+      `Topic: ${request.topic}.`,
+      `Preferred timing: ${request.preferred_times}.`,
+      request.notes ? `Notes: ${request.notes}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+    category: "Video Meeting",
+    office,
+    date: formatDisplayDate(request.reviewed_at || request.created_at),
+    priority: "High",
+    status: "Active",
+    upvotes: 0,
+    comments: 0,
+    shares: 0,
+    sourceUrl: request.meeting_url || undefined,
+  };
 }
 
 const OFFICIAL_UPDATES: OfficialUpdate[] = [
@@ -260,6 +323,8 @@ function getCategoryBadgeClasses(category: OfficialUpdateCategory) {
       return "bg-red-50 text-red-700";
     case "Education":
       return "bg-emerald-50 text-emerald-700";
+    case "Video Meeting":
+      return "bg-indigo-50 text-indigo-700";
     default:
       return "bg-violet-50 text-violet-700";
   }
@@ -287,6 +352,7 @@ export default function OfficialUpdatesPage() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [meetingRequests, setMeetingRequests] = useState<VideoMeetingRequestRow[]>([]);
   const [district, setDistrict] = useState("N/A");
   const [stateName, setStateName] = useState("State");
   const [canViewAllDistricts, setCanViewAllDistricts] = useState(false);
@@ -324,6 +390,26 @@ export default function OfficialUpdatesPage() {
 
   useEffect(() => {
     let mounted = true;
+
+    async function loadMeetingRequests() {
+      const { data, error } = await supabase
+        .from("video_meeting_requests")
+        .select(
+          "id, citizen_name, district, representative_name, representative_title, representative_office, topic, preferred_times, notes, status, meeting_url, reviewed_at, created_at"
+        )
+        .in("status", ["approved", "completed"])
+        .order("reviewed_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load meeting announcements:", error.message);
+        return;
+      }
+
+      if (mounted) {
+        setMeetingRequests((data as VideoMeetingRequestRow[]) ?? []);
+      }
+    }
 
     async function loadPage() {
       try {
@@ -385,6 +471,8 @@ export default function OfficialUpdatesPage() {
             ? "all tracked states"
             : normalizeStateName(derivedStateCode)
         );
+
+        await loadMeetingRequests();
       } catch (error) {
         console.error("Failed to load official updates page:", error);
       } finally {
@@ -394,15 +482,35 @@ export default function OfficialUpdatesPage() {
 
     loadPage();
 
+    const meetingsChannel = supabase
+      .channel("official-updates-video-meetings")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "video_meeting_requests" },
+        async () => {
+          await loadMeetingRequests();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
+      supabase.removeChannel(meetingsChannel);
     };
   }, [supabase]);
 
+  const meetingAnnouncements = useMemo(() => {
+    return meetingRequests.map(buildMeetingAnnouncement);
+  }, [meetingRequests]);
+
+  const officialUpdates = useMemo(() => {
+    return [...meetingAnnouncements, ...OFFICIAL_UPDATES];
+  }, [meetingAnnouncements]);
+
   const districtUpdates = useMemo(() => {
-    if (district === "All") return OFFICIAL_UPDATES;
-    return OFFICIAL_UPDATES.filter((item) => item.district === district);
-  }, [district]);
+    if (district === "All") return officialUpdates;
+    return officialUpdates.filter((item) => item.district === district);
+  }, [district, officialUpdates]);
 
   const displayStateName = useMemo(() => {
     if (district === "All") return "all tracked states";
@@ -413,8 +521,8 @@ export default function OfficialUpdatesPage() {
   }, [district, stateName]);
 
   const availableDistricts = useMemo(() => {
-    return Array.from(new Set(OFFICIAL_UPDATES.map((item) => item.district))).sort();
-  }, []);
+    return Array.from(new Set(officialUpdates.map((item) => item.district))).sort();
+  }, [officialUpdates]);
 
   const filteredUpdates = useMemo(() => {
     return districtUpdates.filter((item) => {
@@ -832,6 +940,7 @@ export default function OfficialUpdatesPage() {
                         "Public Safety",
                         "Education",
                         "Community",
+                        "Video Meeting",
                       ] as const
                     ).map((category) => (
                       <label
