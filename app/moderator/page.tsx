@@ -25,7 +25,6 @@ import {
   ArrowRight,
   ListChecks,
   Video,
-  ClipboardCheck,
   MapPinned,
   PenLine,
 } from "lucide-react";
@@ -1179,6 +1178,222 @@ export default function ModeratorDashboardPage() {
                     </article>
                   ))}
                 </div>
+              )}
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <PenLine className="h-5 w-5 text-blue-700" />
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Post Coaching Playbook
+                </h2>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Help new users turn vague concerns into useful civic posts.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {[
+                  {
+                    title: "Make the title specific",
+                    detail: "Name the place, issue, and impact in one sentence.",
+                    example: "Bus stop flooding near Main St affects morning commuters",
+                  },
+                  {
+                    title: "Ask for evidence",
+                    detail: "Prompt for dates, frequency, photos, or affected blocks.",
+                    example: "Happens after heavy rain, 3 times this month",
+                  },
+                  {
+                    title: "End with a clear ask",
+                    detail: "Guide users toward one actionable request for officials.",
+                    example: "Request drainage inspection before the next storm",
+                  },
+                ].map((tip) => (
+                  <div key={tip.title} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                    <p className="font-semibold text-slate-900">{tip.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{tip.detail}</p>
+                    <p className="mt-2 rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-500">
+                      {tip.example}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white shadow-sm xl:col-span-2">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <Video className="h-5 w-5 text-indigo-700" />
+                      <h2 className="text-xl font-semibold text-slate-900">
+                        Video Meeting Coordination
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Approve requests, generate meeting links, or close completed meetings.
+                    </p>
+                  </div>
+                  <span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">
+                    {pendingMeetingRequests.length} pending
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {meetingRequests.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+                    <Video className="mx-auto h-8 w-8 text-slate-400" />
+                    <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                      No meeting requests yet
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Requests from citizens and representatives will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {meetingRequests.slice(0, 4).map((request) => (
+                      <div
+                        key={request.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                                {request.status}
+                              </span>
+                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                                {request.district || "No district"}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 font-semibold text-slate-900">
+                              {request.topic}
+                            </h3>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              {request.citizen_name || "Citizen"} with{" "}
+                              {request.representative_name || "Representative"}
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
+                              Preferred: {request.preferred_times}
+                            </p>
+                            {request.meeting_url ? (
+                              <a
+                                href={request.meeting_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex text-sm font-semibold text-blue-700 hover:underline"
+                              >
+                                Open meeting link
+                              </a>
+                            ) : null}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
+                            {request.status === "pending" ? (
+                              <>
+                                <button
+                                  onClick={() => updateMeetingRequestStatus(request, "approved")}
+                                  disabled={meetingActionLoadingId === request.id}
+                                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => updateMeetingRequestStatus(request, "rejected")}
+                                  disabled={meetingActionLoadingId === request.id}
+                                  className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            ) : request.status === "approved" ? (
+                              <button
+                                onClick={() => updateMeetingRequestStatus(request, "completed")}
+                                disabled={meetingActionLoadingId === request.id}
+                                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                              >
+                                Complete
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <MapPinned className="h-5 w-5 text-slate-700" />
+                <h2 className="text-xl font-semibold text-slate-900">
+                  District Operations Overview
+                </h2>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                A cross-district view of moderation load, meeting demand, and risk.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
+              {districtOverview.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+                  District activity will appear as posts and meeting requests come in.
+                </div>
+              ) : (
+                districtOverview.map((district) => (
+                  <div
+                    key={district.district}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-slate-500">District</p>
+                        <h3 className="mt-1 text-2xl font-bold text-slate-900">
+                          {district.district}
+                        </h3>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          district.riskScore >= 50
+                            ? "bg-red-100 text-red-700"
+                            : district.riskScore >= 25
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        Risk {district.riskScore}%
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-slate-500">Posts</p>
+                        <p className="mt-1 text-lg font-bold text-slate-900">{district.total}</p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-slate-500">Review</p>
+                        <p className="mt-1 text-lg font-bold text-yellow-700">{district.underReview}</p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-slate-500">Meetings</p>
+                        <p className="mt-1 text-lg font-bold text-indigo-700">{district.pendingMeetings}</p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-slate-500">Top Theme</p>
+                        <p className="mt-1 truncate font-semibold text-slate-900">{district.topCategory}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </section>
