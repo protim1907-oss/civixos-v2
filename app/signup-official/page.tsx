@@ -195,9 +195,35 @@ export default function SignupOfficialPage() {
       return;
     }
 
+    if (data.user?.id && data.session) {
+      const profilePayload = {
+        id: data.user.id,
+        full_name: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        role: "official",
+        district: selectedDistrict,
+        state,
+        city: toTitleCase(city),
+        zip_code: normalizedZip,
+      };
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert(profilePayload, { onConflict: "id" });
+
+      if (profileError) {
+        console.error("Official profile upsert error:", profileError);
+        setError(
+          `Official account created, but profile setup failed: ${profileError.message}`
+        );
+        setLoading(false);
+        return;
+      }
+    }
+
     if (!data.session) {
       setInfo(
-        `Official account created or already exists. Jurisdiction confirmed as ${selectedDistrict}. Please check your email or login.`
+        `Official account created or already exists. Jurisdiction confirmed as ${selectedDistrict}. Please check your email or login. If this is a new verified account, an admin may need to finish profile approval.`
       );
       setLoading(false);
 
