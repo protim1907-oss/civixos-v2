@@ -74,7 +74,7 @@ export default function LoginPage() {
   }) => {
     if (role === "admin") return "/admin";
     if (role === "moderator") return "/moderator";
-    if (accountType === "official") return "/official-dashboard";
+    if (role === "official" || accountType === "official") return "/official-dashboard";
     if (!districtId) return "/district";
     return "/dashboard";
   }, []);

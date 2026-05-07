@@ -14,6 +14,7 @@ import {
   Activity,
   BarChart3,
   ShieldCheck,
+  CalendarClock,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
@@ -170,6 +171,13 @@ export default function Sidebar() {
 
   const navItems = [
     {
+      href: "/official-dashboard",
+      label: "Official Dashboard",
+      icon: ShieldCheck,
+      exact: true,
+      officialOnly: true,
+    },
+    {
       href: "/dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
@@ -200,6 +208,12 @@ export default function Sidebar() {
       badgeColor: "green" as const,
     },
     {
+      href: "/official-meetings",
+      label: "Official Meetings",
+      icon: CalendarClock,
+      officialOnly: true,
+    },
+    {
       href: "/create-post",
       label: "Create Post",
       icon: MessageSquareText,
@@ -219,14 +233,16 @@ export default function Sidebar() {
       label: "My Representative",
       icon: UserCircle2,
     },
-  ] satisfies NavItem[];
+  ] satisfies Array<NavItem & { officialOnly?: boolean }>;
 
   const visibleNavItems = navItems.filter(
     (item) =>
+      (item.officialOnly ? userRole === "official" : true) &&
       !(
-        (userRole === "admin" || userRole === "moderator") &&
+        (userRole === "admin" || userRole === "moderator" || userRole === "official") &&
         item.href === "/my-representatives"
-      )
+      ) &&
+      !(userRole === "official" && item.href === "/dashboard")
   );
 
   return (
