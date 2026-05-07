@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
@@ -88,7 +88,7 @@ export default function OfficialMeetingsPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  async function loadMeetings() {
+  const loadMeetings = useCallback(async () => {
     const {
       data: { user },
       error: userError,
@@ -144,7 +144,7 @@ export default function OfficialMeetingsPage() {
     setProfile(officialProfile);
     setDistrictScope(scope || "All");
     setMeetings(((data as MeetingRow[]) || []).filter((item) => districtMatchesScope(item.district, scope)));
-  }
+  }, [router, supabase]);
 
   useEffect(() => {
     let mounted = true;
@@ -174,7 +174,7 @@ export default function OfficialMeetingsPage() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [router, supabase]);
+  }, [loadMeetings, supabase]);
 
   async function refresh() {
     try {

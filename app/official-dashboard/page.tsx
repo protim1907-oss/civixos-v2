@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ComponentType } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -121,7 +121,7 @@ export default function OfficialDashboardPage() {
   const [surveys, setSurveys] = useState<SurveyRow[]>([]);
   const [error, setError] = useState("");
 
-  async function loadOfficialWorkspace() {
+  const loadOfficialWorkspace = useCallback(async () => {
     setError("");
 
     const {
@@ -201,7 +201,7 @@ export default function OfficialDashboardPage() {
     setIssues(scopedIssues);
     setMeetings(scopedMeetings);
     setSurveys(scopedSurveys);
-  }
+  }, [router, supabase]);
 
   useEffect(() => {
     let mounted = true;
@@ -254,7 +254,7 @@ export default function OfficialDashboardPage() {
       supabase.removeChannel(meetingsChannel);
       supabase.removeChannel(surveysChannel);
     };
-  }, [router, supabase]);
+  }, [loadOfficialWorkspace, supabase]);
 
   async function handleRefresh() {
     try {
