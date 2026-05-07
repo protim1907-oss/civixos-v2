@@ -168,7 +168,8 @@ function normalizeStateName(state?: string | null): string {
 }
 
 function isStaffRole(role?: string | null) {
-  return role === "admin" || role === "moderator" || role === "official";
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "moderator" || normalized === "official";
 }
 
 function formatDisplayDate(dateString?: string | null) {
