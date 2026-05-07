@@ -416,6 +416,7 @@ export default function OfficialUpdatesPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [meetingRequests, setMeetingRequests] = useState<VideoMeetingRequestRow[]>([]);
+  const [publishedUpdates, setPublishedUpdates] = useState<OfficialUpdateRow[]>([]);
   const [district, setDistrict] = useState("N/A");
   const [stateName, setStateName] = useState("State");
   const [canViewAllDistricts, setCanViewAllDistricts] = useState(false);
@@ -450,6 +451,15 @@ export default function OfficialUpdatesPage() {
   });
   const [commentInput, setCommentInput] = useState("");
   const [shareMenuOpenFor, setShareMenuOpenFor] = useState<string | null>(null);
+  const [announcementForm, setAnnouncementForm] = useState<AnnouncementForm>({
+    title: "",
+    summary: "",
+    category: "Public Notice",
+    priority: "Normal",
+    sourceUrl: "",
+  });
+  const [publishing, setPublishing] = useState(false);
+  const [publishMessage, setPublishMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -471,6 +481,25 @@ export default function OfficialUpdatesPage() {
 
       if (mounted) {
         setMeetingRequests((data as VideoMeetingRequestRow[]) ?? []);
+      }
+    }
+
+    async function loadPublishedUpdates() {
+      const { data, error } = await supabase
+        .from("official_updates")
+        .select(
+          "id, title, summary, district, category, priority, status, source_name, source_url, published_by_name, published_at, created_at"
+        )
+        .order("published_at", { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error("Failed to load published official updates:", error.message);
+        return;
+      }
+
+      if (mounted) {
+        setPublishedUpdates((data as OfficialUpdateRow[]) ?? []);
       }
     }
 
@@ -535,7 +564,7 @@ export default function OfficialUpdatesPage() {
             : normalizeStateName(derivedStateCode)
         );
 
-        await loadMeetingRequests();
+        await Promise.all([loadMeetingRequests(), loadPublishedUpdates()]);
       } catch (error) {
         console.error("Failed to load official updates page:", error);
       } finally {
@@ -556,9 +585,21 @@ export default function OfficialUpdatesPage() {
       )
       .subscribe();
 
+    const publishedUpdatesChannel = supabase
+      .channel("official-updates-published")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "official_updates" },
+        async () => {
+          await loadPublishedUpdates();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       supabase.removeChannel(meetingsChannel);
+      supabase.removeChannel(publishedUpdatesChannel);
     };
   }, [supabase]);
 
@@ -567,8 +608,12 @@ export default function OfficialUpdatesPage() {
   }, [meetingRequests]);
 
   const officialUpdates = useMemo(() => {
-    return [...meetingAnnouncements, ...OFFICIAL_UPDATES];
-  }, [meetingAnnouncements]);
+    return [
+      ...publishedUpdates.map(buildPublishedUpdate),
+      ...meetingAnnouncements,
+      ...OFFICIAL_UPDATES,
+    ];
+  }, [meetingAnnouncements, publishedUpdates]);
 
   const districtUpdates = useMemo(() => {
     if (district === "All") return officialUpdates;
@@ -641,6 +686,62 @@ export default function OfficialUpdatesPage() {
     }));
 
     setCommentInput("");
+  }
+
+  async function handlePublishAnnouncement() {
+    const title = announcementForm.title.trim();
+    const summary = announcementForm.summary.trim();
+    const sourceUrl = announcementForm.sourceUrl.trim();
+
+    if (!profile || !isStaffRole(profile.role)) {
+      setPublishMessage("Only verified officials and staff can publish announcements.");
+      return;
+    }
+
+    if (!title || !summary) {
+      setPublishMessage("Add a title and announcement details before publishing.");
+      return;
+    }
+
+    if (district === "All") {
+      setPublishMessage("Choose a specific district before publishing an announcement.");
+      return;
+    }
+
+    try {
+      setPublishing(true);
+      setPublishMessage("");
+
+      const { error } = await supabase.from("official_updates").insert({
+        title,
+        summary,
+        district,
+        category: announcementForm.category,
+        priority: announcementForm.priority === "High" ? "High" : "Medium",
+        status: "Active",
+        source_name: profile.full_name || profile.email || "Official Office",
+        source_url: sourceUrl || null,
+        published_by: profile.id,
+        published_by_name: profile.full_name || profile.email || "Official",
+      });
+
+      if (error) {
+        console.error("Publish official update error:", error.message);
+        setPublishMessage(error.message || "Unable to publish this announcement.");
+        return;
+      }
+
+      setAnnouncementForm({
+        title: "",
+        summary: "",
+        category: "Public Notice",
+        priority: "Normal",
+        sourceUrl: "",
+      });
+      setPublishMessage("Official announcement published.");
+    } finally {
+      setPublishing(false);
+    }
   }
 
   async function copyShareUrl(item: OfficialUpdate) {
@@ -770,6 +871,101 @@ export default function OfficialUpdatesPage() {
               />
             </div>
           </div>
+
+          {profile && isStaffRole(profile.role) ? (
+            <section className="mt-7 rounded-[28px] border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                    Publish Announcement
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                    Make an official announcement
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                    Publish verified notices, public guidance, policy updates, or video meeting
+                    announcements for the selected district.
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-600">
+                  Target: {district === "All" ? "Choose a district filter first" : district}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <input
+                  value={announcementForm.title}
+                  onChange={(event) =>
+                    setAnnouncementForm((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                  placeholder="Announcement title"
+                  className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                />
+                <input
+                  value={announcementForm.sourceUrl}
+                  onChange={(event) =>
+                    setAnnouncementForm((prev) => ({ ...prev, sourceUrl: event.target.value }))
+                  }
+                  placeholder="Source or meeting URL"
+                  className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                />
+                <select
+                  value={announcementForm.category}
+                  onChange={(event) =>
+                    setAnnouncementForm((prev) => ({
+                      ...prev,
+                      category: event.target.value as OfficialUpdateCategory,
+                    }))
+                  }
+                  className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                >
+                  <option>Public Notice</option>
+                  <option>Policy Update</option>
+                  <option>Infrastructure</option>
+                  <option>Public Safety</option>
+                  <option>Education</option>
+                  <option>Community</option>
+                  <option>Video Meeting</option>
+                </select>
+                <select
+                  value={announcementForm.priority}
+                  onChange={(event) =>
+                    setAnnouncementForm((prev) => ({
+                      ...prev,
+                      priority: event.target.value as AnnouncementForm["priority"],
+                    }))
+                  }
+                  className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                >
+                  <option>Normal</option>
+                  <option>High</option>
+                </select>
+                <textarea
+                  value={announcementForm.summary}
+                  onChange={(event) =>
+                    setAnnouncementForm((prev) => ({ ...prev, summary: event.target.value }))
+                  }
+                  placeholder="Announcement details"
+                  rows={4}
+                  className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 lg:col-span-2"
+                />
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={handlePublishAnnouncement}
+                  disabled={publishing || district === "All"}
+                  className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {publishing ? "Publishing..." : "Publish announcement"}
+                </button>
+                {publishMessage ? (
+                  <p className="text-sm font-medium text-slate-600">{publishMessage}</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[1.5fr_0.72fr]">
             <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
