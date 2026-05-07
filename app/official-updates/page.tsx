@@ -82,6 +82,29 @@ type VideoMeetingRequestRow = {
   created_at: string | null;
 };
 
+type OfficialUpdateRow = {
+  id: string;
+  title: string;
+  summary: string;
+  district: string;
+  category: string;
+  priority: string;
+  status: string;
+  source_name: string | null;
+  source_url: string | null;
+  published_by_name: string | null;
+  published_at: string | null;
+  created_at: string | null;
+};
+
+type AnnouncementForm = {
+  title: string;
+  summary: string;
+  category: OfficialUpdateCategory;
+  priority: "High" | "Normal";
+  sourceUrl: string;
+};
+
 function normalizeStateCode(state?: string | null): string {
   const value = String(state || "").trim().toLowerCase();
 
@@ -191,6 +214,46 @@ function buildMeetingAnnouncement(request: VideoMeetingRequestRow): OfficialUpda
     comments: 0,
     shares: 0,
     sourceUrl: request.meeting_url || undefined,
+  };
+}
+
+function normalizeOfficialUpdateCategory(value?: string | null): OfficialUpdateCategory {
+  const category = String(value || "").trim();
+  if (
+    category === "Public Notice" ||
+    category === "Policy Update" ||
+    category === "Infrastructure" ||
+    category === "Public Safety" ||
+    category === "Education" ||
+    category === "Community" ||
+    category === "Video Meeting"
+  ) {
+    return category;
+  }
+
+  return "Public Notice";
+}
+
+function buildPublishedUpdate(row: OfficialUpdateRow): OfficialUpdate {
+  const district = row.district?.trim().toUpperCase() || "N/A";
+  const state = normalizeStateName(district.includes("-") ? district.split("-")[0] : district);
+
+  return {
+    id: `published-${row.id}`,
+    district,
+    state,
+    title: row.title,
+    summary: row.summary,
+    body: row.summary,
+    category: normalizeOfficialUpdateCategory(row.category),
+    office: row.source_name || row.published_by_name || "Official Office",
+    date: formatDisplayDate(row.published_at || row.created_at),
+    priority: row.priority === "High" ? "High" : "Normal",
+    status: row.status === "Scheduled" ? "Ongoing" : row.status === "Archived" ? "Ongoing" : "Active",
+    upvotes: 0,
+    comments: 0,
+    shares: 0,
+    sourceUrl: row.source_url || undefined,
   };
 }
 
