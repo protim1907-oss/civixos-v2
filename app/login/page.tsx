@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -412,6 +413,17 @@ export default function LoginPage() {
                 policy activity, and take part in civic conversations that
                 matter to your community.
               </p>
+            </div>
+
+            <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-sm">
+              <Image
+                src="/homepage-image.png"
+                alt="American flag, bald eagle, and Constitution imagery"
+                width={1280}
+                height={969}
+                priority
+                className="aspect-[16/9] w-full object-cover"
+              />
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
