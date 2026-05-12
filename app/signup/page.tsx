@@ -463,7 +463,7 @@ export default function SignupPage() {
               disabled={resolvingDistrict}
               className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
             >
-              {resolvingDistrict ? "Resolving..." : "Resolve district"}
+              {resolvingDistrict ? "Resolving..." : "Confirm your District"}
             </button>
           </div>
 
