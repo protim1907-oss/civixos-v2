@@ -390,7 +390,7 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-blue-50" />
 
           <div className="relative p-8 md:p-10">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Civix250
@@ -399,14 +399,19 @@ export default function LoginPage() {
                   Citizen Login
                 </h1>
               </div>
-              <Image
-                src="/civixos-Logo.png"
-                alt="Civix250 logo"
-                width={180}
-                height={120}
-                priority
-                className="h-16 w-24 shrink-0 rounded-2xl object-cover shadow-sm sm:h-20 sm:w-28"
-              />
+              <figure className="w-full shrink-0 sm:w-56">
+                <Image
+                  src="/homepage-image.png"
+                  alt="American flag, bald eagle, and Constitution imagery"
+                  width={1280}
+                  height={969}
+                  priority
+                  className="aspect-[4/3] w-full rounded-2xl object-cover shadow-sm"
+                />
+                <figcaption className="mt-2 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Your voice in democracy
+                </figcaption>
+              </figure>
             </div>
 
             <div className="mt-8 max-w-xl">
@@ -418,17 +423,6 @@ export default function LoginPage() {
                 policy activity, and take part in civic conversations that
                 matter to your community.
               </p>
-            </div>
-
-            <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-sm">
-              <Image
-                src="/homepage-image.png"
-                alt="American flag, bald eagle, and Constitution imagery"
-                width={1280}
-                height={969}
-                priority
-                className="aspect-[16/9] w-full object-cover"
-              />
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
