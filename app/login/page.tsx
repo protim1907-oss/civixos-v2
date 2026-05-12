@@ -390,10 +390,7 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-blue-50" />
 
           <div className="relative p-8 md:p-10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500 text-lg font-bold text-white shadow-sm">
-                C
-              </div>
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Civix250
@@ -402,6 +399,14 @@ export default function LoginPage() {
                   Citizen Login
                 </h1>
               </div>
+              <Image
+                src="/civixos-Logo.png"
+                alt="Civix250 logo"
+                width={180}
+                height={120}
+                priority
+                className="h-16 w-24 shrink-0 rounded-2xl object-cover shadow-sm sm:h-20 sm:w-28"
+              />
             </div>
 
             <div className="mt-8 max-w-xl">
