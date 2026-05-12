@@ -401,21 +401,21 @@ export default function LoginPage() {
                   </h1>
                 </div>
 
-                <h2 className="max-w-xl text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
+                <h2 className="max-w-xl text-3xl font-bold leading-tight text-slate-900 md:text-4xl">
                   Join the conversation in your district.
                 </h2>
               </div>
 
-              <figure className="w-full">
+              <figure className="w-full rounded-3xl border border-slate-200 bg-white/80 p-2 shadow-sm">
                 <Image
                   src="/homepage-image.png"
                   alt="American flag, bald eagle, and Constitution imagery"
                   width={1280}
                   height={969}
                   priority
-                  className="aspect-[4/3] w-full rounded-2xl object-cover shadow-sm"
+                  className="aspect-[4/3] w-full rounded-2xl object-cover"
                 />
-                <figcaption className="mt-2 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <figcaption className="mt-2 px-1 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Your voice in democracy
                 </figcaption>
               </figure>
