@@ -390,16 +390,23 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-blue-50" />
 
           <div className="relative p-8 md:p-10">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Civix250
-                </p>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  Citizen Login
-                </h1>
+            <div className="grid gap-5 sm:grid-cols-[1fr_14rem] sm:items-start sm:gap-x-8">
+              <div className="space-y-5">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Civix250
+                  </p>
+                  <h1 className="text-2xl font-bold text-slate-900">
+                    Citizen Login
+                  </h1>
+                </div>
+
+                <h2 className="max-w-xl text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
+                  Join the conversation in your district.
+                </h2>
               </div>
-              <figure className="w-full shrink-0 sm:w-56">
+
+              <figure className="w-full">
                 <Image
                   src="/homepage-image.png"
                   alt="American flag, bald eagle, and Constitution imagery"
@@ -414,10 +421,7 @@ export default function LoginPage() {
               </figure>
             </div>
 
-            <div className="mt-8 max-w-xl">
-              <h2 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
-                Join the conversation in your district.
-              </h2>
+            <div className="mt-4 max-w-xl">
               <p className="mt-4 text-lg leading-8 text-slate-600">
                 Log in to view local issues, explore district discussions, track
                 policy activity, and take part in civic conversations that
