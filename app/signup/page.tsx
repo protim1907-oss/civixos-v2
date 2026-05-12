@@ -9,6 +9,15 @@ type DistrictOption = {
   label: string;
 };
 
+const addressProofOptions = [
+  { value: "utility_bill", label: "Utility bill" },
+  { value: "lease", label: "Lease" },
+  { value: "voter_registration_screenshot", label: "Voter registration screenshot" },
+  { value: "government_id_with_address", label: "Government ID with address" },
+  { value: "property_tax_record", label: "Property tax record" },
+  { value: "school_or_municipal_document", label: "School or municipal document" },
+];
+
 function normalizeDistrictValue(value: string | null | undefined) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -60,6 +69,7 @@ export default function SignupPage() {
   const [districtOptions, setDistrictOptions] = useState<DistrictOption[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [matchedAddress, setMatchedAddress] = useState("");
+  const [addressProof, setAddressProof] = useState("");
   const [isVoterCertified, setIsVoterCertified] = useState(false);
 
   const [error, setError] = useState("");
@@ -235,6 +245,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (!addressProof) {
+      setError("Please select an address proof document type.");
+      return;
+    }
+
     if (!isVoterCertified) {
       setError("Please certify that you are at least 18 years of age and legally eligible to vote in your jurisdiction.");
       return;
@@ -255,6 +270,7 @@ export default function SignupPage() {
             zip_code: normalizedZip,
             district: normalizedDistrict,
             matched_address: matchedAddress || null,
+            address_proof_type: addressProof,
             role: "citizen",
           },
         },
@@ -498,6 +514,25 @@ export default function SignupPage() {
           )}
         </div>
       ) : null}
+
+      <div className="mb-4 rounded-lg border bg-slate-50 px-4 py-4">
+        <label className="mb-2 block text-sm font-medium">Address Proof</label>
+        <select
+          value={addressProof}
+          onChange={(e) => {
+            setAddressProof(e.target.value);
+            clearMessages();
+          }}
+          className="w-full rounded-lg border bg-white px-3 py-2"
+        >
+          <option value="">Select one document type</option>
+          {addressProofOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
         <input
