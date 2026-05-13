@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
 import {
+  formatFundingCurrency,
+  getFundingProfile,
+  getInfluenceLevelClasses,
+  type FundingProfile,
+} from "@/lib/donation-tracker";
+import {
   Building2,
   MapPinned,
   MessageCircle,
@@ -17,6 +23,10 @@ import {
   Loader2,
   User2,
   LogOut,
+  HandCoins,
+  Landmark,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 
 type ProfileRow = {
