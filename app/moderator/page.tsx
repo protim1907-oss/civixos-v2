@@ -1797,9 +1797,12 @@ export default function ModeratorDashboardPage() {
                       </div>
                     ) : (
                       moderationInsights.topFlaggedCategories.map((item) => (
-                        <div
+                        <button
+                          type="button"
                           key={item.category}
-                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                          onClick={() => handleCategoryInsightClick(item.category)}
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-yellow-200 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
+                          aria-label={`Show moderation posts in ${item.category}`}
                         >
                           <div className="flex items-center justify-between gap-4">
                             <div>
@@ -1817,7 +1820,7 @@ export default function ModeratorDashboardPage() {
                               <div>Escalated: {item.escalated}</div>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
@@ -1838,9 +1841,12 @@ export default function ModeratorDashboardPage() {
                       </div>
                     ) : (
                       moderationInsights.leaderboard.map((item, index) => (
-                        <div
+                        <button
+                          type="button"
                           key={`${item.actorId}-${index}`}
-                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                          onClick={() => handleLeaderboardClick(item)}
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2"
+                          aria-label={`Show audit trail entries for ${item.actorName}`}
                         >
                           <div className="flex items-center justify-between gap-4">
                             <div>
@@ -1858,7 +1864,7 @@ export default function ModeratorDashboardPage() {
                               <div>Escalated: {item.escalated}</div>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
