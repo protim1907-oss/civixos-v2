@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
@@ -151,6 +151,7 @@ export default function ModeratorDashboardPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(null);
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
+  const postsSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -298,6 +299,18 @@ export default function ModeratorDashboardPage() {
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  function handleStatsCardClick(filter: FilterType) {
+    setActiveFilter(filter);
+    setSearch("");
+
+    requestAnimationFrame(() => {
+      postsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   function buildMeetingUrl(requestId: string) {
@@ -958,7 +971,12 @@ export default function ModeratorDashboardPage() {
           </div>
 
           <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleStatsCardClick("all")}
+              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              aria-label="Show all moderation posts"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Total Posts</p>
@@ -970,9 +988,14 @@ export default function ModeratorDashboardPage() {
                   <FileText className="h-5 w-5 text-slate-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleStatsCardClick("active")}
+              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+              aria-label="Show active moderation posts"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Active</p>
@@ -984,9 +1007,14 @@ export default function ModeratorDashboardPage() {
                   <ShieldCheck className="h-5 w-5 text-blue-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleStatsCardClick("under_review")}
+              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
+              aria-label="Show under review moderation posts"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Under Review</p>
@@ -998,9 +1026,14 @@ export default function ModeratorDashboardPage() {
                   <Clock3 className="h-5 w-5 text-yellow-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleStatsCardClick("approved")}
+              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700 focus-visible:ring-offset-2"
+              aria-label="Show approved moderation posts"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Approved</p>
@@ -1012,9 +1045,14 @@ export default function ModeratorDashboardPage() {
                   <CheckCircle2 className="h-5 w-5 text-green-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleStatsCardClick("removed")}
+              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+              aria-label="Show removed moderation posts"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Removed</p>
@@ -1026,7 +1064,7 @@ export default function ModeratorDashboardPage() {
                   <Trash2 className="h-5 w-5 text-red-700" />
                 </div>
               </div>
-            </div>
+            </button>
           </section>
 
           <section className="rounded-3xl bg-slate-950 text-white shadow-sm overflow-hidden">
@@ -1552,7 +1590,10 @@ export default function ModeratorDashboardPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm p-5">
+          <section
+            ref={postsSectionRef}
+            className="scroll-mt-6 rounded-3xl bg-white border border-slate-200 shadow-sm p-5"
+          >
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <Search className="h-5 w-5 text-slate-400" />
