@@ -313,6 +313,18 @@ export default function ModeratorDashboardPage() {
     });
   }
 
+  function handleDistrictCardClick(district: string) {
+    setActiveFilter("all");
+    setSearch(district);
+
+    requestAnimationFrame(() => {
+      postsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
   function buildMeetingUrl(requestId: string) {
     const token = requestId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
     return `https://meet.jit.si/civix250-${token}`;
@@ -611,7 +623,7 @@ export default function ModeratorDashboardPage() {
           issue.title?.toLowerCase().includes(q) ||
           issue.description?.toLowerCase().includes(q) ||
           issue.category?.toLowerCase().includes(q) ||
-          issue.district?.toLowerCase().includes(q) ||
+          (issue.district?.trim() || "Unassigned").toLowerCase().includes(q) ||
           issue.status?.toLowerCase().includes(q)
       );
     }
@@ -1388,9 +1400,12 @@ export default function ModeratorDashboardPage() {
                 </div>
               ) : (
                 districtOverview.map((district) => (
-                  <div
+                  <button
+                    type="button"
                     key={district.district}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                    onClick={() => handleDistrictCardClick(district.district)}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                    aria-label={`Show moderation posts for ${district.district}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -1430,7 +1445,7 @@ export default function ModeratorDashboardPage() {
                         <p className="mt-1 truncate font-semibold text-slate-900">{district.topCategory}</p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
