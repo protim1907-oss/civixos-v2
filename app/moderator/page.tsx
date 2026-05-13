@@ -153,7 +153,12 @@ export default function ModeratorDashboardPage() {
   const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(null);
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
   const [selectedInsight, setSelectedInsight] = useState<InsightKey | null>(null);
+  const [auditActorFilter, setAuditActorFilter] = useState<{
+    actorId: string;
+    actorName: string;
+  } | null>(null);
   const postsSectionRef = useRef<HTMLElement | null>(null);
+  const auditTrailRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -306,6 +311,7 @@ export default function ModeratorDashboardPage() {
   function handleStatsCardClick(filter: FilterType) {
     setActiveFilter(filter);
     setSearch("");
+    setAuditActorFilter(null);
 
     requestAnimationFrame(() => {
       postsSectionRef.current?.scrollIntoView({
@@ -318,9 +324,37 @@ export default function ModeratorDashboardPage() {
   function handleDistrictCardClick(district: string) {
     setActiveFilter("all");
     setSearch(district);
+    setAuditActorFilter(null);
 
     requestAnimationFrame(() => {
       postsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function handleCategoryInsightClick(category: string) {
+    setActiveFilter("all");
+    setSearch(category);
+    setAuditActorFilter(null);
+
+    requestAnimationFrame(() => {
+      postsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function handleLeaderboardClick(item: LeaderboardRow) {
+    setAuditActorFilter({
+      actorId: item.actorId,
+      actorName: item.actorName,
+    });
+
+    requestAnimationFrame(() => {
+      auditTrailRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -624,7 +658,7 @@ export default function ModeratorDashboardPage() {
         (issue) =>
           issue.title?.toLowerCase().includes(q) ||
           issue.description?.toLowerCase().includes(q) ||
-          issue.category?.toLowerCase().includes(q) ||
+          (issue.category?.trim() || "Uncategorized").toLowerCase().includes(q) ||
           (issue.district?.trim() || "Unassigned").toLowerCase().includes(q) ||
           issue.status?.toLowerCase().includes(q)
       );
@@ -632,6 +666,19 @@ export default function ModeratorDashboardPage() {
 
     return list;
   }, [issues, search, activeFilter]);
+
+  const filteredAuditLogs = useMemo(() => {
+    if (!auditActorFilter) return auditLogs;
+
+    return auditLogs.filter((log) => {
+      if (auditActorFilter.actorId !== "unknown" && log.actor_id === auditActorFilter.actorId) {
+        return true;
+      }
+
+      const actorName = log.details?.actor_name?.trim() || log.actor_role || "Unknown moderator";
+      return actorName === auditActorFilter.actorName;
+    });
+  }, [auditLogs, auditActorFilter]);
 
   const stats = useMemo(() => {
     const total = issues.length;
