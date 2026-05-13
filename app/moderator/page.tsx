@@ -26,7 +26,6 @@ import {
   ListChecks,
   Video,
   MapPinned,
-  PenLine,
 } from "lucide-react";
 
 type Issue = {
