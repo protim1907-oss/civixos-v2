@@ -8,6 +8,7 @@ import {
   formatFundingCurrency,
   getFundingProfile,
   getInfluenceLevelClasses,
+  slugifyFundingName,
   type FundingProfile,
 } from "@/lib/donation-tracker";
 import {
@@ -564,6 +565,7 @@ export default function MyRepresentativePage() {
   });
   const [meetingSubmitting, setMeetingSubmitting] = useState(false);
   const [meetingMessage, setMeetingMessage] = useState("");
+  const [liveFundingProfiles, setLiveFundingProfiles] = useState<Record<string, FundingProfile>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -689,6 +691,68 @@ export default function MyRepresentativePage() {
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
+  const fundingOfficials = useMemo(
+    () => [...(primaryRepresentative ? [primaryRepresentative] : []), ...statewideLeaders],
+    [primaryRepresentative, statewideLeaders]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLiveFundingProfiles() {
+      const federalOfficials = fundingOfficials.filter((official) => {
+        const title = official.title.toLowerCase();
+        return title.includes("senator") || title.includes("representative");
+      });
+
+      if (federalOfficials.length === 0) return;
+
+      const results = await Promise.allSettled(
+        federalOfficials.map(async (official) => {
+          const params = new URLSearchParams({
+            name: official.name,
+            title: official.title,
+            state: normalizeStateCode(official.state || resolvedState || district),
+          });
+
+          const response = await fetch(`/api/campaign-finance?${params.toString()}`);
+          if (!response.ok) return null;
+
+          const payload = await response.json();
+          return payload?.profile
+            ? ({
+                key: slugifyFundingName(official.name),
+                profile: payload.profile as FundingProfile,
+              })
+            : null;
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextProfiles: Record<string, FundingProfile> = {};
+
+      results.forEach((result) => {
+        if (result.status === "fulfilled" && result.value) {
+          nextProfiles[result.value.key] = result.value.profile;
+        }
+      });
+
+      if (Object.keys(nextProfiles).length > 0) {
+        setLiveFundingProfiles((current) => ({ ...current, ...nextProfiles }));
+      }
+    }
+
+    void loadLiveFundingProfiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [district, fundingOfficials, resolvedState]);
+
+  function resolveFundingProfile(official: Official) {
+    return liveFundingProfiles[slugifyFundingName(official.name)] || getFundingProfile(official);
+  }
 
   const firstName = useMemo(() => {
     return profile?.full_name?.split(" ")[0] || "Citizen";
@@ -964,6 +1028,48 @@ export default function MyRepresentativePage() {
           </div>
 
           <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Funding Transparency
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-slate-900">
+                  Who funds your representatives
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                  Review donor sectors, contributor concentration, and influence signals for
+                  the officials connected to your district.
+                </p>
+              </div>
+
+              <a
+                href="/donation-tracker"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                <HandCoins className="h-4 w-4" />
+                Open tracker
+              </a>
+            </div>
+
+            {fundingOfficials.length > 0 ? (
+              <div className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
+                {fundingOfficials.map((official, index) => (
+                  <FundingInfluenceCard
+                    key={`${official.id}-${official.name}`}
+                    official={official}
+                    profile={resolveFundingProfile(official)}
+                    featured={index === 0}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-12 text-center text-slate-600">
+                Funding transparency data will appear once representatives are assigned.
+              </div>
+            )}
+          </section>
+
+          <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
               Statewide Leadership
             </p>
@@ -1185,6 +1291,153 @@ export default function MyRepresentativePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function FundingInfluenceCard({
+  official,
+  profile,
+  featured = false,
+}: {
+  official: Official;
+  profile: FundingProfile;
+  featured?: boolean;
+}) {
+  const topSources = profile.sources.slice(0, featured ? 4 : 3);
+  const topContributors = profile.contributors.slice(0, featured ? 3 : 2);
+  const topSignal = profile.influenceSignals[0];
+  const maxSourceAmount = Math.max(...topSources.map((source) => source.amount), 1);
+
+  return (
+    <article className="rounded-[22px] border border-slate-200 bg-slate-50 p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <HandCoins className="h-4 w-4" />
+            {profile.cycle}
+          </div>
+          <h4 className="mt-2 text-xl font-bold text-slate-900">{official.name}</h4>
+          <p className="mt-1 text-sm text-slate-600">
+            {official.title} • {official.officeLabel}
+          </p>
+        </div>
+
+        <a
+          href={profile.sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+        >
+          <Landmark className="h-4 w-4" />
+          Filings
+        </a>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-medium text-slate-500">Raised</p>
+          <p className="mt-1 text-lg font-bold text-slate-900">
+            {formatFundingCurrency(profile.totalRaised)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-medium text-slate-500">Individuals</p>
+          <p className="mt-1 text-lg font-bold text-slate-900">
+            {profile.individualShare}%
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+          <p className="text-xs font-medium text-slate-500">PACs</p>
+          <p className="mt-1 text-lg font-bold text-slate-900">{profile.pacShare}%</p>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <TrendingUp className="h-4 w-4 text-slate-500" />
+          Funding sources
+        </div>
+        {topSources.length > 0 ? (
+          <div className="space-y-3">
+            {topSources.map((source) => (
+              <div key={source.label}>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-slate-700">{source.label}</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatFundingCurrency(source.amount)}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white">
+                  <div
+                    className={`h-full rounded-full ${source.tone}`}
+                    style={{
+                      width: `${Math.max((source.amount / maxSourceAmount) * 100, 4)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+            Funding source data pending.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <Users className="h-4 w-4 text-slate-500" />
+            Top contributors
+          </div>
+          {topContributors.length > 0 ? (
+            <div className="space-y-3">
+              {topContributors.map((contributor) => (
+                <div key={`${contributor.name}-${contributor.sector}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {contributor.name}
+                    </p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {formatFundingCurrency(contributor.amount)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {contributor.sector} • {contributor.relationship}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">Contributor data pending.</p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-800">Influence signal</p>
+            {topSignal ? (
+              <span
+                className={`rounded-full border px-2 py-1 text-xs font-bold ${getInfluenceLevelClasses(
+                  topSignal.level
+                )}`}
+              >
+                {topSignal.level}
+              </span>
+            ) : null}
+          </div>
+          {topSignal ? (
+            <>
+              <p className="text-sm font-semibold text-slate-900">{topSignal.label}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{topSignal.detail}</p>
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">Influence signal pending.</p>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 
