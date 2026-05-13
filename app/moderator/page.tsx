@@ -1478,10 +1478,21 @@ export default function ModeratorDashboardPage() {
 
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedInsight(selectedInsight === "outcomes" ? null : "outcomes")
+                  }
+                  className={`rounded-2xl border-2 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 ${
+                    selectedInsight === "outcomes"
+                      ? "border-red-400 bg-red-50"
+                      : "border-red-200"
+                  }`}
+                  aria-expanded={selectedInsight === "outcomes"}
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-500">% Removed vs Approved</p>
-                    <TrendingUp className="h-5 w-5 text-slate-400" />
+                    <TrendingUp className="h-5 w-5 text-red-500" />
                   </div>
                   <div className="mt-3 text-2xl font-bold text-slate-900">
                     {moderationInsights.removedPct}% removed
@@ -1489,12 +1500,23 @@ export default function ModeratorDashboardPage() {
                   <p className="mt-1 text-sm text-slate-500">
                     {moderationInsights.approvedPct}% approved
                   </p>
-                </div>
+                </button>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedInsight(selectedInsight === "response" ? null : "response")
+                  }
+                  className={`rounded-2xl border-2 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2 ${
+                    selectedInsight === "response"
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-blue-200"
+                  }`}
+                  aria-expanded={selectedInsight === "response"}
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-500">Avg Response Time</p>
-                    <Timer className="h-5 w-5 text-slate-400" />
+                    <Timer className="h-5 w-5 text-blue-500" />
                   </div>
                   <div className="mt-3 text-2xl font-bold text-slate-900">
                     {formatMinutes(moderationInsights.avgResponseMinutes)}
@@ -1502,12 +1524,23 @@ export default function ModeratorDashboardPage() {
                   <p className="mt-1 text-sm text-slate-500">
                     Based on {moderationInsights.responseSamples} moderated posts
                   </p>
-                </div>
+                </button>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedInsight(selectedInsight === "escalation" ? null : "escalation")
+                  }
+                  className={`rounded-2xl border-2 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2 ${
+                    selectedInsight === "escalation"
+                      ? "border-yellow-400 bg-yellow-50"
+                      : "border-yellow-200"
+                  }`}
+                  aria-expanded={selectedInsight === "escalation"}
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-500">Escalation Rate</p>
-                    <AlertTriangle className="h-5 w-5 text-slate-400" />
+                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
                   </div>
                   <div className="mt-3 text-2xl font-bold text-slate-900">
                     {moderationInsights.escalatedPct}%
@@ -1515,12 +1548,23 @@ export default function ModeratorDashboardPage() {
                   <p className="mt-1 text-sm text-slate-500">
                     {moderationInsights.escalatedCount} escalations logged
                   </p>
-                </div>
+                </button>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedInsight(selectedInsight === "actions" ? null : "actions")
+                  }
+                  className={`rounded-2xl border-2 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2 ${
+                    selectedInsight === "actions"
+                      ? "border-indigo-400 bg-indigo-50"
+                      : "border-indigo-200"
+                  }`}
+                  aria-expanded={selectedInsight === "actions"}
+                >
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-500">Moderation Actions</p>
-                    <History className="h-5 w-5 text-slate-400" />
+                    <History className="h-5 w-5 text-indigo-500" />
                   </div>
                   <div className="mt-3 text-2xl font-bold text-slate-900">
                     {moderationInsights.totalModerationActions}
@@ -1528,8 +1572,168 @@ export default function ModeratorDashboardPage() {
                   <p className="mt-1 text-sm text-slate-500">
                     Approvals, removals, and escalations
                   </p>
-                </div>
+                </button>
               </div>
+
+              {selectedInsight ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase text-slate-500">
+                        Metric Details
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                        {selectedInsight === "outcomes"
+                          ? "Removal and approval breakdown"
+                          : selectedInsight === "response"
+                          ? "Response time distribution"
+                          : selectedInsight === "escalation"
+                          ? "Escalation breakdown"
+                          : "Moderation action totals"}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInsight(null)}
+                      className="self-start rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-200"
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {selectedInsight === "outcomes" ? (
+                      <>
+                        <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                          <p className="text-sm text-red-700">Removed</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.removedCount}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {moderationInsights.removedPct}% of logged actions
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                          <p className="text-sm text-emerald-700">Approved</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.approvedCount}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {moderationInsights.approvedPct}% of logged actions
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm text-slate-600">Total actions</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.totalModerationActions}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Approvals, removals, and escalations
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {selectedInsight === "response" ? (
+                      <>
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                          <p className="text-sm text-blue-700">Average</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {formatMinutes(moderationInsights.avgResponseMinutes)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Across {moderationInsights.responseSamples} first actions
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                          <p className="text-sm text-emerald-700">Fastest</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {formatMinutes(moderationInsights.fastestResponseMinutes)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Shortest post-to-action time
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
+                          <p className="text-sm text-orange-700">Slowest</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {formatMinutes(moderationInsights.slowestResponseMinutes)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Longest post-to-action time
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {selectedInsight === "escalation" ? (
+                      <>
+                        <div className="rounded-xl border border-yellow-100 bg-yellow-50 p-4">
+                          <p className="text-sm text-yellow-700">Escalated</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.escalatedCount}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {moderationInsights.escalatedPct}% of logged actions
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                          <p className="text-sm text-emerald-700">Approved</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.approvedCount}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Non-escalation resolution path
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                          <p className="text-sm text-red-700">Removed</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.removedCount}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Enforcement resolution path
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {selectedInsight === "actions" ? (
+                      <>
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                          <p className="text-sm text-indigo-700">Total actions</p>
+                          <p className="mt-1 text-2xl font-bold text-slate-900">
+                            {moderationInsights.totalModerationActions}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            All logged moderation decisions
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm text-slate-600">Top moderator</p>
+                          <p className="mt-1 text-lg font-bold text-slate-900">
+                            {moderationInsights.leaderboard[0]?.actorName || "No activity yet"}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {moderationInsights.leaderboard[0]?.totalActions || 0} actions
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm text-slate-600">Action mix</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {moderationInsights.approvedCount} approved,{" "}
+                            {moderationInsights.removedCount} removed,{" "}
+                            {moderationInsights.escalatedCount} escalated
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Based on audit log entries
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="rounded-2xl border border-slate-200 bg-white p-5">
