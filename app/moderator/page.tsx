@@ -95,6 +95,8 @@ type FilterType =
   | "removed"
   | "approved";
 
+type InsightKey = "outcomes" | "response" | "escalation" | "actions";
+
 type LeaderboardRow = {
   actorId: string;
   actorName: string;
@@ -151,6 +153,7 @@ export default function ModeratorDashboardPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(null);
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
+  const [selectedInsight, setSelectedInsight] = useState<InsightKey | null>(null);
   const postsSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -841,6 +844,7 @@ export default function ModeratorDashboardPage() {
 
     let totalResponseMinutes = 0;
     let responseSamples = 0;
+    const responseMinutes: number[] = [];
 
     firstModerationByIssue.forEach((log, issueId) => {
       const issue = issueMap.get(issueId);
@@ -853,12 +857,18 @@ export default function ModeratorDashboardPage() {
         return;
       }
 
-      totalResponseMinutes += Math.round((moderatedAt - createdAt) / 60000);
+      const responseMinute = Math.round((moderatedAt - createdAt) / 60000);
+      totalResponseMinutes += responseMinute;
+      responseMinutes.push(responseMinute);
       responseSamples += 1;
     });
 
     const avgResponseMinutes =
       responseSamples > 0 ? Math.round(totalResponseMinutes / responseSamples) : 0;
+    const fastestResponseMinutes =
+      responseMinutes.length > 0 ? Math.min(...responseMinutes) : 0;
+    const slowestResponseMinutes =
+      responseMinutes.length > 0 ? Math.max(...responseMinutes) : 0;
 
     return {
       approvedCount,
@@ -871,6 +881,8 @@ export default function ModeratorDashboardPage() {
       topFlaggedCategories,
       leaderboard,
       avgResponseMinutes,
+      fastestResponseMinutes,
+      slowestResponseMinutes,
       responseSamples,
     };
   }, [issues, auditLogs]);
