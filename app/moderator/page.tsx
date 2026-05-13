@@ -2028,33 +2028,52 @@ export default function ModeratorDashboardPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <section
+            ref={auditTrailRef}
+            className="scroll-mt-6 rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+          >
             <div className="border-b border-slate-200 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <History className="h-5 w-5 text-slate-700" />
-                <h2 className="text-xl font-semibold text-slate-900">
-                  Audit Trail
-                </h2>
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <History className="h-5 w-5 text-slate-700" />
+                    <h2 className="text-xl font-semibold text-slate-900">
+                      Audit Trail
+                    </h2>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Recent moderation actions for transparency and accountability.
+                  </p>
+                </div>
+
+                {auditActorFilter ? (
+                  <button
+                    type="button"
+                    onClick={() => setAuditActorFilter(null)}
+                    className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                  >
+                    Showing {auditActorFilter.actorName}. Clear
+                  </button>
+                ) : null}
               </div>
-              <p className="text-sm text-slate-500 mt-1">
-                Recent moderation actions for transparency and accountability.
-              </p>
             </div>
 
             <div className="p-6">
-              {auditLogs.length === 0 ? (
+              {filteredAuditLogs.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
                   <History className="mx-auto h-8 w-8 text-slate-400" />
                   <h3 className="mt-4 text-lg font-semibold text-slate-800">
-                    No audit activity yet
+                    {auditActorFilter ? "No matching audit activity" : "No audit activity yet"}
                   </h3>
                   <p className="mt-2 text-sm text-slate-500">
-                    Moderator actions will appear here automatically.
+                    {auditActorFilter
+                      ? "Clear the moderator filter to see all audit activity."
+                      : "Moderator actions will appear here automatically."}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {auditLogs.map((log) => (
+                  {filteredAuditLogs.map((log) => (
                     <div
                       key={log.id}
                       className="rounded-2xl border border-slate-200 bg-white p-4"
