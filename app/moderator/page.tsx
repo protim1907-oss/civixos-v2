@@ -1247,31 +1247,31 @@ export default function ModeratorDashboardPage() {
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
-                <PenLine className="h-5 w-5 text-blue-700" />
+                <ListChecks className="h-5 w-5 text-blue-700" />
                 <h2 className="text-xl font-semibold text-slate-900">
-                  Post Coaching Playbook
+                  Moderator Review Checklist
                 </h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Help new users turn vague concerns into useful civic posts.
+                Use these checks to make consistent approve, remove, or escalate decisions.
               </p>
 
               <div className="mt-5 space-y-3">
                 {[
                   {
-                    title: "Make the title specific",
-                    detail: "Name the place, issue, and impact in one sentence.",
-                    example: "Bus stop flooding near Main St affects morning commuters",
+                    title: "Actionable civic issue",
+                    detail: "Confirm the post describes a local service, safety, infrastructure, or community concern.",
+                    example: "Approve when the issue is clear and relevant to officials.",
                   },
                   {
-                    title: "Ask for evidence",
-                    detail: "Prompt for dates, frequency, photos, or affected blocks.",
-                    example: "Happens after heavy rain, 3 times this month",
+                    title: "Enough context",
+                    detail: "Look for location, timing, affected residents, photos, or repeat patterns.",
+                    example: "Escalate if the issue is valid but needs more review.",
                   },
                   {
-                    title: "End with a clear ask",
-                    detail: "Guide users toward one actionable request for officials.",
-                    example: "Request drainage inspection before the next storm",
+                    title: "Policy or safety risk",
+                    detail: "Check for threats, harassment, private information, spam, or unsupported allegations.",
+                    example: "Remove clear violations and escalate uncertain cases.",
                   },
                 ].map((tip) => (
                   <div key={tip.title} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
