@@ -15,6 +15,7 @@ import {
   BarChart3,
   ShieldCheck,
   CalendarClock,
+  HandCoins,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
@@ -187,6 +188,11 @@ export default function Sidebar() {
       href: "/district-analytics",
       label: "District Analytics",
       icon: BarChart3,
+    },
+    {
+      href: "/donation-tracker",
+      label: "Donation Tracker",
+      icon: HandCoins,
     },
     {
       href: "/dashboard#activity",
