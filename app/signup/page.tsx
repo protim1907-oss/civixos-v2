@@ -18,6 +18,10 @@ const addressProofOptions = [
   { value: "school_or_municipal_document", label: "School or municipal document" },
 ];
 
+const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
+const MAX_ADDRESS_PROOF_FILE_SIZE = 10 * 1024 * 1024;
+const acceptedAddressProofTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+
 function normalizeDistrictValue(value: string | null | undefined) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -54,6 +58,19 @@ function isValidResolvedDistrict(value: string | null | undefined) {
   return Boolean(normalizeDistrictValue(value));
 }
 
+function formatFileSize(size: number) {
+  if (size >= 1024 * 1024) {
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  return `${(size / 1024).toFixed(1)} KB`;
+}
+
+function getSafeStorageFileName(fileName: string) {
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
+  return safeName || "address-proof";
+}
+
 export default function SignupPage() {
   const supabase = createClient();
 
@@ -70,6 +87,7 @@ export default function SignupPage() {
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [matchedAddress, setMatchedAddress] = useState("");
   const [addressProof, setAddressProof] = useState("");
+  const [addressProofFile, setAddressProofFile] = useState<File | null>(null);
   const [isVoterCertified, setIsVoterCertified] = useState(false);
 
   const [error, setError] = useState("");
@@ -103,6 +121,52 @@ export default function SignupPage() {
     updater();
     clearMessages();
     resetDistrictState();
+  }
+
+  function handleAddressProofFileChange(file: File | null) {
+    clearMessages();
+
+    if (!file) {
+      setAddressProofFile(null);
+      return;
+    }
+
+    if (!acceptedAddressProofTypes.includes(file.type)) {
+      setAddressProofFile(null);
+      setError("Please upload a PDF, JPG, PNG, or WebP address proof file.");
+      return;
+    }
+
+    if (file.size > MAX_ADDRESS_PROOF_FILE_SIZE) {
+      setAddressProofFile(null);
+      setError("Please upload an address proof file smaller than 10 MB.");
+      return;
+    }
+
+    setAddressProofFile(file);
+  }
+
+  async function uploadAddressProofFile(userId: string, file: File) {
+    const safeName = getSafeStorageFileName(file.name);
+    const path = `${userId}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(ADDRESS_PROOF_BUCKET)
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    return {
+      name: file.name,
+      size: file.size,
+      type: file.type || "Unknown file type",
+      path,
+    };
   }
 
   async function handleResolveDistrict() {
@@ -271,6 +335,9 @@ export default function SignupPage() {
             district: normalizedDistrict,
             matched_address: matchedAddress || null,
             address_proof_type: addressProof,
+            address_proof_file_name: addressProofFile?.name || null,
+            address_proof_file_size: addressProofFile?.size || null,
+            address_proof_file_mime_type: addressProofFile?.type || null,
             role: "citizen",
           },
         },
@@ -296,6 +363,40 @@ export default function SignupPage() {
       }
 
       const signedUpUser = data?.user;
+      let uploadedAddressProof:
+        | Awaited<ReturnType<typeof uploadAddressProofFile>>
+        | null = null;
+
+      if (signedUpUser?.id && addressProofFile && data.session) {
+        uploadedAddressProof = await uploadAddressProofFile(signedUpUser.id, addressProofFile);
+
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: {
+            full_name: normalizedFullName,
+            state: normalizedState,
+            street_address: normalizedStreetAddress,
+            city: normalizedCity,
+            zip_code: normalizedZip,
+            district: normalizedDistrict,
+            matched_address: matchedAddress || null,
+            address_proof_type: addressProof,
+            address_proof_file_name: uploadedAddressProof.name,
+            address_proof_file_size: uploadedAddressProof.size,
+            address_proof_file_mime_type: uploadedAddressProof.type,
+            address_proof_file_path: uploadedAddressProof.path,
+            role: "citizen",
+          },
+        });
+
+        if (metadataError) {
+          console.error("Address proof metadata update error:", metadataError);
+          setError(
+            `Account created, but address proof metadata failed to save: ${metadataError.message}`
+          );
+          setLoading(false);
+          return;
+        }
+      }
 
       if (signedUpUser?.id) {
         const profilePayload = {
@@ -326,7 +427,9 @@ export default function SignupPage() {
 
       if (!data.session) {
         setInfo(
-          `Account created. Your district was confirmed as ${normalizedDistrict}. Please check your email or login.`
+          addressProofFile
+            ? `Account created. Your district was confirmed as ${normalizedDistrict}. Please check your email or login, then upload your address proof.`
+            : `Account created. Your district was confirmed as ${normalizedDistrict}. Please check your email or login.`
         );
         setLoading(false);
 
@@ -532,6 +635,24 @@ export default function SignupPage() {
             </option>
           ))}
         </select>
+
+        <label className="mt-4 block text-sm font-medium">Upload address proof</label>
+        <input
+          type="file"
+          accept=".pdf,image/jpeg,image/png,image/webp"
+          onChange={(e) => {
+            handleAddressProofFileChange(e.target.files?.[0] ?? null);
+          }}
+          className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+        />
+        <p className="mt-2 text-xs text-gray-500">
+          Optional. Upload a PDF, JPG, PNG, or WebP file up to 10 MB.
+        </p>
+        {addressProofFile ? (
+          <p className="mt-2 text-xs font-medium text-slate-700">
+            Selected: {addressProofFile.name} ({formatFileSize(addressProofFile.size)})
+          </p>
+        ) : null}
       </div>
 
       <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
