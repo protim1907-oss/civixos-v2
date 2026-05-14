@@ -88,6 +88,7 @@ export default function SignupPage() {
   const [matchedAddress, setMatchedAddress] = useState("");
   const [addressProof, setAddressProof] = useState("");
   const [addressProofFile, setAddressProofFile] = useState<File | null>(null);
+  const [isAddressProofCertified, setIsAddressProofCertified] = useState(false);
   const [isVoterCertified, setIsVoterCertified] = useState(false);
 
   const [error, setError] = useState("");
@@ -314,6 +315,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (!isAddressProofCertified) {
+      setError("Please certify that the address proof provided by you is current and recent.");
+      return;
+    }
+
     if (!isVoterCertified) {
       setError("Please certify that you are at least 18 years of age and legally eligible to vote in your jurisdiction.");
       return;
@@ -338,6 +344,7 @@ export default function SignupPage() {
             address_proof_file_name: addressProofFile?.name || null,
             address_proof_file_size: addressProofFile?.size || null,
             address_proof_file_mime_type: addressProofFile?.type || null,
+            address_proof_current_certified: isAddressProofCertified,
             role: "citizen",
           },
         },
@@ -384,6 +391,7 @@ export default function SignupPage() {
             address_proof_file_size: uploadedAddressProof.size,
             address_proof_file_mime_type: uploadedAddressProof.type,
             address_proof_file_path: uploadedAddressProof.path,
+            address_proof_current_certified: isAddressProofCertified,
             role: "citizen",
           },
         });
@@ -654,6 +662,21 @@ export default function SignupPage() {
           </p>
         ) : null}
       </div>
+
+      <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={isAddressProofCertified}
+          onChange={(e) => {
+            setIsAddressProofCertified(e.target.checked);
+            clearMessages();
+          }}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+        />
+        <span>
+          I certify that the address proof provided by me is current and recent.
+        </span>
+      </label>
 
       <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
         <input
