@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Filter,
   HandCoins,
+  HeartHandshake,
   Landmark,
   Search,
   ShieldCheck,
@@ -778,6 +779,13 @@ export default function DonationTrackerPage() {
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                 Follow money by official, donor sector, contributor concentration, and influence risk.
               </p>
+              <Link
+                href="/donate"
+                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                <HeartHandshake className="h-4 w-4" />
+                Support Civix250
+              </Link>
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3 text-center">
