@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
@@ -707,12 +707,12 @@ export default function DonationTrackerPage() {
 
   const selectedOfficial = officials.find((official) => official.id === selectedOfficialId) || officials[0];
 
-  function resolveFundingProfile(official: Official) {
+  const resolveFundingProfile = useCallback((official: Official) => {
     return (
       liveFundingProfiles[`${selectedCycle}:${slugify(official.name)}`] ||
       getFundingProfile(official, selectedCycle)
     );
-  }
+  }, [liveFundingProfiles, selectedCycle]);
 
   const selectedProfile = selectedOfficial ? resolveFundingProfile(selectedOfficial) : null;
 
@@ -724,7 +724,7 @@ export default function DonationTrackerPage() {
       });
     });
     return Array.from(sectors).sort();
-  }, [officials, selectedCycle, liveFundingProfiles]);
+  }, [officials, resolveFundingProfile]);
 
   const filteredOfficials = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -742,7 +742,7 @@ export default function DonationTrackerPage() {
 
       return matchesQuery && matchesSector;
     });
-  }, [officials, query, sectorFilter, selectedCycle, liveFundingProfiles]);
+  }, [officials, query, resolveFundingProfile, sectorFilter]);
 
   const maxSourceAmount = selectedProfile
     ? Math.max(...selectedProfile.sources.map((source) => source.amount), 1)
