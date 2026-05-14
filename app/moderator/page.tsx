@@ -2021,32 +2021,39 @@ export default function ModeratorDashboardPage() {
                         No category insights available yet.
                       </div>
                     ) : (
-                      moderationInsights.topFlaggedCategories.map((item) => (
-                        <button
-                          type="button"
-                          key={item.category}
-                          onClick={() => handleCategoryInsightClick(item.category)}
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-yellow-200 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
-                          aria-label={`Show moderation posts in ${item.category}`}
-                        >
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                {item.category}
-                              </p>
-                              <p className="mt-1 text-sm text-slate-500">
-                                {item.total} moderation actions
-                              </p>
-                            </div>
+                      moderationInsights.topFlaggedCategories.map((item, index) => {
+                        const railClass =
+                          ["before:bg-orange-500", "before:bg-blue-500", "before:bg-red-500", "before:bg-emerald-500"][
+                            index % 4
+                          ];
 
-                            <div className="text-right text-sm text-slate-600">
-                              <div>Removed: {item.removed}</div>
-                              <div>Approved: {item.approved}</div>
-                              <div>Escalated: {item.escalated}</div>
+                        return (
+                          <button
+                            type="button"
+                            key={item.category}
+                            onClick={() => handleCategoryInsightClick(item.category)}
+                            className={`relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 pl-6 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 ${railClass} hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2`}
+                            aria-label={`Show moderation posts in ${item.category}`}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  {item.category}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {item.total} moderation actions
+                                </p>
+                              </div>
+
+                              <div className="text-right text-sm text-slate-600">
+                                <div>Removed: {item.removed}</div>
+                                <div>Approved: {item.approved}</div>
+                                <div>Escalated: {item.escalated}</div>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ))
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -2065,32 +2072,39 @@ export default function ModeratorDashboardPage() {
                         No moderator activity logged yet.
                       </div>
                     ) : (
-                      moderationInsights.leaderboard.map((item, index) => (
-                        <button
-                          type="button"
-                          key={`${item.actorId}-${index}`}
-                          onClick={() => handleLeaderboardClick(item)}
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2"
-                          aria-label={`Show audit trail entries for ${item.actorName}`}
-                        >
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                #{index + 1} {item.actorName}
-                              </p>
-                              <p className="mt-1 text-sm text-slate-500">
-                                {item.totalActions} total actions
-                              </p>
-                            </div>
+                      moderationInsights.leaderboard.map((item, index) => {
+                        const railClass =
+                          ["before:bg-orange-500", "before:bg-blue-500", "before:bg-red-500", "before:bg-emerald-500"][
+                            index % 4
+                          ];
 
-                            <div className="text-right text-sm text-slate-600">
-                              <div>Approved: {item.approved}</div>
-                              <div>Removed: {item.removed}</div>
-                              <div>Escalated: {item.escalated}</div>
+                        return (
+                          <button
+                            type="button"
+                            key={`${item.actorId}-${index}`}
+                            onClick={() => handleLeaderboardClick(item)}
+                            className={`relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 pl-6 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 ${railClass} hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2`}
+                            aria-label={`Show audit trail entries for ${item.actorName}`}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  #{index + 1} {item.actorName}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {item.totalActions} total actions
+                                </p>
+                              </div>
+
+                              <div className="text-right text-sm text-slate-600">
+                                <div>Approved: {item.approved}</div>
+                                <div>Removed: {item.removed}</div>
+                                <div>Escalated: {item.escalated}</div>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ))
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 </div>
