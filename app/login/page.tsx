@@ -402,7 +402,7 @@ export default function LoginPage() {
                 </div>
 
                 <h2 className="max-w-xl text-3xl font-bold leading-tight text-slate-900 md:text-4xl">
-                  Join the conversation in your district.
+                  Power the Future of Civic Engagement
                 </h2>
               </div>
 
