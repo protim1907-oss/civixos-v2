@@ -1675,54 +1675,61 @@ export default function ModeratorDashboardPage() {
                   District activity will appear as posts and meeting requests come in.
                 </div>
               ) : (
-                districtOverview.map((district) => (
-                  <button
-                    type="button"
-                    key={district.district}
-                    onClick={() => handleDistrictCardClick(district.district)}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-                    aria-label={`Show moderation posts for ${district.district}`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-slate-500">District</p>
-                        <h3 className="mt-1 text-2xl font-bold text-slate-900">
-                          {district.district}
-                        </h3>
-                      </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          district.riskScore >= 50
-                            ? "bg-red-100 text-red-700"
-                            : district.riskScore >= 25
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-emerald-100 text-emerald-700"
-                        }`}
-                      >
-                        Risk {district.riskScore}%
-                      </span>
-                    </div>
+                districtOverview.map((district, index) => {
+                  const railClass =
+                    ["before:bg-orange-500", "before:bg-blue-500", "before:bg-red-500", "before:bg-emerald-500"][
+                      index % 4
+                    ];
 
-                    <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-slate-500">Posts</p>
-                        <p className="mt-1 text-lg font-bold text-slate-900">{district.total}</p>
+                  return (
+                    <button
+                      type="button"
+                      key={district.district}
+                      onClick={() => handleDistrictCardClick(district.district)}
+                      className={`relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 ${railClass} hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2`}
+                      aria-label={`Show moderation posts for ${district.district}`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-slate-500">District</p>
+                          <h3 className="mt-1 text-2xl font-bold text-slate-900">
+                            {district.district}
+                          </h3>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            district.riskScore >= 50
+                              ? "bg-red-100 text-red-700"
+                              : district.riskScore >= 25
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          Risk {district.riskScore}%
+                        </span>
                       </div>
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-slate-500">Review</p>
-                        <p className="mt-1 text-lg font-bold text-yellow-700">{district.underReview}</p>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                          <p className="text-slate-500">Posts</p>
+                          <p className="mt-1 text-lg font-bold text-slate-900">{district.total}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                          <p className="text-slate-500">Review</p>
+                          <p className="mt-1 text-lg font-bold text-yellow-700">{district.underReview}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                          <p className="text-slate-500">Meetings</p>
+                          <p className="mt-1 text-lg font-bold text-indigo-700">{district.pendingMeetings}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                          <p className="text-slate-500">Top Theme</p>
+                          <p className="mt-1 truncate font-semibold text-slate-900">{district.topCategory}</p>
+                        </div>
                       </div>
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-slate-500">Meetings</p>
-                        <p className="mt-1 text-lg font-bold text-indigo-700">{district.pendingMeetings}</p>
-                      </div>
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-slate-500">Top Theme</p>
-                        <p className="mt-1 truncate font-semibold text-slate-900">{district.topCategory}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))
+                    </button>
+                  );
+                })
               )}
             </div>
           </section>
