@@ -1070,7 +1070,7 @@ export default function ModeratorDashboardPage() {
 
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
-          <div className="rounded-3xl bg-white border border-slate-200 shadow-sm p-6">
+          <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 shadow-sm p-6 pl-8 before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-500">
@@ -1114,7 +1114,7 @@ export default function ModeratorDashboardPage() {
             <button
               type="button"
               onClick={() => handleStatsCardClick("all")}
-              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-slate-500 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
               aria-label="Show all moderation posts"
             >
               <div className="flex items-center justify-between">
@@ -1133,7 +1133,7 @@ export default function ModeratorDashboardPage() {
             <button
               type="button"
               onClick={() => handleStatsCardClick("active")}
-              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
               aria-label="Show active moderation posts"
             >
               <div className="flex items-center justify-between">
@@ -1152,7 +1152,7 @@ export default function ModeratorDashboardPage() {
             <button
               type="button"
               onClick={() => handleStatsCardClick("under_review")}
-              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-yellow-500 hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
               aria-label="Show under review moderation posts"
             >
               <div className="flex items-center justify-between">
@@ -1171,7 +1171,7 @@ export default function ModeratorDashboardPage() {
             <button
               type="button"
               onClick={() => handleStatsCardClick("approved")}
-              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700 focus-visible:ring-offset-2"
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-green-500 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700 focus-visible:ring-offset-2"
               aria-label="Show approved moderation posts"
             >
               <div className="flex items-center justify-between">
@@ -1190,7 +1190,7 @@ export default function ModeratorDashboardPage() {
             <button
               type="button"
               onClick={() => handleStatsCardClick("removed")}
-              className="rounded-2xl bg-white border border-slate-200 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-red-500 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
               aria-label="Show removed moderation posts"
             >
               <div className="flex items-center justify-between">
