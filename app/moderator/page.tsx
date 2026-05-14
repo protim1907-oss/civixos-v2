@@ -95,6 +95,12 @@ type FilterType =
   | "approved";
 
 type InsightKey = "outcomes" | "response" | "escalation" | "actions";
+type MeetingStatusFilter =
+  | "all"
+  | "pending"
+  | "approved"
+  | "completed"
+  | "rejected";
 
 type LeaderboardRow = {
   actorId: string;
@@ -153,6 +159,8 @@ export default function ModeratorDashboardPage() {
   const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(null);
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
   const [selectedInsight, setSelectedInsight] = useState<InsightKey | null>(null);
+  const [meetingStatusFilter, setMeetingStatusFilter] = useState<MeetingStatusFilter>("all");
+  const [meetingDistrictFilter, setMeetingDistrictFilter] = useState<string | null>(null);
   const [auditActorFilter, setAuditActorFilter] = useState<{
     actorId: string;
     actorName: string;
@@ -705,6 +713,68 @@ export default function ModeratorDashboardPage() {
   const pendingMeetingRequests = meetingRequests.filter(
     (request) => request.status === "pending"
   );
+
+  const meetingCoordination = useMemo(() => {
+    const stats = {
+      all: meetingRequests.length,
+      pending: 0,
+      approved: 0,
+      completed: 0,
+      rejected: 0,
+    };
+    const districtMap = new Map<
+      string,
+      {
+        district: string;
+        total: number;
+        pending: number;
+        approved: number;
+        completed: number;
+        rejected: number;
+        representatives: Set<string>;
+      }
+    >();
+
+    meetingRequests.forEach((request) => {
+      stats[request.status] += 1;
+
+      const district = request.district?.trim() || "Unassigned";
+      if (!districtMap.has(district)) {
+        districtMap.set(district, {
+          district,
+          total: 0,
+          pending: 0,
+          approved: 0,
+          completed: 0,
+          rejected: 0,
+          representatives: new Set<string>(),
+        });
+      }
+
+      const entry = districtMap.get(district)!;
+      entry.total += 1;
+      entry[request.status] += 1;
+      entry.representatives.add(request.representative_name?.trim() || "Representative");
+    });
+
+    const districtQueues = [...districtMap.values()]
+      .map((entry) => ({
+        ...entry,
+        representativeCount: entry.representatives.size,
+      }))
+      .sort((a, b) => b.pending - a.pending || b.total - a.total || a.district.localeCompare(b.district));
+
+    const filteredRequests = meetingRequests.filter((request) => {
+      const statusMatches =
+        meetingStatusFilter === "all" || request.status === meetingStatusFilter;
+      const district = request.district?.trim() || "Unassigned";
+      const districtMatches = !meetingDistrictFilter || district === meetingDistrictFilter;
+
+      return statusMatches && districtMatches;
+    });
+
+    return { stats, districtQueues, filteredRequests };
+  }, [meetingRequests, meetingStatusFilter, meetingDistrictFilter]);
 
   const districtOverview = useMemo<DistrictOverview[]>(() => {
     const map = new Map<string, DistrictOverview & { categories: Record<string, number> }>();
