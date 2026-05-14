@@ -22,6 +22,7 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  HeartHandshake,
 } from "lucide-react";
 import {
   loadPublishedPolicyPulseSurveys,
@@ -1101,6 +1102,35 @@ export default function DashboardPage() {
                     className="rounded-2xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 active:scale-[0.98]"
                   >
                     Trending Posts
+                  </Link>
+                </div>
+              </section>
+
+              <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-6 pl-8 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-emerald-500">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                      <HeartHandshake className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-700">
+                        Support Civix250
+                      </p>
+                      <h2 className="mt-1 text-xl font-bold text-slate-900">
+                        Help keep civic tools free and independent.
+                      </h2>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        Platform donations support transparency tools, district data, and resident engagement workflows.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/donate"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98]"
+                  >
+                    Donate
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </section>
