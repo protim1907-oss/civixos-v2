@@ -96,6 +96,10 @@ type FundingCycle = "2025-2026" | "2024-2025";
 
 const fundingCycles: FundingCycle[] = ["2025-2026", "2024-2025"];
 
+function toFecCycle(cycle: FundingCycle) {
+  return cycle === "2024-2025" ? "2024" : "2026";
+}
+
 const fallbackOfficials: Official[] = [
   {
     id: "greg-casar",
@@ -106,6 +110,36 @@ const fallbackOfficials: Official[] = [
     district: "TX-35",
     state: "TX",
     website: "https://casar.house.gov",
+  },
+  {
+    id: "lloyd-doggett",
+    name: "Lloyd Doggett",
+    title: "U.S. Representative",
+    officeLabel: "Texas 37th District",
+    party: "Democratic Party",
+    district: "TX-37",
+    state: "TX",
+    website: "https://doggett.house.gov",
+  },
+  {
+    id: "veronica-escobar",
+    name: "Veronica Escobar",
+    title: "U.S. Representative",
+    officeLabel: "Texas 16th District",
+    party: "Democratic Party",
+    district: "TX-16",
+    state: "TX",
+    website: "https://escobar.house.gov",
+  },
+  {
+    id: "joaquin-castro",
+    name: "Joaquin Castro",
+    title: "U.S. Representative",
+    officeLabel: "Texas 20th District",
+    party: "Democratic Party",
+    district: "TX-20",
+    state: "TX",
+    website: "https://castro.house.gov",
   },
   {
     id: "ted-cruz",
@@ -138,6 +172,16 @@ const fallbackOfficials: Official[] = [
     website: "https://pappas.house.gov",
   },
   {
+    id: "maggie-goodlander",
+    name: "Maggie Goodlander",
+    title: "U.S. Representative",
+    officeLabel: "New Hampshire 2nd District",
+    party: "Democratic Party",
+    district: "NH-02",
+    state: "NH",
+    website: "https://goodlander.house.gov",
+  },
+  {
     id: "jeanne-shaheen",
     name: "Jeanne Shaheen",
     title: "U.S. Senator",
@@ -146,6 +190,56 @@ const fallbackOfficials: Official[] = [
     district: "NH",
     state: "NH",
     website: "https://www.shaheen.senate.gov",
+  },
+  {
+    id: "maggie-hassan",
+    name: "Maggie Hassan",
+    title: "U.S. Senator",
+    officeLabel: "New Hampshire",
+    party: "Democratic Party",
+    district: "NH",
+    state: "NH",
+    website: "https://www.hassan.senate.gov",
+  },
+  {
+    id: "robert-garcia",
+    name: "Robert Garcia",
+    title: "U.S. Representative",
+    officeLabel: "California 42nd District",
+    party: "Democratic Party",
+    district: "CA-42",
+    state: "CA",
+    website: "https://robertgarcia.house.gov",
+  },
+  {
+    id: "nanette-barragan",
+    name: "Nanette Barragan",
+    title: "U.S. Representative",
+    officeLabel: "California 44th District",
+    party: "Democratic Party",
+    district: "CA-44",
+    state: "CA",
+    website: "https://barragan.house.gov",
+  },
+  {
+    id: "alex-padilla",
+    name: "Alex Padilla",
+    title: "U.S. Senator",
+    officeLabel: "California",
+    party: "Democratic Party",
+    district: "CA",
+    state: "CA",
+    website: "https://www.padilla.senate.gov",
+  },
+  {
+    id: "adam-schiff",
+    name: "Adam Schiff",
+    title: "U.S. Senator",
+    officeLabel: "California",
+    party: "Democratic Party",
+    district: "CA",
+    state: "CA",
+    website: "https://www.schiff.senate.gov",
   },
 ];
 
