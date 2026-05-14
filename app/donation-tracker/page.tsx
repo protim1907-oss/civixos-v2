@@ -575,6 +575,7 @@ export default function DonationTrackerPage() {
   const [officials, setOfficials] = useState<Official[]>([]);
   const [selectedOfficialId, setSelectedOfficialId] = useState("");
   const [selectedCycle, setSelectedCycle] = useState<FundingCycle>("2025-2026");
+  const [liveFundingProfiles, setLiveFundingProfiles] = useState<Record<string, FundingProfile>>({});
   const [query, setQuery] = useState("");
   const [sectorFilter, setSectorFilter] = useState("all");
 
@@ -626,7 +627,7 @@ export default function DonationTrackerPage() {
 
       const deduped = Array.from(
         new Map(
-          (nextOfficials.length > 0 ? nextOfficials : fallbackOfficials).map((official) => [
+          [...nextOfficials, ...fallbackOfficials].map((official) => [
             slugify(official.name),
             official,
           ])
@@ -648,24 +649,88 @@ export default function DonationTrackerPage() {
     };
   }, [router, supabase]);
 
+  useEffect(() => {
+    if (officials.length === 0) return;
+
+    let cancelled = false;
+
+    async function loadLiveFundingProfiles() {
+      const federalOfficials = officials.filter((official) =>
+        /representative|senator/i.test(official.title)
+      );
+
+      const results = await Promise.allSettled(
+        federalOfficials.map(async (official) => {
+          const params = new URLSearchParams({
+            name: official.name,
+            title: official.title,
+            state: official.state || "",
+            cycle: toFecCycle(selectedCycle),
+          });
+
+          const response = await fetch(`/api/campaign-finance?${params.toString()}`);
+          if (!response.ok) return null;
+
+          const payload = await response.json();
+          if (!payload?.profile) return null;
+
+          return {
+            key: `${selectedCycle}:${slugify(official.name)}`,
+            profile: {
+              ...(payload.profile as FundingProfile),
+              cycle: selectedCycle,
+            },
+          };
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextProfiles: Record<string, FundingProfile> = {};
+      results.forEach((result) => {
+        if (result.status === "fulfilled" && result.value) {
+          nextProfiles[result.value.key] = result.value.profile;
+        }
+      });
+
+      if (Object.keys(nextProfiles).length > 0) {
+        setLiveFundingProfiles((current) => ({ ...current, ...nextProfiles }));
+      }
+    }
+
+    void loadLiveFundingProfiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [officials, selectedCycle]);
+
   const selectedOfficial = officials.find((official) => official.id === selectedOfficialId) || officials[0];
-  const selectedProfile = selectedOfficial ? getFundingProfile(selectedOfficial, selectedCycle) : null;
+
+  function resolveFundingProfile(official: Official) {
+    return (
+      liveFundingProfiles[`${selectedCycle}:${slugify(official.name)}`] ||
+      getFundingProfile(official, selectedCycle)
+    );
+  }
+
+  const selectedProfile = selectedOfficial ? resolveFundingProfile(selectedOfficial) : null;
 
   const allSectors = useMemo(() => {
     const sectors = new Set<string>();
     officials.forEach((official) => {
-      getFundingProfile(official, selectedCycle).contributors.forEach((contributor) => {
+      resolveFundingProfile(official).contributors.forEach((contributor) => {
         sectors.add(contributor.sector);
       });
     });
     return Array.from(sectors).sort();
-  }, [officials, selectedCycle]);
+  }, [officials, selectedCycle, liveFundingProfiles]);
 
   const filteredOfficials = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     return officials.filter((official) => {
-      const profile = getFundingProfile(official, selectedCycle);
+      const profile = resolveFundingProfile(official);
       const matchesQuery =
         !normalizedQuery ||
         `${official.name} ${official.title} ${official.officeLabel} ${official.party || ""}`
@@ -677,7 +742,7 @@ export default function DonationTrackerPage() {
 
       return matchesQuery && matchesSector;
     });
-  }, [officials, query, sectorFilter, selectedCycle]);
+  }, [officials, query, sectorFilter, selectedCycle, liveFundingProfiles]);
 
   const maxSourceAmount = selectedProfile
     ? Math.max(...selectedProfile.sources.map((source) => source.amount), 1)
@@ -794,7 +859,7 @@ export default function DonationTrackerPage() {
 
               <div className="max-h-[680px] overflow-y-auto p-3">
                 {filteredOfficials.map((official) => {
-                  const profile = getFundingProfile(official, selectedCycle);
+                  const profile = resolveFundingProfile(official);
                   const active = selectedOfficial?.id === official.id;
 
                   return (
