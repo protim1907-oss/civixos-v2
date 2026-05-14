@@ -1412,7 +1412,7 @@ export default function ModeratorDashboardPage() {
                       </h2>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
-                      Approve requests, generate meeting links, or close completed meetings.
+                      Intake citizen requests, group them by district, and coordinate links with representatives.
                     </p>
                   </div>
                   <span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">
@@ -1421,23 +1421,158 @@ export default function ModeratorDashboardPage() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="space-y-5 p-6">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                  {[
+                    { key: "all", label: "All", value: meetingCoordination.stats.all, tone: "slate" },
+                    { key: "pending", label: "Pending", value: meetingCoordination.stats.pending, tone: "yellow" },
+                    { key: "approved", label: "Scheduled", value: meetingCoordination.stats.approved, tone: "indigo" },
+                    { key: "completed", label: "Completed", value: meetingCoordination.stats.completed, tone: "emerald" },
+                    { key: "rejected", label: "Declined", value: meetingCoordination.stats.rejected, tone: "red" },
+                  ].map((item) => {
+                    const selected = meetingStatusFilter === item.key;
+                    const toneClasses =
+                      item.tone === "yellow"
+                        ? selected
+                          ? "border-yellow-400 bg-yellow-50 text-yellow-800"
+                          : "border-yellow-200 bg-white text-slate-700"
+                        : item.tone === "indigo"
+                        ? selected
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-800"
+                          : "border-indigo-200 bg-white text-slate-700"
+                        : item.tone === "emerald"
+                        ? selected
+                          ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                          : "border-emerald-200 bg-white text-slate-700"
+                        : item.tone === "red"
+                        ? selected
+                          ? "border-red-400 bg-red-50 text-red-800"
+                          : "border-red-200 bg-white text-slate-700"
+                        : selected
+                        ? "border-slate-400 bg-slate-100 text-slate-900"
+                        : "border-slate-200 bg-white text-slate-700";
+
+                    return (
+                      <button
+                        type="button"
+                        key={item.key}
+                        onClick={() => setMeetingStatusFilter(item.key as MeetingStatusFilter)}
+                        className={`rounded-2xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2 ${toneClasses}`}
+                      >
+                        <p className="text-xs font-semibold uppercase">{item.label}</p>
+                        <p className="mt-1 text-2xl font-bold">{item.value}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                    <p className="text-sm font-semibold text-indigo-900">1. Intake</p>
+                    <p className="mt-1 text-sm leading-6 text-indigo-800">
+                      Multiple citizens submit topics, preferred times, district, and representative.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                    <p className="text-sm font-semibold text-blue-900">2. Batch by district</p>
+                    <p className="mt-1 text-sm leading-6 text-blue-800">
+                      The moderator groups similar requests so one representative can handle a useful agenda.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                    <p className="text-sm font-semibold text-emerald-900">3. Coordinate</p>
+                    <p className="mt-1 text-sm leading-6 text-emerald-800">
+                      Approve to generate a meeting link, reject duplicates, then mark completed after the call.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-900">District request queues</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Click a district to review only requests for that queue.
+                      </p>
+                    </div>
+                    {meetingDistrictFilter ? (
+                      <button
+                        type="button"
+                        onClick={() => setMeetingDistrictFilter(null)}
+                        className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+                      >
+                        Clear district
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+                    {meetingCoordination.districtQueues.length === 0 ? (
+                      <div className="min-w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm text-slate-500">
+                        District queues will appear as residents submit meeting requests.
+                      </div>
+                    ) : (
+                      meetingCoordination.districtQueues.map((queue) => {
+                        const selected = meetingDistrictFilter === queue.district;
+                        return (
+                          <button
+                            type="button"
+                            key={queue.district}
+                            onClick={() =>
+                              setMeetingDistrictFilter(selected ? null : queue.district)
+                            }
+                            className={`min-w-48 rounded-2xl border-2 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2 ${
+                              selected
+                                ? "border-indigo-400 bg-white"
+                                : "border-slate-200 bg-white"
+                            }`}
+                          >
+                            <p className="text-sm font-semibold text-slate-900">
+                              {queue.district}
+                            </p>
+                            <p className="mt-2 text-2xl font-bold text-indigo-700">
+                              {queue.pending}
+                            </p>
+                            <p className="text-xs font-medium text-slate-500">
+                              pending of {queue.total} requests
+                            </p>
+                            <p className="mt-2 text-xs text-slate-500">
+                              {queue.representativeCount} representative
+                              {queue.representativeCount === 1 ? "" : "s"}
+                            </p>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
                 {meetingRequests.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
                     <Video className="mx-auto h-8 w-8 text-slate-400" />
                     <h3 className="mt-4 text-lg font-semibold text-slate-800">
                       No meeting requests yet
                     </h3>
+                    <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                      When residents request time with a district representative, this panel becomes the moderator coordination desk: intake, queue, approve links, and close outcomes.
+                    </p>
+                  </div>
+                ) : meetingCoordination.filteredRequests.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+                    <Video className="mx-auto h-8 w-8 text-slate-400" />
+                    <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                      No matching requests
+                    </h3>
                     <p className="mt-2 text-sm text-slate-500">
-                      Requests from citizens and representatives will appear here.
+                      Try a different status or district queue.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {meetingRequests.slice(0, 4).map((request) => (
+                    {meetingCoordination.filteredRequests.slice(0, 6).map((request) => (
                       <div
                         key={request.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-4"
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0">
@@ -1446,7 +1581,10 @@ export default function ModeratorDashboardPage() {
                                 {request.status}
                               </span>
                               <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                                {request.district || "No district"}
+                              {request.district || "No district"}
+                              </span>
+                              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                {request.representative_name || "Representative"}
                               </span>
                             </div>
                             <h3 className="mt-3 font-semibold text-slate-900">
@@ -1459,6 +1597,11 @@ export default function ModeratorDashboardPage() {
                             <p className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
                               Preferred: {request.preferred_times}
                             </p>
+                            {request.notes ? (
+                              <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                                Notes: {request.notes}
+                              </p>
+                            ) : null}
                             {request.meeting_url ? (
                               <a
                                 href={request.meeting_url}
@@ -1502,6 +1645,11 @@ export default function ModeratorDashboardPage() {
                         </div>
                       </div>
                     ))}
+                    {meetingCoordination.filteredRequests.length > 6 ? (
+                      <p className="text-center text-sm text-slate-500">
+                        Showing 6 of {meetingCoordination.filteredRequests.length} matching requests.
+                      </p>
+                    ) : null}
                   </div>
                 )}
               </div>
