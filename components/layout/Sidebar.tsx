@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   CalendarClock,
   HandCoins,
+  HeartHandshake,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
@@ -193,6 +194,11 @@ export default function Sidebar() {
       href: "/donation-tracker",
       label: "Donation Tracker",
       icon: HandCoins,
+    },
+    {
+      href: "/donate",
+      label: "Support Civix250",
+      icon: HeartHandshake,
     },
     {
       href: "/dashboard#activity",
