@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import {
   ArrowRight,
   CheckCircle2,
+  CreditCard,
   HeartHandshake,
   Landmark,
   LockKeyhole,
@@ -13,7 +14,29 @@ import {
 } from "lucide-react";
 
 const donationAmounts = [10, 25, 50, 100, 250];
-const donationUrl = process.env.NEXT_PUBLIC_DONATION_URL || "";
+const donationProviders = [
+  {
+    key: "stripe",
+    label: "Stripe",
+    description: "Card, wallet, and bank payment checkout",
+    envName: "NEXT_PUBLIC_STRIPE_DONATION_URL",
+    url: process.env.NEXT_PUBLIC_STRIPE_DONATION_URL || "",
+  },
+  {
+    key: "donorbox",
+    label: "Donorbox",
+    description: "Hosted donation form and recurring gifts",
+    envName: "NEXT_PUBLIC_DONORBOX_DONATION_URL",
+    url: process.env.NEXT_PUBLIC_DONORBOX_DONATION_URL || "",
+  },
+  {
+    key: "givebutter",
+    label: "Givebutter",
+    description: "Campaign checkout, donors, and receipts",
+    envName: "NEXT_PUBLIC_GIVEBUTTER_DONATION_URL",
+    url: process.env.NEXT_PUBLIC_GIVEBUTTER_DONATION_URL || "",
+  },
+] as const;
 const fallbackDonationHref =
   "mailto:donations@civix250.org?subject=Civix250%20donation%20inquiry";
 
@@ -21,15 +44,23 @@ export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState(25);
   const [customAmount, setCustomAmount] = useState("");
   const [frequency, setFrequency] = useState<"one-time" | "monthly">("one-time");
+  const [selectedProviderKey, setSelectedProviderKey] =
+    useState<(typeof donationProviders)[number]["key"]>("stripe");
 
   const amount = useMemo(() => {
     const custom = Number(customAmount);
     return Number.isFinite(custom) && custom > 0 ? custom : selectedAmount;
   }, [customAmount, selectedAmount]);
 
-  const paymentHref = donationUrl
-    ? `${donationUrl}${donationUrl.includes("?") ? "&" : "?"}amount=${amount}&frequency=${frequency}`
+  const selectedProvider =
+    donationProviders.find((provider) => provider.key === selectedProviderKey) ||
+    donationProviders[0];
+  const configuredProviders = donationProviders.filter((provider) => provider.url);
+  const paymentHref = selectedProvider.url
+    ? `${selectedProvider.url}${selectedProvider.url.includes("?") ? "&" : "?"}amount=${amount}&frequency=${frequency}`
     : fallbackDonationHref;
+  const paymentTarget = selectedProvider.url ? "_blank" : undefined;
+  const paymentRel = selectedProvider.url ? "noreferrer" : undefined;
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -145,20 +176,69 @@ export default function DonatePage() {
                   })}
                 </div>
 
+                <div className="mt-6">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Choose a donation provider
+                  </p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                    {donationProviders.map((provider) => {
+                      const active = selectedProvider.key === provider.key;
+                      const configured = Boolean(provider.url);
+
+                      return (
+                        <button
+                          key={provider.key}
+                          type="button"
+                          onClick={() => setSelectedProviderKey(provider.key)}
+                          className={`rounded-2xl border-2 p-4 text-left transition ${
+                            active
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 bg-white hover:border-blue-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-bold text-slate-950">{provider.label}</p>
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                                configured
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {configured ? "Ready" : "Needs URL"}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">
+                            {provider.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <a
                   href={paymentHref}
-                  target={donationUrl ? "_blank" : undefined}
-                  rel={donationUrl ? "noreferrer" : undefined}
+                  target={paymentTarget}
+                  rel={paymentRel}
                   className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-4 text-sm font-bold text-white transition hover:bg-blue-700"
                 >
-                  Continue to secure donation
+                  Continue with {selectedProvider.label}
                   <ArrowRight className="h-4 w-4" />
                 </a>
 
-                {!donationUrl ? (
+                {configuredProviders.length === 0 ? (
                   <p className="mt-3 text-xs leading-5 text-slate-500">
-                    Add <span className="font-semibold">NEXT_PUBLIC_DONATION_URL</span> to connect this
-                    button to Stripe, Donorbox, Givebutter, or another donation provider.
+                    Add at least one provider URL:{" "}
+                    <span className="font-semibold">NEXT_PUBLIC_STRIPE_DONATION_URL</span>,{" "}
+                    <span className="font-semibold">NEXT_PUBLIC_DONORBOX_DONATION_URL</span>, or{" "}
+                    <span className="font-semibold">NEXT_PUBLIC_GIVEBUTTER_DONATION_URL</span>.
+                    Until then, the button opens a donation inquiry email.
+                  </p>
+                ) : !selectedProvider.url ? (
+                  <p className="mt-3 text-xs leading-5 text-slate-500">
+                    Add <span className="font-semibold">{selectedProvider.envName}</span> to activate{" "}
+                    {selectedProvider.label}. Other configured providers remain available.
                   </p>
                 ) : null}
               </div>
@@ -176,7 +256,15 @@ export default function DonatePage() {
                   <LockKeyhole className="h-5 w-5 text-orange-600" />
                   <h3 className="mt-3 font-bold text-slate-950">Payment processing</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Connect a dedicated donation provider for secure checkout, receipts, and compliance.
+                    Connect Stripe, Donorbox, or Givebutter for secure checkout, receipts, and compliance.
+                  </p>
+                </div>
+
+                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500">
+                  <CreditCard className="h-5 w-5 text-blue-600" />
+                  <h3 className="mt-3 font-bold text-slate-950">Provider setup</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Paste hosted donation links into env vars and the selector will show them as ready.
                   </p>
                 </div>
 
