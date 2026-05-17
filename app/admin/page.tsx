@@ -126,6 +126,7 @@ type ModerationInsightDestination =
   | "categories";
 
 type AdminPostView = "escalated" | "removed" | "all";
+type AuditTrailView = "live" | "outcomes" | "categories";
 
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
@@ -184,6 +185,7 @@ export default function AdminDashboardPage() {
   const [issueSearch, setIssueSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [adminPostView, setAdminPostView] = useState<AdminPostView>("escalated");
+  const [auditTrailView, setAuditTrailView] = useState<AuditTrailView>("live");
 
   const [issueActionLoadingId, setIssueActionLoadingId] = useState<string | null>(null);
   const [roleActionLoadingId, setRoleActionLoadingId] = useState<string | null>(null);
@@ -193,6 +195,7 @@ export default function AdminDashboardPage() {
   const userManagementRef = useRef<HTMLElement | null>(null);
   const escalatedCasesRef = useRef<HTMLElement | null>(null);
   const videoMeetingsRef = useRef<HTMLElement | null>(null);
+  const auditTrailRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -890,6 +893,36 @@ export default function AdminDashboardPage() {
     return list;
   }, [profiles, userSearch]);
 
+  const resolvedAuditIssues = useMemo(() => {
+    return issues
+      .filter((issue) => ["approved", "removed"].includes(String(issue.status ?? "")))
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at ?? "").getTime();
+        const bTime = new Date(b.created_at ?? "").getTime();
+        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+      });
+  }, [issues]);
+
+  const flaggedCategoryAuditRows = useMemo(() => {
+    return moderationInsights.topCategories.map((category) => {
+      const matchingIssues = issues.filter((issue) => {
+        const issueCategory = issue.category?.trim() || "Uncategorized";
+        return (
+          issueCategory === category.name &&
+          ["under_review", "removed"].includes(String(issue.status ?? ""))
+        );
+      });
+
+      return {
+        name: category.name,
+        count: category.count,
+        escalated: matchingIssues.filter((issue) => issue.status === "under_review").length,
+        removed: matchingIssues.filter((issue) => issue.status === "removed").length,
+        posts: matchingIssues.slice(0, 4),
+      };
+    });
+  }, [issues, moderationInsights.topCategories]);
+
   const pendingMeetingRequests = useMemo(() => {
     return videoMeetingRequests.filter((request) => request.status === "pending");
   }, [videoMeetingRequests]);
@@ -1087,10 +1120,15 @@ export default function AdminDashboardPage() {
   }
 
   function handleModerationInsightClick(destination: ModerationInsightDestination) {
+    if (destination === "outcomes") {
+      setAuditTrailView("outcomes");
+      scrollToAdminSection(auditTrailRef);
+      return;
+    }
+
     if (destination === "categories") {
-      const topCategory = moderationInsights.topCategories[0]?.name || "";
-      setIssueSearch(topCategory);
-      scrollToAdminSection(escalatedCasesRef);
+      setAuditTrailView("categories");
+      scrollToAdminSection(auditTrailRef);
       return;
     }
 
@@ -1991,7 +2029,10 @@ export default function AdminDashboardPage() {
           </section>
 
           {/* Governance Audit Trail */}
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <section
+            ref={auditTrailRef}
+            className="scroll-mt-6 rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+          >
             <div className="border-b border-slate-200 px-6 py-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -2003,15 +2044,167 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setAuditTrailView("live")}
+                  className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+                >
                   <History className="h-4 w-4 text-slate-500" />
-                  Live audit feed
-                </div>
+                  {auditTrailView === "live" ? "Live audit feed" : "Back to live feed"}
+                </button>
               </div>
             </div>
 
             <div className="p-6">
-              {activityLogs.length === 0 ? (
+              {auditTrailView === "outcomes" ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="relative overflow-hidden rounded-2xl border border-green-200 bg-green-50 p-5 pl-7 before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-green-500">
+                      <p className="text-sm font-medium text-green-700">Approved Posts</p>
+                      <p className="mt-2 text-3xl font-bold text-green-800">
+                        {issues.filter((issue) => issue.status === "approved").length}
+                      </p>
+                      <p className="mt-1 text-sm text-green-700">
+                        {moderationInsights.approvedPct}% of resolved decisions
+                      </p>
+                    </div>
+
+                    <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-5 pl-7 before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-red-500">
+                      <p className="text-sm font-medium text-red-700">Removed Posts</p>
+                      <p className="mt-2 text-3xl font-bold text-red-800">
+                        {issues.filter((issue) => issue.status === "removed").length}
+                      </p>
+                      <p className="mt-1 text-sm text-red-700">
+                        {moderationInsights.removedPct}% of resolved decisions
+                      </p>
+                    </div>
+                  </div>
+
+                  {resolvedAuditIssues.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+                      <History className="mx-auto h-8 w-8 text-slate-400" />
+                      <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                        No resolved post decisions yet
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-500">
+                        Approved and removed posts will appear here after moderation decisions.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {resolvedAuditIssues.map((issue) => (
+                        <div
+                          key={issue.id}
+                          className="rounded-2xl border border-slate-200 bg-white p-5"
+                        >
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                                    issue.status
+                                  )}`}
+                                >
+                                  {issue.status}
+                                </span>
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                  {issue.category || "Uncategorized"}
+                                </span>
+                                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                                  {normalizeDistrict(issue.district)}
+                                </span>
+                              </div>
+                              <h3 className="mt-3 text-base font-semibold text-slate-900">
+                                {issue.title}
+                              </h3>
+                              <p className="mt-2 line-clamp-2 text-sm text-slate-500">
+                                {issue.description}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-sm text-slate-500">
+                              {formatDate(issue.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : auditTrailView === "categories" ? (
+                <div className="space-y-4">
+                  {flaggedCategoryAuditRows.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+                      <Tags className="mx-auto h-8 w-8 text-slate-400" />
+                      <h3 className="mt-4 text-lg font-semibold text-slate-800">
+                        No flagged categories yet
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-500">
+                        Categories will appear here when posts are escalated or removed.
+                      </p>
+                    </div>
+                  ) : (
+                    flaggedCategoryAuditRows.map((category, index) => (
+                      <div
+                        key={category.name}
+                        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 pl-7 before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-rose-500"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
+                                #{index + 1} flagged category
+                              </span>
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                {category.count} total flags
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-lg font-semibold text-slate-900">
+                              {category.name}
+                            </h3>
+                            <p className="mt-2 text-sm text-slate-500">
+                              {category.escalated} escalated • {category.removed} removed
+                            </p>
+                          </div>
+
+                          <div className="grid min-w-[220px] grid-cols-2 gap-2 text-sm">
+                            <div className="rounded-xl bg-yellow-50 px-3 py-2 text-yellow-800">
+                              <span className="block text-xs font-medium">Escalated</span>
+                              <span className="text-lg font-bold">{category.escalated}</span>
+                            </div>
+                            <div className="rounded-xl bg-red-50 px-3 py-2 text-red-800">
+                              <span className="block text-xs font-medium">Removed</span>
+                              <span className="text-lg font-bold">{category.removed}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {category.posts.length > 0 && (
+                          <div className="mt-4 grid gap-2 md:grid-cols-2">
+                            {category.posts.map((post) => (
+                              <div
+                                key={post.id}
+                                className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="truncate text-sm font-semibold text-slate-900">
+                                    {post.title}
+                                  </p>
+                                  <span className="shrink-0 text-xs font-medium text-slate-500">
+                                    {post.status}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {normalizeDistrict(post.district)} • {formatDate(post.created_at)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : activityLogs.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
                   <History className="mx-auto h-8 w-8 text-slate-400" />
                   <h3 className="mt-4 text-lg font-semibold text-slate-800">
