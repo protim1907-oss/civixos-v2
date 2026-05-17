@@ -1082,7 +1082,12 @@ export default function AdminDashboardPage() {
 
           {/* KPI Cards */}
           <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-4">
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("users")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-slate-500 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              aria-label="View all users in user management"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Total Users</p>
@@ -1094,9 +1099,14 @@ export default function AdminDashboardPage() {
                   <Users className="h-5 w-5 text-slate-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("posts")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+              aria-label="View admin post review queue"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Total Posts</p>
@@ -1108,9 +1118,14 @@ export default function AdminDashboardPage() {
                   <FileText className="h-5 w-5 text-slate-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("escalated")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-yellow-500 hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
+              aria-label="View escalated cases"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Escalated</p>
@@ -1122,9 +1137,14 @@ export default function AdminDashboardPage() {
                   <AlertTriangle className="h-5 w-5 text-yellow-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("removed")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-red-500 hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+              aria-label="View removed posts"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Removed</p>
@@ -1136,9 +1156,14 @@ export default function AdminDashboardPage() {
                   <Trash2 className="h-5 w-5 text-red-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("moderators")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+              aria-label="View moderator users"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Moderators</p>
@@ -1150,9 +1175,14 @@ export default function AdminDashboardPage() {
                   <ShieldCheck className="h-5 w-5 text-blue-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("officials")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-emerald-500 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+              aria-label="View official users"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Officials</p>
@@ -1164,9 +1194,14 @@ export default function AdminDashboardPage() {
                   <Building2 className="h-5 w-5 text-emerald-700" />
                 </div>
               </div>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("meetings")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-indigo-500 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2"
+              aria-label="View pending video meeting requests"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-500">Meetings</p>
@@ -1178,7 +1213,7 @@ export default function AdminDashboardPage() {
                   <Video className="h-5 w-5 text-indigo-700" />
                 </div>
               </div>
-            </div>
+            </button>
           </section>
 
           {/* Moderation Intelligence */}
@@ -1415,7 +1450,10 @@ export default function AdminDashboardPage() {
           </section>
 
           {/* Video Meeting Requests */}
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <section
+            ref={videoMeetingsRef}
+            className="scroll-mt-6 rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+          >
             <div className="border-b border-slate-200 px-6 py-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -1570,7 +1608,10 @@ export default function AdminDashboardPage() {
           </section>
 
           {/* Escalated Cases */}
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <section
+            ref={escalatedCasesRef}
+            className="scroll-mt-6 rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+          >
             <div className="border-b border-slate-200 px-6 py-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -1685,7 +1726,10 @@ export default function AdminDashboardPage() {
           </section>
 
           {/* User Management */}
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <section
+            ref={userManagementRef}
+            className="scroll-mt-6 rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+          >
             <div className="border-b border-slate-200 px-6 py-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
