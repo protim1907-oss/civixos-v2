@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
@@ -110,6 +110,15 @@ type VideoMeetingRequestRow = {
   created_at: string | null;
 };
 
+type AdminKpiDestination =
+  | "users"
+  | "posts"
+  | "escalated"
+  | "removed"
+  | "moderators"
+  | "officials"
+  | "meetings";
+
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
   if (!raw) return "Unassigned";
@@ -172,6 +181,9 @@ export default function AdminDashboardPage() {
   const [meetingActionLoadingId, setMeetingActionLoadingId] = useState<string | null>(
     null
   );
+  const userManagementRef = useRef<HTMLElement | null>(null);
+  const escalatedCasesRef = useRef<HTMLElement | null>(null);
+  const videoMeetingsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
