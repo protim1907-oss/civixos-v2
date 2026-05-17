@@ -127,13 +127,16 @@ type ModerationInsightDestination =
 
 type AdminPostView = "escalated" | "removed" | "all";
 type AuditTrailView = "live" | "outcomes" | "categories";
+type DistrictRiskMetric = "total" | "escalated" | "removed" | "reviewTime";
 
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
-  if (!raw) return "Unassigned";
+  if (!raw) return "NH";
 
   const upper = raw.toUpperCase();
 
+  if (upper === "UNKNOWN" || upper === "UNASSIGNED" || upper === "N/A") return "NH";
+  if (upper === "NEW HAMPSHIRE") return "NH";
   if (upper === "DISTRICT 12") return "CA-42";
   if (upper === "DISTRICT 42") return "CA-42";
   if (upper === "CA42") return "CA-42";
@@ -642,7 +645,7 @@ export default function AdminDashboardPage() {
         };
       })
       .sort((a, b) => {
-        const preferredDistrictOrder = ["Unassigned", "CA-42"];
+        const preferredDistrictOrder = ["NH", "CA-42"];
         const aPreferredIndex = preferredDistrictOrder.indexOf(a.district);
         const bPreferredIndex = preferredDistrictOrder.indexOf(b.district);
 
@@ -869,7 +872,8 @@ export default function AdminDashboardPage() {
           issue.title?.toLowerCase().includes(q) ||
           issue.description?.toLowerCase().includes(q) ||
           issue.category?.toLowerCase().includes(q) ||
-          issue.district?.toLowerCase().includes(q)
+          issue.district?.toLowerCase().includes(q) ||
+          normalizeDistrict(issue.district).toLowerCase().includes(q)
       );
     }
 
@@ -1149,15 +1153,17 @@ export default function AdminDashboardPage() {
     scrollToAdminSection(escalatedCasesRef);
   }
 
-  function handleDistrictRiskClick(row: DistrictRiskRow) {
-    if (row.district === "Unassigned") {
+  function handleDistrictRiskMetricClick(row: DistrictRiskRow, metric: DistrictRiskMetric) {
+    if (metric === "removed") {
+      setAdminPostView("removed");
+    } else if (metric === "escalated") {
+      setAdminPostView("escalated");
+    } else {
       setAdminPostView("all");
-      setIssueSearch("Unassigned");
-      scrollToAdminSection(escalatedCasesRef);
-      return;
     }
 
-    router.push(`/district-analytics?district=${encodeURIComponent(row.district)}`);
+    setIssueSearch(row.district);
+    scrollToAdminSection(escalatedCasesRef);
   }
 
   if (loading) {
