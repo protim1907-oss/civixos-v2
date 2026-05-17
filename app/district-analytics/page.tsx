@@ -371,6 +371,13 @@ export default function DistrictAnalyticsPage() {
   const [sortBy, setSortBy] = useState<"total" | "risk" | "sentiment" | "lastActivity">("total");
 
   useEffect(() => {
+    const districtParam = new URLSearchParams(window.location.search).get("district");
+    if (districtParam) {
+      setSelectedDistrict(normalizeDistrict(districtParam));
+    }
+  }, []);
+
+  useEffect(() => {
     async function loadAnalytics() {
       try {
         setLoading(true);
