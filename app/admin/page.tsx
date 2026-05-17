@@ -119,6 +119,12 @@ type AdminKpiDestination =
   | "officials"
   | "meetings";
 
+type ModerationInsightDestination =
+  | "outcomes"
+  | "escalations"
+  | "resolution"
+  | "categories";
+
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
   if (!raw) return "Unassigned";
@@ -1013,6 +1019,18 @@ export default function AdminDashboardPage() {
     scrollToAdminSection(escalatedCasesRef);
   }
 
+  function handleModerationInsightClick(destination: ModerationInsightDestination) {
+    if (destination === "categories") {
+      const topCategory = moderationInsights.topCategories[0]?.name || "";
+      setIssueSearch(topCategory);
+      scrollToAdminSection(escalatedCasesRef);
+      return;
+    }
+
+    setIssueSearch(destination === "escalations" ? "under_review" : "");
+    scrollToAdminSection(escalatedCasesRef);
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex">
@@ -1236,7 +1254,12 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <button
+                type="button"
+                onClick={() => handleModerationInsightClick("outcomes")}
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+                aria-label="View resolved moderation outcomes"
+              >
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-500">
                     Approved vs Removed
@@ -1251,9 +1274,14 @@ export default function AdminDashboardPage() {
                 <p className="mt-2 text-sm text-slate-500">
                   Share of resolved moderation decisions.
                 </p>
-              </div>
+              </button>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <button
+                type="button"
+                onClick={() => handleModerationInsightClick("escalations")}
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-amber-500 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2"
+                aria-label="View total escalations"
+              >
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-500">
                     Total Escalations
@@ -1268,9 +1296,14 @@ export default function AdminDashboardPage() {
                 <p className="mt-2 text-sm text-slate-500">
                   Total items sent to elevated review.
                 </p>
-              </div>
+              </button>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <button
+                type="button"
+                onClick={() => handleModerationInsightClick("resolution")}
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-emerald-500 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+                aria-label="View moderation resolution queue"
+              >
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-500">
                     Avg Resolution Time
@@ -1285,9 +1318,14 @@ export default function AdminDashboardPage() {
                 <p className="mt-2 text-sm text-slate-500">
                   Average time from escalation to final decision.
                 </p>
-              </div>
+              </button>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <button
+                type="button"
+                onClick={() => handleModerationInsightClick("categories")}
+                className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-rose-500 hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-700 focus-visible:ring-offset-2"
+                aria-label="View top flagged categories"
+              >
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-500">
                     Top Flagged Categories
@@ -1316,7 +1354,7 @@ export default function AdminDashboardPage() {
                     <p className="text-sm text-slate-500">No flagged categories yet.</p>
                   )}
                 </div>
-              </div>
+              </button>
             </div>
           </section>
 
