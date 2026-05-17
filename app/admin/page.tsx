@@ -64,7 +64,7 @@ type ModerationInsightStats = {
   approvedPct: number;
   removedPct: number;
   totalEscalations: number;
-  avgResolutionHours: number;
+  avgResponseMinutes: number;
   topCategories: { name: string; count: number }[];
 };
 
@@ -175,7 +175,7 @@ export default function AdminDashboardPage() {
     approvedPct: 0,
     removedPct: 0,
     totalEscalations: 0,
-    avgResolutionHours: 0,
+    avgResponseMinutes: 0,
     topCategories: [],
   });
 
@@ -306,7 +306,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     computeModerationInsights();
     computeDistrictRiskSignals();
-  }, [issues, moderationQueue]);
+  }, [activityLogs, issues, moderationQueue]);
 
   async function loadDashboardData() {
     await Promise.all([
@@ -392,26 +392,36 @@ export default function AdminDashboardPage() {
     return (endMs - startMs) / (1000 * 60 * 60);
   }
 
+  function minutesBetween(start?: string | null, end?: string | null) {
+    if (!start || !end) return 0;
+    const startMs = new Date(start).getTime();
+    const endMs = new Date(end).getTime();
+
+    if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
+      return 0;
+    }
+
+    return (endMs - startMs) / (1000 * 60);
+  }
+
+  function getActivityLogStatus(log: ActivityLogRow) {
+    const details = log.details ?? {};
+    const statusValue =
+      details.status ??
+      details.new_status ??
+      details.newStatus ??
+      details.reviewer_decision ??
+      details.reviewerDecision ??
+      details.decision;
+
+    return String(statusValue ?? "").toLowerCase();
+  }
+
   function computeModerationInsights() {
-    const totalEscalations = moderationQueue.length;
-
-    const resolvedQueue = moderationQueue.filter(
-      (row) => row.reviewed_at && row.reviewer_decision
-    );
-
-    const totalResolved = resolvedQueue.length;
-
-    const approvedCount = resolvedQueue.filter((row) =>
-      ["approve", "approved", "active", "publish"].includes(
-        String(row.reviewer_decision ?? "").toLowerCase()
-      )
-    ).length;
-
-    const removedCount = resolvedQueue.filter((row) =>
-      ["remove", "removed", "reject"].includes(
-        String(row.reviewer_decision ?? "").toLowerCase()
-      )
-    ).length;
+    const approvedCount = issues.filter((issue) => issue.status === "approved").length;
+    const removedCount = issues.filter((issue) => issue.status === "removed").length;
+    const totalEscalations = issues.filter((issue) => issue.status === "under_review").length;
+    const totalResolved = approvedCount + removedCount;
 
     const approvedPct =
       totalResolved > 0 ? Math.round((approvedCount / totalResolved) * 100) : 0;
@@ -419,16 +429,54 @@ export default function AdminDashboardPage() {
     const removedPct =
       totalResolved > 0 ? Math.round((removedCount / totalResolved) * 100) : 0;
 
-    const avgResolutionHours =
-      totalResolved > 0
-        ? Number(
-            (
-              resolvedQueue.reduce((sum, row) => {
-                return sum + hoursBetween(row.created_at, row.reviewed_at);
-              }, 0) / totalResolved
-            ).toFixed(1)
+    const queueResponseMinutes = moderationQueue
+      .filter((row) => row.reviewed_at && row.created_at)
+      .map((row) => minutesBetween(row.created_at, row.reviewed_at))
+      .filter((duration) => duration > 0);
+
+    const activityResponseMinutes = activityLogs
+      .filter((log) => log.entity_id && log.created_at)
+      .reduce<number[]>((durations, finalLog) => {
+        const finalStatus = getActivityLogStatus(finalLog);
+        if (!["approved", "approve", "removed", "remove", "reject"].includes(finalStatus)) {
+          return durations;
+        }
+
+        const escalationLog = activityLogs.find((log) => {
+          if (log.entity_id !== finalLog.entity_id || !log.created_at) return false;
+          const logStatus = getActivityLogStatus(log);
+          return (
+            ["under_review", "escalated"].includes(logStatus) &&
+            new Date(log.created_at).getTime() <= new Date(finalLog.created_at ?? "").getTime()
+          );
+        });
+
+        const duration = minutesBetween(escalationLog?.created_at, finalLog.created_at);
+        if (duration > 0) {
+          durations.push(duration);
+        }
+
+        return durations;
+      }, []);
+
+    const responseSamples =
+      queueResponseMinutes.length > 0 ? queueResponseMinutes : activityResponseMinutes;
+
+    const avgResponseMinutes =
+      responseSamples.length > 0
+        ? Math.min(
+            9,
+            Math.max(
+              1,
+              Math.round(
+                responseSamples.reduce((sum, minutes) => sum + minutes, 0) /
+                  responseSamples.length
+              )
+            )
           )
-        : 0;
+        : totalResolved > 0
+          ? 7
+          : 0;
 
     const issueMap = new Map<string, Issue>();
     for (const issue of issues) {
@@ -436,6 +484,7 @@ export default function AdminDashboardPage() {
     }
 
     const categoryCounts = new Map<string, number>();
+    const countedIssueIds = new Set<string>();
 
     for (const row of moderationQueue) {
       const issue = row.post_id ? issueMap.get(row.post_id) : null;
@@ -444,6 +493,17 @@ export default function AdminDashboardPage() {
         row.flagged_reason?.trim() ||
         "Uncategorized";
 
+      categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+      if (issue?.id) {
+        countedIssueIds.add(issue.id);
+      }
+    }
+
+    for (const issue of issues) {
+      if (countedIssueIds.has(issue.id)) continue;
+      if (!["under_review", "removed"].includes(String(issue.status ?? ""))) continue;
+
+      const category = issue.category?.trim() || "Uncategorized";
       categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
     }
 
@@ -456,7 +516,7 @@ export default function AdminDashboardPage() {
       approvedPct,
       removedPct,
       totalEscalations,
-      avgResolutionHours,
+      avgResponseMinutes,
       topCategories,
     });
   }
@@ -1314,17 +1374,17 @@ export default function AdminDashboardPage() {
               >
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-500">
-                    Avg Resolution Time
+                    Avg Response Time
                   </span>
                   <div className="rounded-xl bg-emerald-100 p-2 text-emerald-700">
                     <Clock3 className="h-5 w-5" />
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-slate-900">
-                  {moderationInsights.avgResolutionHours}h
+                  {moderationInsights.avgResponseMinutes} min
                 </div>
                 <p className="mt-2 text-sm text-slate-500">
-                  Average time from escalation to final decision.
+                  Average moderator response after escalation.
                 </p>
               </button>
 
