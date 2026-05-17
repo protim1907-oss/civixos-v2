@@ -971,6 +971,43 @@ export default function AdminDashboardPage() {
     return log.entity_type || "platform";
   }
 
+  function scrollToAdminSection(ref: React.RefObject<HTMLElement | null>) {
+    requestAnimationFrame(() => {
+      ref.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function handleKpiCardClick(destination: AdminKpiDestination) {
+    if (destination === "users") {
+      setUserSearch("");
+      scrollToAdminSection(userManagementRef);
+      return;
+    }
+
+    if (destination === "moderators" || destination === "officials") {
+      setUserSearch(destination === "moderators" ? "moderator" : "official");
+      scrollToAdminSection(userManagementRef);
+      return;
+    }
+
+    if (destination === "meetings") {
+      scrollToAdminSection(videoMeetingsRef);
+      return;
+    }
+
+    if (destination === "removed") {
+      setIssueSearch("removed");
+      scrollToAdminSection(escalatedCasesRef);
+      return;
+    }
+
+    setIssueSearch(destination === "escalated" ? "under_review" : "");
+    scrollToAdminSection(escalatedCasesRef);
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex">
