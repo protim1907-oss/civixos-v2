@@ -1667,10 +1667,18 @@ export default function AdminDashboardPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">
-                    Escalated Cases Queue
+                    {adminPostView === "all"
+                      ? "All Posts"
+                      : adminPostView === "removed"
+                      ? "Removed Posts"
+                      : "Escalated Cases Queue"}
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
-                    Final admin review for posts escalated by moderators.
+                    {adminPostView === "all"
+                      ? "All posts currently visible to the admin console."
+                      : adminPostView === "removed"
+                      ? "Posts removed through moderation decisions."
+                      : "Final admin review for posts escalated by moderators."}
                   </p>
                 </div>
 
@@ -1680,7 +1688,13 @@ export default function AdminDashboardPage() {
                     type="text"
                     value={issueSearch}
                     onChange={(e) => setIssueSearch(e.target.value)}
-                    placeholder="Search escalated cases"
+                    placeholder={
+                      adminPostView === "all"
+                        ? "Search all posts"
+                        : adminPostView === "removed"
+                        ? "Search removed posts"
+                        : "Search escalated cases"
+                    }
                     className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
                   />
                 </div>
@@ -1692,10 +1706,18 @@ export default function AdminDashboardPage() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
                   <AlertTriangle className="mx-auto h-8 w-8 text-slate-400" />
                   <h3 className="mt-4 text-lg font-semibold text-slate-800">
-                    No escalated cases found
+                    {adminPostView === "all"
+                      ? "No posts found"
+                      : adminPostView === "removed"
+                      ? "No removed posts found"
+                      : "No escalated cases found"}
                   </h3>
                   <p className="mt-2 text-sm text-slate-500">
-                    All escalated items are cleared or nothing matches your search.
+                    {adminPostView === "all"
+                      ? "No posts match your current search."
+                      : adminPostView === "removed"
+                      ? "No removed posts match your current search."
+                      : "All escalated items are cleared or nothing matches your search."}
                   </p>
                 </div>
               ) : (
