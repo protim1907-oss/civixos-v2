@@ -537,7 +537,7 @@ export default function AdminDashboardPage() {
   }
 
   function computeDistrictRiskSignals() {
-    const defaultDistricts = ["CA-42"];
+    const defaultDistricts = ["NH", "CA-42"];
     const districtMap = new Map<
       string,
       {
@@ -1527,18 +1527,11 @@ export default function AdminDashboardPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   {districtRiskRows.map((row) => (
-                    <button
+                    <div
                       key={row.district}
-                      type="button"
-                      onClick={() => handleDistrictRiskClick(row)}
-                      className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${getRiskCardClasses(
+                      className={`group rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${getRiskCardClasses(
                         row.riskLevel
                       )}`}
-                      aria-label={
-                        row.district === "Unassigned"
-                          ? "View unassigned district moderation cases"
-                          : `View analytics for ${row.district}`
-                      }
                     >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
@@ -1565,41 +1558,61 @@ export default function AdminDashboardPage() {
                       </div>
 
                       <div className="mt-5 grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleDistrictRiskMetricClick(row, "total")}
+                          className="rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-700 focus-visible:ring-offset-2"
+                          aria-label={`View all posts in ${row.district}`}
+                        >
                           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                             Total Posts
                           </p>
                           <p className="mt-2 text-2xl font-bold text-slate-900">
                             {row.totalPosts}
                           </p>
-                        </div>
+                        </button>
 
-                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleDistrictRiskMetricClick(row, "escalated")}
+                          className="rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-700 focus-visible:ring-offset-2"
+                          aria-label={`View escalated posts in ${row.district}`}
+                        >
                           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                             Escalated
                           </p>
                           <p className="mt-2 text-2xl font-bold text-yellow-700">
                             {row.escalatedPosts}
                           </p>
-                        </div>
+                        </button>
 
-                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleDistrictRiskMetricClick(row, "removed")}
+                          className="rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+                          aria-label={`View removed posts in ${row.district}`}
+                        >
                           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                             Removed
                           </p>
                           <p className="mt-2 text-2xl font-bold text-red-700">
                             {row.removedPosts}
                           </p>
-                        </div>
+                        </button>
 
-                        <div className="rounded-xl bg-slate-50 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleDistrictRiskMetricClick(row, "reviewTime")}
+                          className="rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-700 focus-visible:ring-offset-2"
+                          aria-label={`View reviewed posts in ${row.district}`}
+                        >
                           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                             Avg Review Time
                           </p>
                           <p className="mt-2 text-2xl font-bold text-slate-900">
                             {row.avgResolutionHours}h
                           </p>
-                        </div>
+                        </button>
                       </div>
 
                       <div className="mt-5 space-y-3">
@@ -1629,7 +1642,7 @@ export default function AdminDashboardPage() {
                           </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -1880,11 +1893,9 @@ export default function AdminDashboardPage() {
                               </span>
                             )}
 
-                            {issue.district && (
-                              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-                                {issue.district}
-                              </span>
-                            )}
+                            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                              {normalizeDistrict(issue.district)}
+                            </span>
                           </div>
 
                           <div>
