@@ -781,12 +781,17 @@ export default function AdminDashboardPage() {
   }
 
   const escalatedIssues = useMemo(() => {
-    let list = issues.filter((issue) => issue.status === "under_review");
+    const normalizedSearch = issueSearch.trim().toLowerCase();
+    let list =
+      normalizedSearch === "removed"
+        ? issues.filter((issue) => issue.status === "removed")
+        : issues.filter((issue) => issue.status === "under_review");
 
-    if (issueSearch.trim()) {
-      const q = issueSearch.toLowerCase();
+    if (normalizedSearch) {
+      const q = normalizedSearch;
       list = list.filter(
         (issue) =>
+          issue.status?.toLowerCase().includes(q) ||
           issue.title?.toLowerCase().includes(q) ||
           issue.description?.toLowerCase().includes(q) ||
           issue.category?.toLowerCase().includes(q) ||
