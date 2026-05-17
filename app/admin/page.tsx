@@ -125,6 +125,8 @@ type ModerationInsightDestination =
   | "resolution"
   | "categories";
 
+type AdminPostView = "escalated" | "removed" | "all";
+
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
   if (!raw) return "Unassigned";
@@ -181,6 +183,7 @@ export default function AdminDashboardPage() {
 
   const [issueSearch, setIssueSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [adminPostView, setAdminPostView] = useState<AdminPostView>("escalated");
 
   const [issueActionLoadingId, setIssueActionLoadingId] = useState<string | null>(null);
   const [roleActionLoadingId, setRoleActionLoadingId] = useState<string | null>(null);
@@ -789,7 +792,9 @@ export default function AdminDashboardPage() {
   const escalatedIssues = useMemo(() => {
     const normalizedSearch = issueSearch.trim().toLowerCase();
     let list =
-      normalizedSearch === "removed"
+      adminPostView === "all"
+        ? [...issues]
+        : adminPostView === "removed"
         ? issues.filter((issue) => issue.status === "removed")
         : issues.filter((issue) => issue.status === "under_review");
 
@@ -806,7 +811,7 @@ export default function AdminDashboardPage() {
     }
 
     return list;
-  }, [issues, issueSearch]);
+  }, [issues, issueSearch, adminPostView]);
 
   const filteredUsers = useMemo(() => {
     let list = [...profiles];
@@ -1010,11 +1015,13 @@ export default function AdminDashboardPage() {
     }
 
     if (destination === "removed") {
+      setAdminPostView("removed");
       setIssueSearch("removed");
       scrollToAdminSection(escalatedCasesRef);
       return;
     }
 
+    setAdminPostView(destination === "posts" ? "all" : "escalated");
     setIssueSearch(destination === "escalated" ? "under_review" : "");
     scrollToAdminSection(escalatedCasesRef);
   }
@@ -1027,6 +1034,7 @@ export default function AdminDashboardPage() {
       return;
     }
 
+    setAdminPostView("escalated");
     setIssueSearch(destination === "escalations" ? "under_review" : "");
     scrollToAdminSection(escalatedCasesRef);
   }
