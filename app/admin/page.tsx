@@ -927,6 +927,89 @@ export default function AdminDashboardPage() {
     });
   }, [issues, moderationInsights.topCategories]);
 
+  const liveAuditLogs = useMemo<ActivityLogRow[]>(() => {
+    const derivedIssueLogs: ActivityLogRow[] = issues.slice(0, 12).map((issue) => {
+      const status = issue.status || "active";
+      const isDecision = ["approved", "removed", "under_review"].includes(status);
+
+      return {
+        id: `issue-${issue.id}-${status}`,
+        actor_id: null,
+        actor_role: isDecision ? "moderation" : "system",
+        entity_type: "issue",
+        entity_id: issue.id,
+        event_type: isDecision ? "issue_status_updated" : "issue_created",
+        details: {
+          title: issue.title,
+          previous_status: status === "under_review" ? "active" : "under_review",
+          new_status: status,
+          status,
+          district: normalizeDistrict(issue.district),
+          category: issue.category || "Uncategorized",
+          summary: `${issue.title || "Issue"} was logged for ${normalizeDistrict(
+            issue.district
+          )}.`,
+        },
+        created_at: issue.created_at,
+      };
+    });
+
+    const derivedMeetingLogs: ActivityLogRow[] = videoMeetingRequests
+      .slice(0, 5)
+      .map((request) => ({
+        id: `meeting-${request.id}-${request.status || "pending"}`,
+        actor_id: request.reviewed_by,
+        actor_role: request.reviewed_by ? "admin" : "system",
+        entity_type: "video_meeting_request",
+        entity_id: request.id,
+        event_type:
+          request.status && request.status !== "pending"
+            ? "video_meeting_request_updated"
+            : "video_meeting_requested",
+        details: {
+          citizen_name: request.citizen_name || "Constituent",
+          representative_name: request.representative_name || "Representative",
+          district: normalizeDistrict(request.district),
+          topic: request.topic || "Meeting request",
+          new_status: request.status || "pending",
+          status: request.status || "pending",
+        },
+        created_at: request.reviewed_at || request.created_at,
+      }));
+
+    const derivedRoleLogs: ActivityLogRow[] = profiles
+      .filter((profile) => ["admin", "moderator", "official"].includes(profile.role || ""))
+      .slice(0, 5)
+      .map((profile) => ({
+        id: `role-${profile.id}-${profile.role}`,
+        actor_id: null,
+        actor_role: "system",
+        entity_type: "profile",
+        entity_id: profile.id,
+        event_type: "user_role_assigned",
+        details: {
+          full_name: profile.full_name || "User",
+          email: profile.email || "",
+          new_role: profile.role || "user",
+          district: normalizeDistrict(profile.district),
+        },
+        created_at: null,
+      }));
+
+    return [
+      ...activityLogs,
+      ...derivedIssueLogs,
+      ...derivedMeetingLogs,
+      ...derivedRoleLogs,
+    ]
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at ?? "").getTime();
+        const bTime = new Date(b.created_at ?? "").getTime();
+        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+      })
+      .slice(0, 20);
+  }, [activityLogs, issues, profiles, videoMeetingRequests]);
+
   const pendingMeetingRequests = useMemo(() => {
     return videoMeetingRequests.filter((request) => request.status === "pending");
   }, [videoMeetingRequests]);
@@ -1032,10 +1115,16 @@ export default function AdminDashboardPage() {
     switch (log.event_type) {
       case "issue_status_updated":
         return "Issue status updated";
+      case "issue_created":
+        return "Issue logged";
       case "user_role_updated":
         return "User role updated";
+      case "user_role_assigned":
+        return "User role assigned";
       case "video_meeting_request_updated":
         return "Video meeting reviewed";
+      case "video_meeting_requested":
+        return "Video meeting requested";
       default:
         return log.event_type?.replaceAll("_", " ") || "Governance event";
     }
@@ -1045,9 +1134,13 @@ export default function AdminDashboardPage() {
     switch (log.event_type) {
       case "issue_status_updated":
         return "bg-blue-100 text-blue-700 border-blue-200";
+      case "issue_created":
+        return "bg-sky-100 text-sky-700 border-sky-200";
       case "user_role_updated":
+      case "user_role_assigned":
         return "bg-purple-100 text-purple-700 border-purple-200";
       case "video_meeting_request_updated":
+      case "video_meeting_requested":
         return "bg-indigo-100 text-indigo-700 border-indigo-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
@@ -1063,12 +1156,24 @@ export default function AdminDashboardPage() {
       return `${detail("title") || "Issue"} changed from ${detail("previous_status") || "unknown"} to ${detail("new_status") || "unknown"}.`;
     }
 
+    if (log.event_type === "issue_created") {
+      return `${detail("title") || "Issue"} was added to the district record.`;
+    }
+
     if (log.event_type === "user_role_updated") {
       return `${detail("full_name") || detail("email") || "User"} changed from ${detail("previous_role") || "unknown"} to ${detail("new_role") || "unknown"}.`;
     }
 
+    if (log.event_type === "user_role_assigned") {
+      return `${detail("full_name") || detail("email") || "User"} is registered as ${detail("new_role") || "a platform user"}.`;
+    }
+
     if (log.event_type === "video_meeting_request_updated") {
       return `${detail("representative_name") || "Representative"} meeting request was ${detail("new_status") || "reviewed"}.`;
+    }
+
+    if (log.event_type === "video_meeting_requested") {
+      return `${detail("citizen_name") || "Constituent"} requested a video meeting with ${detail("representative_name") || "a representative"}.`;
     }
 
     return detail("summary") || "Governance action recorded.";
@@ -1079,15 +1184,18 @@ export default function AdminDashboardPage() {
     const detail = (key: string) =>
       typeof details[key] === "string" ? details[key] : "";
 
-    if (log.event_type === "issue_status_updated") {
+    if (log.event_type === "issue_status_updated" || log.event_type === "issue_created") {
       return [detail("district"), detail("category")].filter(Boolean).join(" • ");
     }
 
-    if (log.event_type === "user_role_updated") {
+    if (log.event_type === "user_role_updated" || log.event_type === "user_role_assigned") {
       return [detail("email"), detail("district")].filter(Boolean).join(" • ");
     }
 
-    if (log.event_type === "video_meeting_request_updated") {
+    if (
+      log.event_type === "video_meeting_request_updated" ||
+      log.event_type === "video_meeting_requested"
+    ) {
       return [detail("citizen_name"), detail("district"), detail("topic")]
         .filter(Boolean)
         .join(" • ");
@@ -2253,7 +2361,7 @@ export default function AdminDashboardPage() {
                     ))
                   )}
                 </div>
-              ) : activityLogs.length === 0 ? (
+              ) : liveAuditLogs.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
                   <History className="mx-auto h-8 w-8 text-slate-400" />
                   <h3 className="mt-4 text-lg font-semibold text-slate-800">
@@ -2265,7 +2373,7 @@ export default function AdminDashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {activityLogs.map((log) => (
+                  {liveAuditLogs.map((log) => (
                     <div
                       key={log.id}
                       className="rounded-2xl border border-slate-200 bg-white p-5"
