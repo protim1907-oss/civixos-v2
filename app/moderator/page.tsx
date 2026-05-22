@@ -742,6 +742,34 @@ export default function ModeratorDashboardPage() {
     });
   }, [auditLogs, auditActorFilter]);
 
+  const districtSurveyRows = useMemo(() => {
+    return MODERATOR_SURVEY_DISTRICTS.map((district) => {
+      const surveys = policySurveys
+        .filter((survey) => survey.district === district)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      const latestSurvey = surveys[0] || null;
+      const totalVotes = latestSurvey
+        ? Object.values(latestSurvey.votes).reduce((sum, count) => sum + count, 0)
+        : 0;
+      const deadlineTime = latestSurvey ? new Date(latestSurvey.deadline).getTime() : 0;
+      const votingClosed =
+        Boolean(latestSurvey) &&
+        !Number.isNaN(deadlineTime) &&
+        deadlineTime < Date.now();
+
+      return {
+        district,
+        latestSurvey,
+        totalVotes,
+        responseCount: latestSurvey?.recentResponses.length || 0,
+        votingClosed,
+      };
+    });
+  }, [policySurveys]);
+
   const stats = useMemo(() => {
     const total = issues.length;
     const active = issues.filter(
