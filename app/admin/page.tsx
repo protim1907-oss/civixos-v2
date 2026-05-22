@@ -110,6 +110,20 @@ type VideoMeetingRequestRow = {
   created_at: string | null;
 };
 
+type DistrictRepresentativeAdminRow = {
+  id: string;
+  district_code: string;
+  state: string | null;
+  name: string;
+  title: string;
+  office_label: string;
+  party: string | null;
+  website: string | null;
+  contact_url: string | null;
+  phone: string | null;
+  is_active: boolean;
+};
+
 type AdminKpiDestination =
   | "users"
   | "posts"
@@ -171,6 +185,9 @@ export default function AdminDashboardPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [moderationQueue, setModerationQueue] = useState<ModerationQueueRow[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
+  const [districtRepresentatives, setDistrictRepresentatives] = useState<
+    DistrictRepresentativeAdminRow[]
+  >([]);
   const [videoMeetingRequests, setVideoMeetingRequests] = useState<
     VideoMeetingRequestRow[]
   >([]);
@@ -189,6 +206,9 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState("");
   const [adminPostView, setAdminPostView] = useState<AdminPostView>("escalated");
   const [auditTrailView, setAuditTrailView] = useState<AuditTrailView>("live");
+  const [selectedDrilldownDistrict, setSelectedDrilldownDistrict] = useState<string | null>(
+    null
+  );
 
   const [issueActionLoadingId, setIssueActionLoadingId] = useState<string | null>(null);
   const [roleActionLoadingId, setRoleActionLoadingId] = useState<string | null>(null);
@@ -199,6 +219,7 @@ export default function AdminDashboardPage() {
   const escalatedCasesRef = useRef<HTMLElement | null>(null);
   const videoMeetingsRef = useRef<HTMLElement | null>(null);
   const auditTrailRef = useRef<HTMLElement | null>(null);
+  const districtDrilldownRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -320,6 +341,7 @@ export default function AdminDashboardPage() {
       loadProfiles(),
       loadModerationQueue(),
       loadActivityLogs(),
+      loadDistrictRepresentatives(),
       loadVideoMeetingRequests(),
     ]);
   }
@@ -368,6 +390,22 @@ export default function AdminDashboardPage() {
 
     if (!error) {
       setActivityLogs((data ?? []) as ActivityLogRow[]);
+    }
+  }
+
+  async function loadDistrictRepresentatives() {
+    const { data, error } = await supabase
+      .from("district_representatives")
+      .select(
+        "id, district_code, state, name, title, office_label, party, website, contact_url, phone, is_active"
+      )
+      .eq("is_active", true)
+      .order("district_code", { ascending: true });
+
+    if (!error) {
+      setDistrictRepresentatives((data ?? []) as DistrictRepresentativeAdminRow[]);
+    } else {
+      console.error("Failed to load district representatives:", error.message);
     }
   }
 
@@ -927,6 +965,101 @@ export default function AdminDashboardPage() {
     });
   }, [issues, moderationInsights.topCategories]);
 
+  const selectedDistrictDrilldown = useMemo(() => {
+    if (!selectedDrilldownDistrict) return null;
+
+    const district = selectedDrilldownDistrict;
+    const districtIssues = issues.filter(
+      (issue) => normalizeDistrict(issue.district) === district
+    );
+    const districtMeetings = videoMeetingRequests.filter(
+      (request) => normalizeDistrict(request.district) === district
+    );
+    const districtOfficialProfiles = profiles.filter(
+      (profile) =>
+        profile.role === "official" && normalizeDistrict(profile.district) === district
+    );
+    const districtRepRows = districtRepresentatives.filter(
+      (rep) => normalizeDistrict(rep.district_code) === district
+    );
+    const districtRisk = districtRiskRows.find((row) => row.district === district);
+    const issueIds = new Set(districtIssues.map((issue) => issue.id));
+    const districtModerationRows = moderationQueue.filter(
+      (row) => row.post_id && issueIds.has(row.post_id)
+    );
+    const categoryCounts = new Map<string, number>();
+    const representativeMeetingCounts = new Map<string, number>();
+
+    districtIssues.forEach((issue) => {
+      const category = issue.category?.trim() || "Uncategorized";
+      categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+    });
+
+    districtMeetings.forEach((request) => {
+      const representative = request.representative_name || "Representative";
+      representativeMeetingCounts.set(
+        representative,
+        (representativeMeetingCounts.get(representative) ?? 0) + 1
+      );
+    });
+
+    const topCategories = Array.from(categoryCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+
+    const representativeActivity = Array.from(representativeMeetingCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const today = new Date();
+    const trend = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      date.setDate(date.getDate() - (6 - index));
+      const nextDate = new Date(date.getTime() + dayMs);
+      const start = date.getTime();
+      const end = nextDate.getTime();
+      const dayIssues = districtIssues.filter((issue) => {
+        const time = new Date(issue.created_at ?? "").getTime();
+        return !Number.isNaN(time) && time >= start && time < end;
+      });
+
+      return {
+        label: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        total: dayIssues.length,
+        escalated: dayIssues.filter((issue) => issue.status === "under_review").length,
+        removed: dayIssues.filter((issue) => issue.status === "removed").length,
+      };
+    });
+
+    return {
+      district,
+      risk: districtRisk,
+      posts: districtIssues,
+      recentPosts: districtIssues.slice(0, 5),
+      escalatedPosts: districtIssues.filter((issue) => issue.status === "under_review"),
+      removedPosts: districtIssues.filter((issue) => issue.status === "removed"),
+      meetings: districtMeetings,
+      pendingMeetings: districtMeetings.filter((request) => request.status === "pending"),
+      representatives: districtRepRows,
+      officialProfiles: districtOfficialProfiles,
+      representativeActivity,
+      moderationRows: districtModerationRows,
+      topCategories,
+      trend,
+    };
+  }, [
+    districtRepresentatives,
+    districtRiskRows,
+    issues,
+    moderationQueue,
+    profiles,
+    selectedDrilldownDistrict,
+    videoMeetingRequests,
+  ]);
+
   const liveAuditLogs = useMemo<ActivityLogRow[]>(() => {
     const derivedIssueLogs: ActivityLogRow[] = issues.slice(0, 12).map((issue) => {
       const status = issue.status || "active";
@@ -1272,6 +1405,11 @@ export default function AdminDashboardPage() {
 
     setIssueSearch(row.district);
     scrollToAdminSection(escalatedCasesRef);
+  }
+
+  function handleDistrictDrilldownOpen(district: string) {
+    setSelectedDrilldownDistrict(district);
+    scrollToAdminSection(districtDrilldownRef);
   }
 
   if (loading) {
@@ -1644,9 +1782,14 @@ export default function AdminDashboardPage() {
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-lg font-semibold text-slate-900">
+                            <button
+                              type="button"
+                              onClick={() => handleDistrictDrilldownOpen(row.district)}
+                              className="rounded-lg text-left text-lg font-semibold text-slate-900 underline-offset-4 transition hover:text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+                              aria-label={`Open ${row.district} district drilldown`}
+                            >
                               {row.district}
-                            </h3>
+                            </button>
                             <span
                               className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getRiskBadgeClasses(
                                 row.riskLevel
@@ -1660,9 +1803,14 @@ export default function AdminDashboardPage() {
                           </p>
                         </div>
 
-                        <div className="rounded-2xl bg-slate-100 p-3 transition group-hover:bg-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => handleDistrictDrilldownOpen(row.district)}
+                          className="rounded-2xl bg-slate-100 p-3 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
+                          aria-label={`Open ${row.district} district drilldown`}
+                        >
                           <TrendingUp className="h-5 w-5 text-slate-700" />
-                        </div>
+                        </button>
                       </div>
 
                       <div className="mt-5 grid grid-cols-2 gap-3">
@@ -1756,6 +1904,383 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </section>
+
+          {/* District Drilldown */}
+          {selectedDistrictDrilldown && (
+            <section
+              ref={districtDrilldownRef}
+              className="scroll-mt-6 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+            >
+              <div className="border-b border-slate-200 px-6 py-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                        {selectedDistrictDrilldown.district} District Drilldown
+                      </h2>
+                      {selectedDistrictDrilldown.risk && (
+                        <span
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getRiskBadgeClasses(
+                            selectedDistrictDrilldown.risk.riskLevel
+                          )}`}
+                        >
+                          {selectedDistrictDrilldown.risk.riskLevel} Risk
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">
+                      In-console district view for posts, escalation trends, removals,
+                      meeting requests, and representative activity.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDrilldownDistrict(null)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-5 p-6">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  {[
+                    {
+                      label: "District Posts",
+                      value: selectedDistrictDrilldown.posts.length,
+                      tone: "bg-blue-50 text-blue-800",
+                      action: () =>
+                        handleDistrictRiskMetricClick(
+                          {
+                            district: selectedDistrictDrilldown.district,
+                            totalPosts: 0,
+                            escalatedPosts: 0,
+                            removedPosts: 0,
+                            escalationRate: 0,
+                            removalRate: 0,
+                            avgResolutionHours: 0,
+                            riskLevel: "Low",
+                          },
+                          "total"
+                        ),
+                    },
+                    {
+                      label: "Escalated",
+                      value: selectedDistrictDrilldown.escalatedPosts.length,
+                      tone: "bg-yellow-50 text-yellow-800",
+                      action: () =>
+                        handleDistrictRiskMetricClick(
+                          {
+                            district: selectedDistrictDrilldown.district,
+                            totalPosts: 0,
+                            escalatedPosts: 0,
+                            removedPosts: 0,
+                            escalationRate: 0,
+                            removalRate: 0,
+                            avgResolutionHours: 0,
+                            riskLevel: "Low",
+                          },
+                          "escalated"
+                        ),
+                    },
+                    {
+                      label: "Removed",
+                      value: selectedDistrictDrilldown.removedPosts.length,
+                      tone: "bg-red-50 text-red-800",
+                      action: () =>
+                        handleDistrictRiskMetricClick(
+                          {
+                            district: selectedDistrictDrilldown.district,
+                            totalPosts: 0,
+                            escalatedPosts: 0,
+                            removedPosts: 0,
+                            escalationRate: 0,
+                            removalRate: 0,
+                            avgResolutionHours: 0,
+                            riskLevel: "Low",
+                          },
+                          "removed"
+                        ),
+                    },
+                    {
+                      label: "Meeting Requests",
+                      value: selectedDistrictDrilldown.meetings.length,
+                      tone: "bg-indigo-50 text-indigo-800",
+                      action: () => {
+                        scrollToAdminSection(videoMeetingsRef);
+                      },
+                    },
+                    {
+                      label: "Representatives",
+                      value:
+                        selectedDistrictDrilldown.representatives.length +
+                        selectedDistrictDrilldown.officialProfiles.length,
+                      tone: "bg-emerald-50 text-emerald-800",
+                      action: () => {
+                        setUserSearch(selectedDistrictDrilldown.district);
+                        scrollToAdminSection(userManagementRef);
+                      },
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.action}
+                      className={`rounded-2xl px-4 py-4 text-left transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${item.tone}`}
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                        {item.label}
+                      </p>
+                      <p className="mt-2 text-3xl font-bold">{item.value}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          Escalation Trend
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Daily posts, escalations, and removals for the last 7 days.
+                        </p>
+                      </div>
+                      <BarChart3 className="h-5 w-5 text-slate-400" />
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      {selectedDistrictDrilldown.trend.map((point) => {
+                        const maxTrendValue = Math.max(
+                          1,
+                          ...selectedDistrictDrilldown.trend.map((item) => item.total)
+                        );
+                        const width = Math.max((point.total / maxTrendValue) * 100, 4);
+
+                        return (
+                          <div key={point.label} className="grid grid-cols-[4.5rem_1fr] gap-3">
+                            <span className="text-xs font-medium text-slate-500">
+                              {point.label}
+                            </span>
+                            <div>
+                              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full bg-blue-500"
+                                  style={{ width: `${width}%` }}
+                                />
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {point.total} total • {point.escalated} escalated •{" "}
+                                {point.removed} removed
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-xl bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Moderation Events
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-slate-900">
+                          {selectedDistrictDrilldown.moderationRows.length}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Top Category
+                        </p>
+                        <p className="mt-2 truncate text-lg font-bold text-slate-900">
+                          {selectedDistrictDrilldown.topCategories[0]?.name || "None yet"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          Representative Activity
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Assigned leaders, official accounts, and meeting demand.
+                        </p>
+                      </div>
+                      <Building2 className="h-5 w-5 text-slate-400" />
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {selectedDistrictDrilldown.representatives.length === 0 &&
+                      selectedDistrictDrilldown.officialProfiles.length === 0 ? (
+                        <div className="rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                          No representative records are assigned to this district yet.
+                        </div>
+                      ) : (
+                        <>
+                          {selectedDistrictDrilldown.representatives.map((rep) => (
+                            <div
+                              key={rep.id}
+                              className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+                            >
+                              <p className="font-semibold text-slate-900">{rep.name}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {rep.title} • {rep.office_label}
+                              </p>
+                            </div>
+                          ))}
+
+                          {selectedDistrictDrilldown.officialProfiles.map((profile) => (
+                            <div
+                              key={profile.id}
+                              className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3"
+                            >
+                              <p className="font-semibold text-emerald-900">
+                                {profile.full_name || profile.email || "Official account"}
+                              </p>
+                              <p className="mt-1 text-xs text-emerald-700">
+                                Verified official profile
+                              </p>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {selectedDistrictDrilldown.representativeActivity.length > 0 && (
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                            Meeting demand by representative
+                          </p>
+                          <div className="mt-2 space-y-2">
+                            {selectedDistrictDrilldown.representativeActivity.map((rep) => (
+                              <div
+                                key={rep.name}
+                                className="flex items-center justify-between gap-3 text-sm"
+                              >
+                                <span className="truncate text-indigo-900">{rep.name}</span>
+                                <span className="font-semibold text-indigo-800">
+                                  {rep.count}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <h3 className="text-lg font-semibold text-slate-900">Recent Posts</h3>
+                    <div className="mt-4 space-y-3">
+                      {selectedDistrictDrilldown.recentPosts.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                          No posts for this district yet.
+                        </p>
+                      ) : (
+                        selectedDistrictDrilldown.recentPosts.map((post) => (
+                          <div
+                            key={post.id}
+                            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStatusClasses(
+                                  post.status
+                                )}`}
+                              >
+                                {post.status || "active"}
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                {formatDate(post.created_at)}
+                              </span>
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-sm font-semibold text-slate-900">
+                              {post.title}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Removed Content
+                    </h3>
+                    <div className="mt-4 space-y-3">
+                      {selectedDistrictDrilldown.removedPosts.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                          No removed posts in this district.
+                        </p>
+                      ) : (
+                        selectedDistrictDrilldown.removedPosts.slice(0, 4).map((post) => (
+                          <div
+                            key={post.id}
+                            className="rounded-xl border border-red-100 bg-red-50 px-4 py-3"
+                          >
+                            <p className="line-clamp-2 text-sm font-semibold text-red-950">
+                              {post.title}
+                            </p>
+                            <p className="mt-1 text-xs text-red-700">
+                              {post.category || "Uncategorized"} • {formatDate(post.created_at)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Meeting Requests
+                    </h3>
+                    <div className="mt-4 space-y-3">
+                      {selectedDistrictDrilldown.meetings.length === 0 ? (
+                        <p className="rounded-xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                          No meeting requests for this district.
+                        </p>
+                      ) : (
+                        selectedDistrictDrilldown.meetings.slice(0, 4).map((request) => (
+                          <div
+                            key={request.id}
+                            className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getMeetingStatusClasses(
+                                  request.status
+                                )}`}
+                              >
+                                {request.status || "pending"}
+                              </span>
+                              <span className="text-xs text-indigo-700">
+                                {formatDate(request.created_at)}
+                              </span>
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-sm font-semibold text-indigo-950">
+                              {request.topic || "Meeting request"}
+                            </p>
+                            <p className="mt-1 text-xs text-indigo-700">
+                              {request.citizen_name || "Constituent"} to{" "}
+                              {request.representative_name || "Representative"}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Video Meeting Requests */}
           <section
