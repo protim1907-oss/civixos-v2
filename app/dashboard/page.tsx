@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
+import IssueLifecycle from "@/components/issues/IssueLifecycle";
 import {
   LogOut,
   Search,
@@ -1331,6 +1332,12 @@ export default function DashboardPage() {
                                 <div className="mt-4 text-sm text-slate-500">
                                   Created on {formatDate(item.created_at)}
                                 </div>
+
+                                {item.kind === "issue" && (
+                                  <div className="mt-5">
+                                    <IssueLifecycle status={item.status} compact />
+                                  </div>
+                                )}
                               </div>
                             </Link>
                           ))}

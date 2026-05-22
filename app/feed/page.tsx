@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../../components/layout/Sidebar";
+import IssueLifecycle from "@/components/issues/IssueLifecycle";
 import { createClient } from "@/lib/supabase/client";
 
 type FeedPost = {
@@ -12,7 +13,16 @@ type FeedPost = {
   district: string;
   category: string;
   urgency: "High" | "Medium" | "Low";
-  status: "Open" | "Under Review" | "Resolved" | "Escalated" | "Active" | "Removed";
+  status:
+    | "Open"
+    | "Under Review"
+    | "Sent to Official"
+    | "Acknowledged"
+    | "Needs Info"
+    | "Resolved"
+    | "Escalated"
+    | "Active"
+    | "Removed";
   upvotes: number;
   comments: number;
   representative: string;
@@ -135,7 +145,12 @@ function getStatusStyles(status: FeedPost["status"]) {
     case "Resolved":
       return "border-l-4 border-emerald-500";
     case "Escalated":
+    case "Sent to Official":
       return "border-l-4 border-blue-500";
+    case "Acknowledged":
+      return "border-l-4 border-cyan-500";
+    case "Needs Info":
+      return "border-l-4 border-orange-500";
     case "Active":
       return "border-l-4 border-violet-500";
     case "Removed":
@@ -167,7 +182,12 @@ function getStatusBadge(status: FeedPost["status"]) {
     case "Resolved":
       return "bg-emerald-100 text-emerald-700";
     case "Escalated":
+    case "Sent to Official":
       return "bg-blue-100 text-blue-700";
+    case "Acknowledged":
+      return "bg-cyan-100 text-cyan-700";
+    case "Needs Info":
+      return "bg-orange-100 text-orange-700";
     case "Active":
       return "bg-violet-100 text-violet-700";
     case "Removed":
@@ -245,6 +265,9 @@ function inferCategory(title: string, description: string) {
 function normalizeIssueStatus(value?: string | null): FeedPost["status"] {
   const v = (value || "").toLowerCase().trim();
   if (v === "under review" || v === "under_review") return "Under Review";
+  if (v === "acknowledged") return "Acknowledged";
+  if (v === "needs_info" || v === "needs info") return "Needs Info";
+  if (v === "sent_to_official" || v === "sent to official") return "Sent to Official";
   if (v === "resolved") return "Resolved";
   if (v === "escalated") return "Escalated";
   if (v === "removed") return "Removed";
@@ -1146,6 +1169,12 @@ export default function FeedPage() {
                         <h2 className="text-xl font-bold text-slate-900">{post.title}</h2>
 
                         <p className="mt-3 text-slate-600">{post.description}</p>
+
+                        {post.kind === "issue" && (
+                          <div className="mt-5">
+                            <IssueLifecycle status={post.status} />
+                          </div>
+                        )}
 
                         <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-slate-500">
                           <button
