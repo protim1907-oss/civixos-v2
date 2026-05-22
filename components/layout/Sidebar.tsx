@@ -17,6 +17,7 @@ import {
   CalendarClock,
   HandCoins,
   HeartHandshake,
+  MessageCircle,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
@@ -226,6 +227,12 @@ export default function Sidebar() {
       officialOnly: true,
     },
     {
+      href: "/official-response-center",
+      label: "Response Center",
+      icon: MessageCircle,
+      officialOnly: true,
+    },
+    {
       href: "/create-post",
       label: "Create Post",
       icon: MessageSquareText,
@@ -249,7 +256,9 @@ export default function Sidebar() {
 
   const visibleNavItems = navItems.filter(
     (item) =>
-      (item.officialOnly ? userRole === "official" : true) &&
+      (item.officialOnly
+        ? userRole === "official" || userRole === "admin" || userRole === "moderator"
+        : true) &&
       !(
         (userRole === "admin" || userRole === "moderator" || userRole === "official") &&
         item.href === "/my-representatives"
