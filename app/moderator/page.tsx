@@ -370,6 +370,189 @@ export default function ModeratorDashboardPage() {
     window.location.href = "/login";
   }
 
+  function escapeHtml(value: string) {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  async function handleLaunchDistrictSurveys() {
+    const title = surveyForm.title.trim();
+    const summary = surveyForm.summary.trim();
+    const primaryQuestion = surveyForm.primaryQuestion.trim();
+
+    setSurveyMessage("");
+
+    if (!profile?.id) {
+      setSurveyMessage("Please sign in as a moderator before launching surveys.");
+      return;
+    }
+
+    if (!title || !summary || !primaryQuestion || !surveyForm.deadline) {
+      setSurveyMessage("Complete the title, summary, question, and deadline first.");
+      return;
+    }
+
+    try {
+      setSurveyPublishing(true);
+
+      const createdAt = new Date().toISOString();
+      const surveyBatchId = `moderator-${Date.now()}`;
+
+      await Promise.all(
+        MODERATOR_SURVEY_DISTRICTS.map((district) =>
+          publishPolicyPulseSurvey(supabase, {
+            id: `${surveyBatchId}-${district.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+            title,
+            district,
+            createdByUserId: profile.id,
+            createdByName: profile.full_name || profile.email || "Moderator",
+            summary,
+            primaryQuestion,
+            deadline: surveyForm.deadline,
+            uploadedFiles: [],
+            createdAt,
+            votes: { ...initialVotes },
+            recentResponses: [],
+          })
+        )
+      );
+
+      await fetchPolicySurveys();
+      setSurveyMessage("Survey launched for NH, TX-35, and CA-42.");
+      setSurveyForm({
+        title: "",
+        summary: "",
+        primaryQuestion: "Do you support this policy proposal for your district?",
+        deadline: "",
+      });
+    } catch (error) {
+      console.error("Failed to launch district surveys:", error);
+      setSurveyMessage("Unable to launch surveys. Confirm Supabase survey permissions.");
+    } finally {
+      setSurveyPublishing(false);
+    }
+  }
+
+  function handleExportDistrictSurveyPdf(survey: PolicyPulseSurvey) {
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=720");
+    if (!printWindow) return;
+
+    const totalVotes = Object.values(survey.votes).reduce((sum, count) => sum + count, 0);
+    const voteRows = voteOptions
+      .map((option) => {
+        const value = survey.votes[option];
+        const percentage = totalVotes > 0 ? ((value / totalVotes) * 100).toFixed(1) : "0.0";
+        return `
+          <tr>
+            <td>${escapeHtml(option)}</td>
+            <td>${value}</td>
+            <td>${percentage}%</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const responseRows =
+      survey.recentResponses.length > 0
+        ? survey.recentResponses
+            .map(
+              (response) => `
+                <tr>
+                  <td>${escapeHtml(response.citizenLabel)}</td>
+                  <td>${escapeHtml(response.supportLevel)}</td>
+                  <td>${escapeHtml(response.topConcern)}</td>
+                  <td>${escapeHtml(response.recommendation)}</td>
+                </tr>
+              `
+            )
+            .join("")
+        : `<tr><td colspan="4">No feedback submitted yet.</td></tr>`;
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(survey.district)} Survey Results</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 32px; color: #0f172a; }
+            h1, h2 { margin-bottom: 8px; }
+            p { line-height: 1.6; }
+            .meta { margin: 20px 0; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; vertical-align: top; }
+            th { background: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(survey.title)}</h1>
+          <p>${escapeHtml(survey.summary)}</p>
+          <div class="meta">
+            <p><strong>District:</strong> ${escapeHtml(survey.district)}</p>
+            <p><strong>Question:</strong> ${escapeHtml(survey.primaryQuestion)}</p>
+            <p><strong>Deadline:</strong> ${escapeHtml(formatDate(survey.deadline))}</p>
+            <p><strong>Total votes:</strong> ${totalVotes}</p>
+            <p><strong>Prepared by:</strong> ${escapeHtml(profile?.full_name || profile?.email || "Moderator")}</p>
+          </div>
+          <h2>Vote Breakdown</h2>
+          <table>
+            <thead><tr><th>Option</th><th>Votes</th><th>Share</th></tr></thead>
+            <tbody>${voteRows}</tbody>
+          </table>
+          <h2>Citizen Feedback</h2>
+          <table>
+            <thead><tr><th>Citizen</th><th>Support</th><th>Concern</th><th>Recommendation</th></tr></thead>
+            <tbody>${responseRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }
+
+  async function handleShareSurveyResults(survey: PolicyPulseSurvey) {
+    const totalVotes = Object.values(survey.votes).reduce((sum, count) => sum + count, 0);
+    const topVote = voteOptions
+      .map((option) => ({ option, count: survey.votes[option] }))
+      .sort((a, b) => b.count - a.count)[0];
+    const topConcern =
+      survey.recentResponses[0]?.topConcern ||
+      "No top concern submitted yet";
+
+    try {
+      setSharingSurveyDistrict(survey.district);
+      setSurveyMessage("");
+
+      const { error } = await supabase.from("official_updates").insert({
+        title: `Policy Pulse results ready: ${survey.title}`,
+        summary: `${survey.district} survey results are ready for representative review. Total votes: ${totalVotes}. Leading response: ${topVote.option} (${topVote.count}). Top recent concern: ${topConcern}.`,
+        district: survey.district,
+        category: "Policy Update",
+        priority: "High",
+        status: "Active",
+        source_name: profile?.full_name || profile?.email || "Moderator",
+        source_url: `/policy-pulse?survey=${encodeURIComponent(survey.id)}`,
+        published_by: profile?.id || null,
+        published_by_name: profile?.full_name || profile?.email || "Moderator",
+      });
+
+      if (error) {
+        console.error("Failed to share survey results:", error.message);
+        setSurveyMessage(error.message || "Unable to share survey results.");
+        return;
+      }
+
+      setSurveyMessage(`Results shared with ${survey.district} representatives via Official Updates.`);
+    } finally {
+      setSharingSurveyDistrict(null);
+    }
+  }
+
   function handleStatsCardClick(filter: FilterType) {
     setActiveFilter(filter);
     setSearch("");
@@ -1287,6 +1470,213 @@ export default function ModeratorDashboardPage() {
                 </div>
               </div>
             </button>
+          </section>
+
+          <section
+            ref={surveySectionRef}
+            className="rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+          >
+            <div className="border-b border-slate-200 px-6 py-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="h-5 w-5 text-blue-700" />
+                    <h2 className="text-xl font-semibold text-slate-900">
+                      Multi-District Policy Pulse Surveys
+                    </h2>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Launch one survey for NH, TX-35, and CA-42. Citizens see and vote
+                    only on their district survey; moderators export results by district.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    surveySectionRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    })
+                  }
+                  className="rounded-xl bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700"
+                >
+                  {policySurveys.length} surveys tracked
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-6 p-6 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <h3 className="text-lg font-semibold text-slate-900">Survey Builder</h3>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Survey title
+                    </label>
+                    <input
+                      value={surveyForm.title}
+                      onChange={(event) =>
+                        setSurveyForm((current) => ({
+                          ...current,
+                          title: event.target.value,
+                        }))
+                      }
+                      placeholder="Example: District Transit Safety Proposal"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Policy summary
+                    </label>
+                    <textarea
+                      value={surveyForm.summary}
+                      onChange={(event) =>
+                        setSurveyForm((current) => ({
+                          ...current,
+                          summary: event.target.value,
+                        }))
+                      }
+                      rows={5}
+                      placeholder="Explain the proposal, tradeoffs, and what resident input will decide."
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Survey question
+                    </label>
+                    <input
+                      value={surveyForm.primaryQuestion}
+                      onChange={(event) =>
+                        setSurveyForm((current) => ({
+                          ...current,
+                          primaryQuestion: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Voting deadline
+                    </label>
+                    <input
+                      type="date"
+                      value={surveyForm.deadline}
+                      onChange={(event) =>
+                        setSurveyForm((current) => ({
+                          ...current,
+                          deadline: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLaunchDistrictSurveys}
+                    disabled={surveyPublishing}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {surveyPublishing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="h-4 w-4" />
+                    )}
+                    {surveyPublishing
+                      ? "Launching surveys..."
+                      : "Launch for NH, TX-35, and CA-42"}
+                  </button>
+
+                  {surveyMessage ? (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+                      {surveyMessage}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {districtSurveyRows.map((row) => (
+                  <div
+                    key={row.district}
+                    className="rounded-2xl border border-slate-200 bg-white p-5"
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                            {row.district}
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              row.latestSurvey
+                                ? row.votingClosed
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-yellow-100 text-yellow-800"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {row.latestSurvey
+                              ? row.votingClosed
+                                ? "Voting finished"
+                                : "Voting open"
+                              : "No survey yet"}
+                          </span>
+                        </div>
+                        <h3 className="mt-3 text-lg font-semibold text-slate-900">
+                          {row.latestSurvey?.title || "No district survey launched"}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {row.latestSurvey
+                            ? row.latestSurvey.summary
+                            : "Launch a survey to collect district-specific votes and feedback."}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-500">
+                          <span>{row.totalVotes} votes</span>
+                          <span>{row.responseCount} feedback responses</span>
+                          {row.latestSurvey ? (
+                            <span>Deadline {formatDate(row.latestSurvey.deadline)}</span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 lg:flex-col">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            row.latestSurvey &&
+                            handleExportDistrictSurveyPdf(row.latestSurvey)
+                          }
+                          disabled={!row.latestSurvey}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Export PDF
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            row.latestSurvey && handleShareSurveyResults(row.latestSurvey)
+                          }
+                          disabled={!row.latestSurvey || sharingSurveyDistrict === row.district}
+                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {sharingSurveyDistrict === row.district
+                            ? "Sharing..."
+                            : "Share with reps"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
 
           <section className="rounded-3xl bg-slate-950 text-white shadow-sm overflow-hidden">
