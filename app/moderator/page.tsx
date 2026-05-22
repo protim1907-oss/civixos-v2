@@ -224,7 +224,12 @@ export default function ModeratorDashboardPage() {
           setProfile((profileData as ProfileRow) ?? null);
         }
 
-        await Promise.all([fetchIssues(), fetchAuditLogs(), fetchMeetingRequests()]);
+        await Promise.all([
+          fetchIssues(),
+          fetchAuditLogs(),
+          fetchMeetingRequests(),
+          fetchPolicySurveys(),
+        ]);
 
         if (mounted) {
           setLoading(false);
@@ -272,11 +277,23 @@ export default function ModeratorDashboardPage() {
       )
       .subscribe();
 
+    const surveysChannel = supabase
+      .channel("moderator-live-policy-surveys")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "policy_pulse_surveys" },
+        async () => {
+          await fetchPolicySurveys();
+        }
+      )
+      .subscribe();
+
     return () => {
       mounted = false;
       supabase.removeChannel(issuesChannel);
       supabase.removeChannel(auditChannel);
       supabase.removeChannel(meetingsChannel);
+      supabase.removeChannel(surveysChannel);
     };
   }, [router, supabase]);
 
@@ -329,10 +346,20 @@ export default function ModeratorDashboardPage() {
     setMeetingRequests((data as VideoMeetingRequestRow[]) ?? []);
   }
 
+  async function fetchPolicySurveys() {
+    const surveys = await loadPublishedPolicyPulseSurveys(supabase);
+    setPolicySurveys(surveys);
+  }
+
   async function handleRefresh() {
     try {
       setRefreshing(true);
-      await Promise.all([fetchIssues(), fetchAuditLogs(), fetchMeetingRequests()]);
+      await Promise.all([
+        fetchIssues(),
+        fetchAuditLogs(),
+        fetchMeetingRequests(),
+        fetchPolicySurveys(),
+      ]);
     } finally {
       setRefreshing(false);
     }
