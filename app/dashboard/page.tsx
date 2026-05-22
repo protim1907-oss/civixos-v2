@@ -155,6 +155,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [dashboardReady, setDashboardReady] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -245,6 +246,7 @@ export default function DashboardPage() {
     if (mode === "initial") {
       setLoading(true);
       setDashboardReady(false);
+      setRedirecting(false);
     }
 
     if (mode === "refresh") {
@@ -260,6 +262,8 @@ export default function DashboardPage() {
         typeof window !== "undefined" ? localStorage.getItem("guest_user") : null;
 
       if (!session?.user && !guestUser) {
+        setRedirecting(true);
+        setDashboardReady(true);
         router.replace("/login");
         return;
       }
@@ -365,6 +369,8 @@ export default function DashboardPage() {
             localStorage.removeItem("guest_user");
           }
 
+          setRedirecting(true);
+          setDashboardReady(true);
           router.replace("/login");
           return;
         }
@@ -385,11 +391,15 @@ export default function DashboardPage() {
       const typedProfile = profile as ProfileRow | null;
 
       if (typedProfile?.role === "admin") {
+        setRedirecting(true);
+        setDashboardReady(true);
         router.replace("/admin");
         return;
       }
 
       if (typedProfile?.role === "moderator") {
+        setRedirecting(true);
+        setDashboardReady(true);
         router.replace("/moderator");
         return;
       }
@@ -839,16 +849,18 @@ export default function DashboardPage() {
     underReviewCount,
   ]);
 
-  if (loading || !dashboardReady) {
+  if (redirecting || loading || !dashboardReady) {
     return (
       <main className="min-h-screen bg-slate-100">
         <div className="flex min-h-screen items-center justify-center">
           <div className="rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-sm">
             <h2 className="text-2xl font-bold text-slate-900">
-              Loading dashboard...
+              {redirecting ? "Redirecting..." : "Loading dashboard..."}
             </h2>
             <p className="mt-2 text-slate-500">
-              Preparing your district view.
+              {redirecting
+                ? "Sending you to the right sign-in page."
+                : "Preparing your district view."}
             </p>
           </div>
         </div>
