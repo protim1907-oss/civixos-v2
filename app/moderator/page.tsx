@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
 import {
+  initialVotes,
+  loadPublishedPolicyPulseSurveys,
+  PolicyPulseSurvey,
+  publishPolicyPulseSurvey,
+  voteOptions,
+} from "@/lib/policy-pulse";
+import {
   Search,
   ShieldCheck,
   AlertTriangle,
@@ -143,6 +150,15 @@ type DistrictOverview = {
   riskScore: number;
 };
 
+type ModeratorSurveyForm = {
+  title: string;
+  summary: string;
+  primaryQuestion: string;
+  deadline: string;
+};
+
+const MODERATOR_SURVEY_DISTRICTS = ["NH", "TX-35", "CA-42"];
+
 export default function ModeratorDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -152,6 +168,7 @@ export default function ModeratorDashboardPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [meetingRequests, setMeetingRequests] = useState<VideoMeetingRequestRow[]>([]);
+  const [policySurveys, setPolicySurveys] = useState<PolicyPulseSurvey[]>([]);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -161,12 +178,22 @@ export default function ModeratorDashboardPage() {
   const [selectedInsight, setSelectedInsight] = useState<InsightKey | null>(null);
   const [meetingStatusFilter, setMeetingStatusFilter] = useState<MeetingStatusFilter>("all");
   const [meetingDistrictFilter, setMeetingDistrictFilter] = useState<string | null>(null);
+  const [surveyForm, setSurveyForm] = useState<ModeratorSurveyForm>({
+    title: "",
+    summary: "",
+    primaryQuestion: "Do you support this policy proposal for your district?",
+    deadline: "",
+  });
+  const [surveyPublishing, setSurveyPublishing] = useState(false);
+  const [surveyMessage, setSurveyMessage] = useState("");
+  const [sharingSurveyDistrict, setSharingSurveyDistrict] = useState<string | null>(null);
   const [auditActorFilter, setAuditActorFilter] = useState<{
     actorId: string;
     actorName: string;
   } | null>(null);
   const postsSectionRef = useRef<HTMLElement | null>(null);
   const auditTrailRef = useRef<HTMLElement | null>(null);
+  const surveySectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
