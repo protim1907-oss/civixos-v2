@@ -859,7 +859,7 @@ export default function DashboardPage() {
             </h2>
             <p className="mt-2 text-slate-500">
               {redirecting
-                ? "Sending you to the right sign-in page."
+                ? "Sending you to the right page."
                 : "Preparing your district view."}
             </p>
           </div>
