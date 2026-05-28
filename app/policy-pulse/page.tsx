@@ -19,6 +19,20 @@ type TrendPoint = {
   supportScore: number;
 };
 
+type ProfileRow = {
+  role: string | null;
+  district: string | null;
+};
+
+function normalizeDistrict(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
+function isStaffRole(role?: string | null) {
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "moderator" || normalized === "official";
+}
+
 function getSentimentSummary(votes: Record<VoteOption, number>) {
   const positive = votes["Strongly Support"] + votes["Support"];
   const neutral = votes["Neutral"];
@@ -104,6 +118,17 @@ function formatDisplayDate(value: string) {
   return date.toLocaleDateString();
 }
 
+function getSurveyDeadlineTime(value: string) {
+  if (!value) return Number.NaN;
+
+  const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+  const deadline = dateOnlyPattern.test(value)
+    ? new Date(`${value}T23:59:59`)
+    : new Date(value);
+
+  return deadline.getTime();
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -120,6 +145,7 @@ function PolicyPulsePageContent() {
   const responsesRef = useRef<HTMLDivElement | null>(null);
 
   const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>([]);
+  const [currentProfile, setCurrentProfile] = useState<ProfileRow | null>(null);
   const [loadingSurveys, setLoadingSurveys] = useState(true);
 
   const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
@@ -133,9 +159,28 @@ function PolicyPulsePageContent() {
 
     async function loadSurveys() {
       try {
-        const publishedSurveys = await loadPublishedPolicyPulseSurveys(supabase);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        const [publishedSurveys, profileResult] = await Promise.all([
+          loadPublishedPolicyPulseSurveys(supabase),
+          user
+            ? supabase
+                .from("profiles")
+                .select("role, district")
+                .eq("id", user.id)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
         if (mounted) {
           setSurveys(publishedSurveys);
+          if (profileResult.error) {
+            console.error("Failed to load policy pulse profile:", profileResult.error.message);
+          } else {
+            setCurrentProfile((profileResult.data as ProfileRow | null) ?? null);
+          }
         }
       } finally {
         if (mounted) {
@@ -151,10 +196,25 @@ function PolicyPulsePageContent() {
     };
   }, [supabase]);
 
+  const visibleSurveys = useMemo(() => {
+    if (!currentProfile?.district || isStaffRole(currentProfile.role)) {
+      return surveys;
+    }
+
+    return surveys.filter(
+      (survey) =>
+        normalizeDistrict(survey.district) === normalizeDistrict(currentProfile.district)
+    );
+  }, [currentProfile, surveys]);
+
   const activeSurvey = useMemo(() => {
     const requestedSurveyId = searchParams.get("survey");
-    return surveys.find((survey) => survey.id === requestedSurveyId) || surveys[0] || null;
-  }, [searchParams, surveys]);
+    return (
+      visibleSurveys.find((survey) => survey.id === requestedSurveyId) ||
+      visibleSurveys[0] ||
+      null
+    );
+  }, [searchParams, visibleSurveys]);
 
   const createdMessage = useMemo(() => {
     if (searchParams.get("created") !== "1" || !activeSurvey) return "";
@@ -164,6 +224,12 @@ function PolicyPulsePageContent() {
   const canExportActiveSurvey = Boolean(activeSurvey);
 
   const surveyVotes = activeSurvey?.votes || initialVotes;
+
+  const activeSurveyVotingClosed = useMemo(() => {
+    if (!activeSurvey) return false;
+    const deadlineTime = getSurveyDeadlineTime(activeSurvey.deadline);
+    return !Number.isNaN(deadlineTime) && deadlineTime < Date.now();
+  }, [activeSurvey]);
 
   const totalVotes = useMemo(
     () => Object.values(surveyVotes).reduce((sum, count) => sum + count, 0),
@@ -338,6 +404,11 @@ function PolicyPulsePageContent() {
 
     if (!activeSurvey) {
       setVoteSubmittedMessage("Launch a survey first before collecting responses.");
+      return;
+    }
+
+    if (activeSurveyVotingClosed) {
+      setVoteSubmittedMessage("Voting is closed for this district survey.");
       return;
     }
 
@@ -584,7 +655,9 @@ function PolicyPulsePageContent() {
               <h2 className="text-xl font-bold text-slate-900">Cast Your Vote</h2>
               <p className="mt-2 text-slate-600">
                 {activeSurvey
-                  ? "Submit your support level, top concern, and recommendation for the live policy survey."
+                  ? activeSurveyVotingClosed
+                    ? "Voting has closed for this district survey. Results are now ready for moderator review."
+                    : "Submit your support level, top concern, and recommendation for the live policy survey."
                   : "Launch a survey first, then residents can submit structured responses here."}
               </p>
 
@@ -596,8 +669,9 @@ function PolicyPulsePageContent() {
                   <input
                     value={respondentName}
                     onChange={(e) => setRespondentName(e.target.value)}
+                    disabled={activeSurveyVotingClosed}
                     placeholder="Citizen A"
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   />
                 </div>
 
@@ -608,7 +682,8 @@ function PolicyPulsePageContent() {
                   <select
                     value={selectedVote}
                     onChange={(e) => setSelectedVote(e.target.value as VoteOption)}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                    disabled={activeSurveyVotingClosed}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   >
                     {voteOptions.map((option) => (
                       <option key={option} value={option}>
@@ -625,8 +700,9 @@ function PolicyPulsePageContent() {
                   <input
                     value={topConcern}
                     onChange={(e) => setTopConcern(e.target.value)}
+                    disabled={activeSurveyVotingClosed}
                     placeholder="Budget clarity"
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   />
                 </div>
 
@@ -637,17 +713,19 @@ function PolicyPulsePageContent() {
                   <textarea
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
+                    disabled={activeSurveyVotingClosed}
                     rows={4}
                     placeholder="Share the best next step or safeguard to add before rollout."
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                   />
                 </div>
 
                 <button
                   onClick={handleVoteSubmit}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
+                  disabled={!activeSurvey || activeSurveyVotingClosed}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Submit Response
+                  {activeSurveyVotingClosed ? "Voting Closed" : "Submit Response"}
                 </button>
 
                 {voteSubmittedMessage ? (

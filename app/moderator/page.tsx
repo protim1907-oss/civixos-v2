@@ -159,6 +159,17 @@ type ModeratorSurveyForm = {
 
 const MODERATOR_SURVEY_DISTRICTS = ["NH", "TX-35", "CA-42"];
 
+function getSurveyDeadlineTime(value: string) {
+  if (!value) return Number.NaN;
+
+  const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+  const deadline = dateOnlyPattern.test(value)
+    ? new Date(`${value}T23:59:59`)
+    : new Date(value);
+
+  return deadline.getTime();
+}
+
 export default function ModeratorDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -393,6 +404,12 @@ export default function ModeratorDashboardPage() {
 
     if (!title || !summary || !primaryQuestion || !surveyForm.deadline) {
       setSurveyMessage("Complete the title, summary, question, and deadline first.");
+      return;
+    }
+
+    const deadlineTime = getSurveyDeadlineTime(surveyForm.deadline);
+    if (Number.isNaN(deadlineTime) || deadlineTime < Date.now()) {
+      setSurveyMessage("Choose a valid future deadline before launching surveys.");
       return;
     }
 
@@ -937,7 +954,9 @@ export default function ModeratorDashboardPage() {
       const totalVotes = latestSurvey
         ? Object.values(latestSurvey.votes).reduce((sum, count) => sum + count, 0)
         : 0;
-      const deadlineTime = latestSurvey ? new Date(latestSurvey.deadline).getTime() : 0;
+      const deadlineTime = latestSurvey
+        ? getSurveyDeadlineTime(latestSurvey.deadline)
+        : 0;
       const votingClosed =
         Boolean(latestSurvey) &&
         !Number.isNaN(deadlineTime) &&
@@ -1654,7 +1673,12 @@ export default function ModeratorDashboardPage() {
                             row.latestSurvey &&
                             handleExportDistrictSurveyPdf(row.latestSurvey)
                           }
-                          disabled={!row.latestSurvey}
+                          disabled={!row.latestSurvey || !row.votingClosed}
+                          title={
+                            row.latestSurvey && !row.votingClosed
+                              ? "Export unlocks after district voting finishes"
+                              : "Export district survey results to PDF"
+                          }
                           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Export PDF
@@ -1664,7 +1688,16 @@ export default function ModeratorDashboardPage() {
                           onClick={() =>
                             row.latestSurvey && handleShareSurveyResults(row.latestSurvey)
                           }
-                          disabled={!row.latestSurvey || sharingSurveyDistrict === row.district}
+                          disabled={
+                            !row.latestSurvey ||
+                            !row.votingClosed ||
+                            sharingSurveyDistrict === row.district
+                          }
+                          title={
+                            row.latestSurvey && !row.votingClosed
+                              ? "Sharing unlocks after district voting finishes"
+                              : "Share district results with representatives"
+                          }
                           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {sharingSurveyDistrict === row.district
