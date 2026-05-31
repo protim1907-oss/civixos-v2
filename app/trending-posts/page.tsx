@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import { MessageCircle } from "lucide-react";
 import { XMLParser } from "fast-xml-parser";
@@ -564,6 +565,11 @@ export default async function TrendingPostsPage({
       : "all";
 
   const { user, profile } = await getCurrentUserProfile();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   const userMetadata =
     user && typeof user.user_metadata === "object" && user.user_metadata !== null
       ? user.user_metadata
@@ -794,7 +800,7 @@ export default async function TrendingPostsPage({
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                           {item.source || "News"}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                        <span suppressHydrationWarning className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
                           {formatDate(item.pubDate)}
                         </span>
                       </div>
