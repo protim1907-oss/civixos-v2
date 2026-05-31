@@ -10,13 +10,24 @@ type DistrictOption = {
 };
 
 const addressProofOptions = [
-  { value: "utility_bill", label: "Utility bill" },
-  { value: "lease", label: "Lease" },
-  { value: "voter_registration_screenshot", label: "Voter registration screenshot" },
-  { value: "government_id_with_address", label: "Government ID with address" },
-  { value: "property_tax_record", label: "Property tax record" },
-  { value: "school_or_municipal_document", label: "School or municipal document" },
+  { value: "voter_registration_screenshot", label: "Voter registration screenshot (recommended)" },
+  { value: "drivers_license", label: "Driver's license" },
 ];
+
+const voterLookupByState: Record<string, { label: string; url: string }> = {
+  Texas: {
+    label: "Check Texas voter registration",
+    url: "https://teamrv-mvp.sos.texas.gov/voter-registration/search",
+  },
+  "New Hampshire": {
+    label: "Check New Hampshire voter registration",
+    url: "https://app.sos.nh.gov/vr/",
+  },
+  California: {
+    label: "Check California voter registration",
+    url: "https://voterstatus.sos.ca.gov",
+  },
+};
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
 const MAX_ADDRESS_PROOF_FILE_SIZE = 10 * 1024 * 1024;
@@ -527,6 +538,24 @@ export default function SignupPage() {
         </select>
       </div>
 
+      {state && voterLookupByState[state] ? (
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <span className="mt-0.5">🗳</span>
+          <span>
+            Not sure if you&apos;re registered to vote?{" "}
+            <a
+              href={voterLookupByState[state].url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium underline"
+            >
+              {voterLookupByState[state].label} →
+            </a>{" "}
+            A voter registration card or screenshot is the best address proof you can provide.
+          </span>
+        </div>
+      ) : null}
+
       <div className="mb-4">
         <label className="mb-1 block text-sm font-medium">Street address</label>
         <input
@@ -690,7 +719,11 @@ export default function SignupPage() {
         />
         <span>
           I certify that I am at least 18 years of age and legally eligible to vote in my
-          jurisdiction.
+          jurisdiction.{" "}
+          <span className="text-slate-500">
+            Providing false certification is a violation of CivixOS Terms of Service and may
+            constitute a legal offense under applicable state and federal law.
+          </span>
         </span>
       </label>
 
