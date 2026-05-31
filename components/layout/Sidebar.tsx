@@ -234,6 +234,11 @@ export default function Sidebar() {
       officialOnly: true,
     },
     {
+      href: "/town-hall",
+      label: "Town Hall Calendar",
+      icon: CalendarClock,
+    },
+    {
       href: "/chat",
       label: "Community Chat",
       icon: Video,
