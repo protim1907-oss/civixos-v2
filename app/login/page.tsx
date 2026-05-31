@@ -59,6 +59,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
+  const [guestState, setGuestState] = useState("");
+  const [guestDistrict, setGuestDistrict] = useState("");
   const [pageChecking, setPageChecking] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -341,22 +344,24 @@ export default function LoginPage() {
   }
 
   async function handleGuestLogin() {
+    if (!guestState || !guestDistrict) {
+      setShowGuestPicker(true);
+      return;
+    }
     try {
       setMessage("");
       setGuestLoading(true);
-
       localStorage.setItem(
         "guest_user",
         JSON.stringify({
           name: "Guest Citizen",
           role: "guest",
           account_type: "citizen",
-          state: "Texas",
-          district_id: "TX-20",
-          district: "TX-20",
+          state: guestState,
+          district_id: guestDistrict,
+          district: guestDistrict,
         })
       );
-
       router.replace("/dashboard");
       router.refresh();
     } catch (error) {
@@ -365,6 +370,27 @@ export default function LoginPage() {
       setGuestLoading(false);
     }
   }
+
+  function confirmGuestDistrict() {
+    if (!guestState || !guestDistrict) return;
+    setShowGuestPicker(false);
+    handleGuestLogin();
+  }
+
+  const districtsByState: Record<string, { value: string; label: string }[]> = {
+    Texas: [
+      { value: "TX-12", label: "TX-12 — Fort Worth area" },
+      { value: "TX-20", label: "TX-20 — San Antonio area" },
+      { value: "TX-35", label: "TX-35 — Austin / San Antonio corridor" },
+    ],
+    "New Hampshire": [
+      { value: "NH-01", label: "NH-01 — Manchester / Seacoast" },
+      { value: "NH-02", label: "NH-02 — Concord / North Country" },
+    ],
+    California: [
+      { value: "CA-42", label: "CA-42 — Riverside / East LA" },
+    ],
+  };
 
   if (pageChecking) {
     return (
@@ -636,12 +662,65 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={handleGuestLogin}
+                onClick={() => setShowGuestPicker(true)}
                 disabled={guestLoading}
-                className="w-full rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-2xl bg-slate-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {guestLoading ? "Redirecting..." : "Continue as Guest"}
+                {guestLoading ? "Entering preview..." : "Preview as Guest →"}
               </button>
+
+              {showGuestPicker && (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-blue-900">
+                    Pick your district to see real local content
+                  </p>
+                  <select
+                    value={guestState}
+                    onChange={(e) => { setGuestState(e.target.value); setGuestDistrict(""); }}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400"
+                  >
+                    <option value="">Select your state</option>
+                    {Object.keys(districtsByState).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+
+                  {guestState && (
+                    <select
+                      value={guestDistrict}
+                      onChange={(e) => setGuestDistrict(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-400"
+                    >
+                      <option value="">Select your district</option>
+                      {districtsByState[guestState].map((d) => (
+                        <option key={d.value} value={d.value}>{d.label}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={confirmGuestDistrict}
+                      disabled={!guestState || !guestDistrict || guestLoading}
+                      className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {guestLoading ? "Loading..." : "Preview my district"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowGuestPicker(false)}
+                      className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-blue-700">
+                    You&apos;ll see real issues, discussions, and official updates — but posting requires a free account.
+                  </p>
+                </div>
+              )}
             </div>
 
             {message ? (

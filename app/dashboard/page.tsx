@@ -165,6 +165,7 @@ export default function DashboardPage() {
   const [discussions, setDiscussions] = useState<DiscussionRow[]>([]);
   const [policyPulseSurveys, setPolicyPulseSurveys] = useState<PolicyPulseSurvey[]>([]);
   const [userName, setUserName] = useState("Citizen");
+  const [isGuest, setIsGuest] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -278,6 +279,7 @@ export default function DashboardPage() {
       }
 
       if (!session?.user && guestUser) {
+        setIsGuest(true);
         try {
           const parsedGuest = JSON.parse(guestUser);
 
