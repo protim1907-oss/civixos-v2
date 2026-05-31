@@ -9,6 +9,9 @@ import {
   RefreshCw,
   Video,
   XCircle,
+  Plus,
+  Trash2,
+  Users,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
@@ -39,6 +42,33 @@ type MeetingRow = {
   reviewed_at: string | null;
   created_at: string | null;
 };
+
+type TownHallRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  scheduled_at: string;
+  district: string | null;
+  meeting_url: string;
+  created_by: string | null;
+  created_at: string | null;
+};
+
+function buildTownHallUrl(id: string) {
+  const token = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
+  return `https://meet.jit.si/civix250-townhall-${token}`;
+}
+
+function formatTownHallDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
 function isOfficialRole(role?: string | null) {
   const normalized = String(role || "").trim().toLowerCase();
@@ -87,6 +117,17 @@ export default function OfficialMeetingsPage() {
   const [filter, setFilter] = useState<"all" | MeetingRow["status"]>("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+
+  // Town Hall Calendar state
+  const [townHalls, setTownHalls] = useState<TownHallRow[]>([]);
+  const [townHallForm, setTownHallForm] = useState({
+    title: "",
+    description: "",
+    scheduled_at: "",
+  });
+  const [townHallSubmitting, setTownHallSubmitting] = useState(false);
+  const [townHallMessage, setTownHallMessage] = useState("");
+  const [showTownHallForm, setShowTownHallForm] = useState(false);
 
   const loadMeetings = useCallback(async () => {
     const {
@@ -151,7 +192,7 @@ export default function OfficialMeetingsPage() {
 
     async function init() {
       try {
-        await loadMeetings();
+        await Promise.all([loadMeetings(), loadTownHalls()]);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -174,7 +215,7 @@ export default function OfficialMeetingsPage() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [loadMeetings, supabase]);
+  }, [loadMeetings, loadTownHalls, supabase]);
 
   async function refresh() {
     try {
@@ -228,6 +269,67 @@ export default function OfficialMeetingsPage() {
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace("/login");
+  }
+
+  const loadTownHalls = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("town_halls")
+      .select("id, title, description, scheduled_at, district, meeting_url, created_by, created_at")
+      .order("scheduled_at", { ascending: true });
+
+    if (!error) {
+      setTownHalls((data as TownHallRow[]) || []);
+    }
+  }, [supabase]);
+
+  async function submitTownHall() {
+    if (!townHallForm.title.trim() || !townHallForm.scheduled_at) {
+      setTownHallMessage("Title and date/time are required.");
+      return;
+    }
+
+    try {
+      setTownHallSubmitting(true);
+      setTownHallMessage("");
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { data: inserted, error } = await supabase
+        .from("town_halls")
+        .insert({
+          title: townHallForm.title.trim(),
+          description: townHallForm.description.trim() || null,
+          scheduled_at: new Date(townHallForm.scheduled_at).toISOString(),
+          district: districtScope === "ALL" ? null : districtScope,
+          created_by: user?.id || null,
+          meeting_url: "",
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        setTownHallMessage(error.message || "Failed to schedule town hall.");
+        return;
+      }
+
+      // Update with the generated Jitsi URL using the new row id
+      const url = buildTownHallUrl(inserted.id);
+      await supabase.from("town_halls").update({ meeting_url: url }).eq("id", inserted.id);
+
+      setTownHallForm({ title: "", description: "", scheduled_at: "" });
+      setShowTownHallForm(false);
+      setTownHallMessage("Town hall scheduled successfully.");
+      await loadTownHalls();
+    } finally {
+      setTownHallSubmitting(false);
+    }
+  }
+
+  async function deleteTownHall(id: string) {
+    const { error } = await supabase.from("town_halls").delete().eq("id", id);
+    if (!error) await loadTownHalls();
   }
 
   const visibleMeetings = useMemo(() => {
