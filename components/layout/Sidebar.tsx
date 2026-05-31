@@ -193,23 +193,6 @@ export default function Sidebar() {
       icon: BarChart3,
     },
     {
-      href: "/donation-tracker",
-      label: "Donation Tracker",
-      icon: HandCoins,
-    },
-    {
-      href: "/donate",
-      label: "Support Civix250",
-      icon: HeartHandshake,
-    },
-    {
-      href: "/dashboard#activity",
-      label: "My Activity",
-      icon: Activity,
-      badge: myActivityCount > 0 ? myActivityCount : null,
-      badgeColor: "red" as const,
-    },
-    {
       href: "/feed",
       label: "District Feed",
       icon: Newspaper,
@@ -262,6 +245,23 @@ export default function Sidebar() {
       href: "/my-representatives",
       label: "My Representative",
       icon: UserCircle2,
+    },
+    {
+      href: "/dashboard#activity",
+      label: "My Activity",
+      icon: Activity,
+      badge: myActivityCount > 0 ? myActivityCount : null,
+      badgeColor: "red" as const,
+    },
+    {
+      href: "/donation-tracker",
+      label: "Donation Tracker",
+      icon: HandCoins,
+    },
+    {
+      href: "/donate",
+      label: "Support Civix250",
+      icon: HeartHandshake,
     },
   ] satisfies Array<NavItem & { officialOnly?: boolean }>;
 
