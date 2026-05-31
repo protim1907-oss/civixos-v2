@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import { MessageCircle } from "lucide-react";
 import { XMLParser } from "fast-xml-parser";
@@ -566,10 +565,6 @@ export default async function TrendingPostsPage({
 
   const { user, profile } = await getCurrentUserProfile();
 
-  if (!user) {
-    redirect("/login");
-  }
-
   const userMetadata =
     user && typeof user.user_metadata === "object" && user.user_metadata !== null
       ? user.user_metadata
@@ -622,6 +617,33 @@ export default async function TrendingPostsPage({
 
   const newsToShow = filteredWeeklyItems.slice(0, 12);
   const topIssues = await generateAISummary(weeklyDistrictItems.slice(0, 12), region);
+
+  if (!user) {
+    return (
+      <main className="min-h-screen bg-slate-100">
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">Trending Posts</p>
+              <h1 className="mt-2 text-2xl font-bold text-slate-900">Sign in to see your district&apos;s news</h1>
+              <p className="mt-3 text-slate-500">
+                Trending Posts shows civic headlines, official notices, and community signals tailored to your congressional district.
+              </p>
+              <div className="mt-6 flex flex-col gap-3">
+                <a href="/signup" className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
+                  Create free account
+                </a>
+                <a href="/login" className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                  Log in
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">

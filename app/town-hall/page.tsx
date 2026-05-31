@@ -54,22 +54,32 @@ export default function TownHallPage() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (!user) {
-          router.replace("/login");
-          return;
+        let resolvedDistrict = "";
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("district")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          resolvedDistrict =
+            profile?.district ||
+            user.user_metadata?.district ||
+            user.user_metadata?.district_id ||
+            "";
+        } else {
+          // Guest: read district from localStorage
+          try {
+            const guestRaw = localStorage.getItem("guest_user");
+            if (guestRaw) {
+              const guest = JSON.parse(guestRaw);
+              resolvedDistrict = guest?.district || guest?.district_id || "";
+            }
+          } catch {
+            // ignore
+          }
         }
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("district")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        const resolvedDistrict =
-          profile?.district ||
-          user.user_metadata?.district ||
-          user.user_metadata?.district_id ||
-          "";
 
         setDistrict(resolvedDistrict);
 
