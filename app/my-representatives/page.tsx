@@ -577,36 +577,59 @@ export default function MyRepresentativePage() {
           error: authError,
         } = await supabase.auth.getUser();
 
+        // Support guest users via localStorage
+        let effectiveState = "";
+        let effectiveDistrict = "";
+
         if (authError || !user) {
-          router.push("/login");
-          return;
+          // Try guest
+          try {
+            const guestRaw = typeof window !== "undefined" ? localStorage.getItem("guest_user") : null;
+            if (guestRaw) {
+              const guest = JSON.parse(guestRaw);
+              effectiveState = guest?.state || "";
+              effectiveDistrict = guest?.district || guest?.district_id || "";
+            }
+          } catch {
+            // ignore
+          }
+
+          if (!effectiveDistrict) {
+            router.push("/login");
+            return;
+          }
+
+          // Guest path — skip profile load, jump straight to reps
+          if (!mounted) return;
+          setCurrentUserId(null);
+          setProfile(null);
+        } else {
+          const { data: profileRow } = await supabase
+            .from("profiles")
+            .select(
+              "id, full_name, email, role, district, state, city, zip_code, street_address"
+            )
+            .eq("id", user.id)
+            .single();
+
+          if (!mounted) return;
+
+          setCurrentUserId(user.id);
+
+          const mergedProfile = profileRow ?? null;
+          setProfile(mergedProfile);
+
+          const metadataState =
+            (user.user_metadata?.state as string | undefined) || "";
+          const metadataDistrict =
+            (user.user_metadata?.district as string | undefined) ||
+            (user.user_metadata?.district_name as string | undefined) ||
+            "";
+
+          effectiveState = mergedProfile?.state || metadataState || "";
+          effectiveDistrict =
+            mergedProfile?.district || metadataDistrict || effectiveState || "N/A";
         }
-
-        const { data: profileRow } = await supabase
-          .from("profiles")
-          .select(
-            "id, full_name, email, role, district, state, city, zip_code, street_address"
-          )
-          .eq("id", user.id)
-          .single();
-
-        if (!mounted) return;
-
-        setCurrentUserId(user.id);
-
-        const mergedProfile = profileRow ?? null;
-        setProfile(mergedProfile);
-
-        const metadataState =
-          (user.user_metadata?.state as string | undefined) || "";
-        const metadataDistrict =
-          (user.user_metadata?.district as string | undefined) ||
-          (user.user_metadata?.district_name as string | undefined) ||
-          "";
-
-        const effectiveState = mergedProfile?.state || metadataState || "";
-        const effectiveDistrict =
-          mergedProfile?.district || metadataDistrict || effectiveState || "N/A";
 
         const normalizedDistrict = normalizeDistrict(effectiveDistrict, effectiveState);
         const districtStateCode = normalizedDistrict.includes("-")
