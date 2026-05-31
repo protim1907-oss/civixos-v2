@@ -29,13 +29,6 @@ const donationProviders = [
     envName: "NEXT_PUBLIC_DONORBOX_DONATION_URL",
     url: process.env.NEXT_PUBLIC_DONORBOX_DONATION_URL || "",
   },
-  {
-    key: "givebutter",
-    label: "Givebutter",
-    description: "Campaign checkout, donors, and receipts",
-    envName: "NEXT_PUBLIC_GIVEBUTTER_DONATION_URL",
-    url: process.env.NEXT_PUBLIC_GIVEBUTTER_DONATION_URL || "",
-  },
 ] as const;
 const fallbackDonationHref =
   "mailto:donations@civix250.org?subject=Civix250%20donation%20inquiry";
@@ -230,9 +223,8 @@ export default function DonatePage() {
                 {configuredProviders.length === 0 ? (
                   <p className="mt-3 text-xs leading-5 text-slate-500">
                     Add at least one provider URL:{" "}
-                    <span className="font-semibold">NEXT_PUBLIC_STRIPE_DONATION_URL</span>,{" "}
-                    <span className="font-semibold">NEXT_PUBLIC_DONORBOX_DONATION_URL</span>, or{" "}
-                    <span className="font-semibold">NEXT_PUBLIC_GIVEBUTTER_DONATION_URL</span>.
+                    <span className="font-semibold">NEXT_PUBLIC_STRIPE_DONATION_URL</span> or{" "}
+                    <span className="font-semibold">NEXT_PUBLIC_DONORBOX_DONATION_URL</span>.
                     Until then, the button opens a donation inquiry email.
                   </p>
                 ) : !selectedProvider.url ? (
@@ -256,7 +248,7 @@ export default function DonatePage() {
                   <LockKeyhole className="h-5 w-5 text-orange-600" />
                   <h3 className="mt-3 font-bold text-slate-950">Payment processing</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Connect Stripe, Donorbox, or Givebutter for secure checkout, receipts, and compliance.
+                    Connect Stripe or Donorbox for secure checkout, receipts, and compliance.
                   </p>
                 </div>
 

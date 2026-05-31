@@ -492,6 +492,11 @@ export default function DashboardPage() {
       setIssues((issuesRes.data as Issue[]) || []);
       setPosts(postRows);
       setDashboardReady(true);
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+      setRedirecting(true);
+      setDashboardReady(true);
+      router.replace("/login");
     } finally {
       setLoading(false);
       setRefreshing(false);
