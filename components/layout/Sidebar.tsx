@@ -188,6 +188,21 @@ export default function Sidebar() {
       exact: true,
     },
     {
+      href: "/create-post",
+      label: "Create Post",
+      icon: MessageSquareText,
+    },
+    {
+      href: "/policy-pulse",
+      label: "Policy Pulse",
+      icon: ShieldCheck,
+    },
+    {
+      href: "/my-representatives",
+      label: "My Representative",
+      icon: UserCircle2,
+    },
+    {
       href: "/district-analytics",
       label: "District Analytics",
       icon: BarChart3,
@@ -227,24 +242,9 @@ export default function Sidebar() {
       icon: Video,
     },
     {
-      href: "/create-post",
-      label: "Create Post",
-      icon: MessageSquareText,
-    },
-    {
-      href: "/policy-pulse",
-      label: "Policy Pulse",
-      icon: ShieldCheck,
-    },
-    {
       href: "/trending-posts",
       label: "Trending Posts",
       icon: TrendingUp,
-    },
-    {
-      href: "/my-representatives",
-      label: "My Representative",
-      icon: UserCircle2,
     },
     {
       href: "/dashboard#activity",
