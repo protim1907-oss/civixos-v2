@@ -187,6 +187,17 @@ export default function OfficialMeetingsPage() {
     setMeetings(((data as MeetingRow[]) || []).filter((item) => districtMatchesScope(item.district, scope)));
   }, [router, supabase]);
 
+  const loadTownHalls = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("town_halls")
+      .select("id, title, description, scheduled_at, district, meeting_url, created_by, created_at")
+      .order("scheduled_at", { ascending: true });
+
+    if (!error) {
+      setTownHalls((data as TownHallRow[]) || []);
+    }
+  }, [supabase]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -270,17 +281,6 @@ export default function OfficialMeetingsPage() {
     await supabase.auth.signOut();
     router.replace("/login");
   }
-
-  const loadTownHalls = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("town_halls")
-      .select("id, title, description, scheduled_at, district, meeting_url, created_by, created_at")
-      .order("scheduled_at", { ascending: true });
-
-    if (!error) {
-      setTownHalls((data as TownHallRow[]) || []);
-    }
-  }, [supabase]);
 
   async function submitTownHall() {
     if (!townHallForm.title.trim() || !townHallForm.scheduled_at) {
