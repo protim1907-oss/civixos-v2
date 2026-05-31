@@ -18,6 +18,7 @@ import {
   HandCoins,
   HeartHandshake,
   MessageCircle,
+  Video,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
@@ -231,6 +232,11 @@ export default function Sidebar() {
       label: "Response Center",
       icon: MessageCircle,
       officialOnly: true,
+    },
+    {
+      href: "/chat",
+      label: "Community Chat",
+      icon: Video,
     },
     {
       href: "/create-post",
