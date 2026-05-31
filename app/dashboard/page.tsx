@@ -166,6 +166,7 @@ export default function DashboardPage() {
   const [policyPulseSurveys, setPolicyPulseSurveys] = useState<PolicyPulseSurvey[]>([]);
   const [userName, setUserName] = useState("Citizen");
   const [isGuest, setIsGuest] = useState(false);
+  const [showGuestGate, setShowGuestGate] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -884,6 +885,34 @@ export default function DashboardPage() {
         <div className="flex min-w-0 flex-1">
           <div className="w-full p-4 md:p-6 xl:p-8">
             <div className="mx-auto max-w-7xl space-y-6">
+
+              {isGuest && (
+                <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">
+                      You&apos;re previewing {currentDistrict || "your district"} as a guest
+                    </p>
+                    <p className="mt-0.5 text-sm text-amber-700">
+                      You can browse issues, discussions, and official updates — but posting, voting, and commenting require a free account.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <a
+                      href="/signup"
+                      className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+                    >
+                      Create free account
+                    </a>
+                    <a
+                      href="/login"
+                      className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+                    >
+                      Log in
+                    </a>
+                  </div>
+                </div>
+              )}
+
               <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
                 <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-6 md:px-8">
                   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -983,6 +1012,15 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      {isGuest ? (
+                        <button
+                          onClick={() => setShowGuestGate(true)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98]"
+                        >
+                          {districtBriefing.actionLabel}
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      ) : (
                       <Link
                         href={districtBriefing.actionHref}
                         className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98]"
@@ -990,6 +1028,7 @@ export default function DashboardPage() {
                         {districtBriefing.actionLabel}
                         <ArrowRight className="h-4 w-4" />
                       </Link>
+                      )}
 
                       <Link
                         href="/policy-pulse"
@@ -1444,6 +1483,51 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {showGuestGate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+            <h2 className="text-2xl font-bold text-slate-900">Join the conversation</h2>
+            <p className="mt-2 text-slate-500">
+              You&apos;re viewing as a guest. Create a free account to post issues, vote, comment, and engage with your district representatives.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-slate-700">
+              {[
+                "Post and track local issues",
+                "Vote on community priorities",
+                "Comment on district discussions",
+                "Get official responses to your concerns",
+                "Participate in Policy Pulse surveys",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 flex flex-col gap-3">
+              <a
+                href="/signup"
+                className="w-full rounded-2xl bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
+                Create free account
+              </a>
+              <a
+                href="/login"
+                className="w-full rounded-2xl border border-slate-200 px-5 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Log in to existing account
+              </a>
+              <button
+                onClick={() => setShowGuestGate(false)}
+                className="text-sm text-slate-400 hover:text-slate-600 transition"
+              >
+                Continue browsing as guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
