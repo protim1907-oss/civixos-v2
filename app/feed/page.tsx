@@ -97,6 +97,24 @@ type RepresentativeRow = {
 type CommentMap = Record<string, CommentRow[]>;
 type ProfileNameMap = Record<string, string>;
 
+type StatusHistoryRow = {
+  id: string;
+  issue_id: string;
+  to_status: string;
+  changed_by_name: string | null;
+  note: string | null;
+  created_at: string;
+};
+
+type OfficialResponseRow = {
+  id: string;
+  issue_id: string;
+  official_name: string;
+  official_title: string | null;
+  response_text: string;
+  created_at: string;
+};
+
 type ChatMessage = {
   id: string;
   sender: "user" | "rep";
@@ -324,6 +342,8 @@ export default function FeedPage() {
   const [sharingIssueId, setSharingIssueId] = useState<string | null>(null);
   const [submittingCommentFor, setSubmittingCommentFor] = useState<string | null>(null);
   const [togglingVoteFor, setTogglingVoteFor] = useState<string | null>(null);
+  const [issueStatusHistory, setIssueStatusHistory] = useState<Record<string, StatusHistoryRow[]>>({});
+  const [issueOfficialResponses, setIssueOfficialResponses] = useState<Record<string, OfficialResponseRow[]>>({});
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatRepresentative, setChatRepresentative] = useState("Representative");
@@ -483,6 +503,8 @@ export default function FeedPage() {
         const [
           { data: votesData, error: votesError },
           { data: commentsData, error: commentsError },
+          { data: statusHistoryData },
+          { data: officialResponsesData },
         ] = await Promise.all([
           issueIds.length
             ? supabase.from("issue_votes").select("issue_id, user_id").in("issue_id", issueIds)
@@ -493,6 +515,20 @@ export default function FeedPage() {
                 .select("id, issue_id, user_id, content, created_at")
                 .in("issue_id", issueIds)
                 .order("created_at", { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
+          issueIds.length
+            ? supabase
+                .from("issue_status_history")
+                .select("id, issue_id, to_status, changed_by_name, note, created_at")
+                .in("issue_id", issueIds)
+                .order("created_at", { ascending: true })
+            : Promise.resolve({ data: [], error: null }),
+          issueIds.length
+            ? supabase
+                .from("issue_official_responses")
+                .select("id, issue_id, official_name, official_title, response_text, created_at")
+                .in("issue_id", issueIds)
+                .order("created_at", { ascending: true })
             : Promise.resolve({ data: [], error: null }),
         ]);
 
@@ -524,6 +560,22 @@ export default function FeedPage() {
         });
 
         setCommentsByIssue(groupedComments);
+
+        // Group status history by issue_id
+        const groupedHistory: Record<string, StatusHistoryRow[]> = {};
+        ((statusHistoryData as StatusHistoryRow[]) || []).forEach((row) => {
+          if (!groupedHistory[row.issue_id]) groupedHistory[row.issue_id] = [];
+          groupedHistory[row.issue_id].push(row);
+        });
+        setIssueStatusHistory(groupedHistory);
+
+        // Group official responses by issue_id
+        const groupedResponses: Record<string, OfficialResponseRow[]> = {};
+        ((officialResponsesData as OfficialResponseRow[]) || []).forEach((row) => {
+          if (!groupedResponses[row.issue_id]) groupedResponses[row.issue_id] = [];
+          groupedResponses[row.issue_id].push(row);
+        });
+        setIssueOfficialResponses(groupedResponses);
 
         const commentUserIds = Array.from(
           new Set(
@@ -1182,8 +1234,31 @@ export default function FeedPage() {
                         <p className="mt-3 text-slate-600">{post.description}</p>
 
                         {post.kind === "issue" && (
-                          <div className="mt-5">
-                            <IssueLifecycle status={post.status} />
+                          <div className="mt-5 space-y-3">
+                            {/* Status Timeline */}
+                            <IssueProgressInline
+                              status={post.status}
+                              history={issueStatusHistory[post.id] || []}
+                            />
+                            {/* Official Response — shown inline if exists */}
+                            {(issueOfficialResponses[post.id] || []).length > 0 && (
+                              <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-4">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                                  <span>🏛</span> Official Response
+                                </div>
+                                {issueOfficialResponses[post.id].map((r) => (
+                                  <div key={r.id} className="mt-2">
+                                    <p className="text-xs font-bold text-indigo-900">
+                                      {r.official_name}
+                                      {r.official_title ? ` · ${r.official_title}` : ""}
+                                    </p>
+                                    <p className="mt-1 text-sm leading-6 text-indigo-800 line-clamp-3">
+                                      {r.response_text}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1535,6 +1610,108 @@ export default function FeedPage() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Inline Issue Progress Component ─────────────────────────────────────────
+
+const LIFECYCLE_STEPS = [
+  { key: "open",             label: "Submitted" },
+  { key: "under_review",     label: "Under Review" },
+  { key: "sent_to_official", label: "Sent to Official" },
+  { key: "acknowledged",     label: "Response Received" },
+  { key: "resolved",         label: "Resolved" },
+];
+
+function getStepIndex(status?: string | null) {
+  const s = String(status || "open").toLowerCase().trim();
+  if (["resolved", "approved", "completed", "closed"].includes(s)) return 4;
+  if (["acknowledged", "needs_info", "needs info", "response_received"].includes(s)) return 3;
+  if (["sent_to_official", "escalated"].includes(s)) return 2;
+  if (["under_review", "under review"].includes(s)) return 1;
+  return 0;
+}
+
+function fmtDate(v?: string | null) {
+  if (!v) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  }).format(new Date(v));
+}
+
+function IssueProgressInline({
+  status,
+  history,
+}: {
+  status: string | null;
+  history: StatusHistoryRow[];
+}) {
+  const currentIdx = getStepIndex(status);
+
+  const stepTimestamps: Record<string, string> = {};
+  for (const h of history) {
+    const idx = getStepIndex(h.to_status);
+    const key = LIFECYCLE_STEPS[idx]?.key;
+    if (key && !stepTimestamps[key]) stepTimestamps[key] = h.created_at;
+  }
+
+  const latestNote = [...history].reverse().find((h) => h.note);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Issue Progress</p>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+          currentIdx === 4 ? "bg-emerald-100 text-emerald-700" :
+          currentIdx >= 3 ? "bg-indigo-100 text-indigo-700" :
+          currentIdx >= 2 ? "bg-amber-100 text-amber-700" :
+                            "bg-slate-100 text-slate-600"
+        }`}>
+          {LIFECYCLE_STEPS[currentIdx]?.label}
+        </span>
+      </div>
+
+      {/* Step dots */}
+      <div className="mt-3 flex items-center gap-0">
+        {LIFECYCLE_STEPS.map((step, idx) => {
+          const complete = idx < currentIdx;
+          const active  = idx === currentIdx;
+          return (
+            <div key={step.key} className="flex flex-1 items-center">
+              <div className="flex flex-col items-center gap-1">
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                  complete ? "bg-emerald-500 text-white" :
+                  active   ? "bg-blue-600 text-white" :
+                             "bg-slate-200 text-slate-400"
+                }`}>
+                  {complete ? "✓" : idx + 1}
+                </span>
+                <span className={`hidden text-[10px] font-medium sm:block ${
+                  complete || active ? "text-slate-700" : "text-slate-400"
+                }`}>
+                  {step.label}
+                </span>
+                {stepTimestamps[step.key] && (
+                  <span className="hidden text-[9px] text-slate-400 sm:block">
+                    {fmtDate(stepTimestamps[step.key])}
+                  </span>
+                )}
+              </div>
+              {idx < LIFECYCLE_STEPS.length - 1 && (
+                <div className={`mx-1 h-0.5 flex-1 ${idx < currentIdx ? "bg-emerald-400" : "bg-slate-200"}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {latestNote && (
+        <p className="mt-3 rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs leading-5 text-slate-600">
+          📝 {latestNote.note}
+          {latestNote.changed_by_name && <span className="ml-1 font-semibold">— {latestNote.changed_by_name}</span>}
+        </p>
       )}
     </div>
   );
