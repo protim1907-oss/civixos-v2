@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Sidebar from "../../components/layout/Sidebar";
 import IssueLifecycle from "@/components/issues/IssueLifecycle";
 import { createClient } from "@/lib/supabase/client";
