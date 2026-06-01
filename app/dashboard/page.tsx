@@ -600,7 +600,7 @@ export default function DashboardPage() {
         category: issue.category || "Infrastructure",
         district: issue.district,
         created_at: issue.created_at,
-        href: `/feed?issue=${encodeURIComponent(issue.title)}`,
+        href: `/issues/${issue.id}`,
       }));
 
     const postItems: FeedItem[] = posts
