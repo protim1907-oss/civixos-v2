@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Civix250 — Power the Future of Civic Engagement</title>
+  <meta name="description" content="Civix250 connects citizens, officials, and communities through AI-powered civic tools. View local issues, track policy, and engage your representatives in real time." />
+  <meta property="og:title" content="Civix250 — Power the Future of Civic Engagement" />
+  <meta property="og:description" content="AI-powered civic platform connecting citizens and elected officials across America's districts." />
+  <meta property="og:image" content="hero-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="logo.png" type="image/png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    html { scroll-behavior: smooth; }
+
+    .gradient-hero {
+      background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 40%, #f0fdf4 100%);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #1e3a8a, #166534);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .card-hover {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px -12px rgba(0,0,0,0.12);
+    }
+    .nav-blur {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .stat-counter {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 antialiased">
+
+  <!-- NAV -->
+  <nav class="fixed top-0 left-0 right-0 z-50 nav-blur bg-white/80 border-b border-slate-200/60">
+    <div class="mx-auto max-w-7xl px-5 py-3 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-3">
+        <img src="logo.png" alt="Civix250" class="h-9 w-auto" />
+        <span class="text-lg font-bold text-slate-900 tracking-tight">Civix250</span>
+      </a>
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+        <a href="#features" class="hover:text-slate-900 transition">Features</a>
+        <a href="#how-it-works" class="hover:text-slate-900 transition">How It Works</a>
+        <a href="#for-officials" class="hover:text-slate-900 transition">For Officials</a>
+        <a href="#citizens" class="hover:text-slate-900 transition">For Citizens</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#waitlist" class="hidden sm:inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+          Log In
+        </a>
+        <a href="#waitlist" class="inline-flex items-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition">
+          Get Early Access
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="gradient-hero pt-28 pb-20 px-5 overflow-hidden">
+    <div class="mx-auto max-w-7xl">
+      <div class="grid lg:grid-cols-2 gap-14 items-center">
+
+        <!-- Left: Copy -->
+        <div class="fade-in">
+          <div class="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-green-700 mb-6">
+            <span class="inline-block h-2 w-2 rounded-full bg-green-500 pulse-ring"></span>
+            Now Live · America's Civic Platform
+          </div>
+
+          <h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.05] tracking-tight text-slate-950">
+            Power the Future of
+            <span class="gradient-text"> Civic Engagement</span>
+          </h1>
+
+          <p class="mt-6 text-xl md:text-2xl text-slate-600 leading-relaxed max-w-xl">
+            Civix250 connects citizens directly with their elected representatives — through AI-powered tools built for transparency, accountability, and real community action.
+          </p>
+
+          <div class="mt-10 flex flex-wrap gap-4">
+            <a href="#waitlist" class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-7 py-4 text-base font-bold text-white hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">
+              Get Early Access
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+            </a>
+            <a href="#how-it-works" class="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-7 py-4 text-base font-bold text-slate-700 hover:bg-slate-50 transition">
+              See How It Works
+            </a>
+          </div>
+
+          <!-- Social proof stats -->
+          <div class="mt-14 flex flex-wrap gap-10">
+            <div>
+              <p class="stat-counter text-3xl font-extrabold text-slate-950">50+</p>
+              <p class="text-sm text-slate-500 mt-0.5">Districts Covered</p>
+            </div>
+            <div>
+              <p class="stat-counter text-3xl font-extrabold text-slate-950">3</p>
+              <p class="text-sm text-slate-500 mt-0.5">States Active</p>
+            </div>
+            <div>
+              <p class="stat-counter text-3xl font-extrabold text-slate-950">AI</p>
+              <p class="text-sm text-slate-500 mt-0.5">Powered Insights</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Hero image card -->
+        <div class="fade-in relative">
+          <div class="rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 bg-white">
+            <img src="hero-image.png" alt="American flag, bald eagle and the Constitution" class="w-full aspect-[4/3] object-cover" />
+            <div class="px-6 py-4 bg-white border-t border-slate-100 flex items-center justify-between">
+              <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Your Voice in Democracy</p>
+              <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold text-green-700">
+                <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> Live Platform
+              </span>
+            </div>
+          </div>
+
+          <!-- Floating accent card -->
+          <div class="absolute -bottom-6 -left-6 hidden lg:flex items-center gap-3 rounded-2xl border border-slate-200 bg-white shadow-xl px-5 py-4">
+            <div class="flex -space-x-2">
+              <div class="h-8 w-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">C</div>
+              <div class="h-8 w-8 rounded-full bg-green-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">O</div>
+              <div class="h-8 w-8 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">R</div>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-900">Citizens + Officials</p>
+              <p class="text-xs text-slate-500">Bridging the gap in real time</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUSTED BY STATES TICKER -->
+  <div class="border-y border-slate-100 bg-slate-50 py-4 overflow-hidden">
+    <div class="flex items-center gap-12 px-8 flex-wrap justify-center text-sm font-semibold text-slate-400 uppercase tracking-widest">
+      <span>Texas</span>
+      <span class="text-slate-200">•</span>
+      <span>New Hampshire</span>
+      <span class="text-slate-200">•</span>
+      <span>California</span>
+      <span class="text-slate-200">•</span>
+      <span>TX-35 · TX-20 · TX-12</span>
+      <span class="text-slate-200">•</span>
+      <span>NH-01 · NH-02</span>
+      <span class="text-slate-200">•</span>
+      <span>CA-42</span>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section id="features" class="py-24 px-5">
+    <div class="mx-auto max-w-7xl">
+      <div class="fade-in text-center mb-16">
+        <p class="text-sm font-bold uppercase tracking-widest text-blue-600 mb-3">Platform Features</p>
+        <h2 class="text-4xl md:text-5xl font-extrabold text-slate-950 tracking-tight">Everything civic engagement needs</h2>
+        <p class="mt-4 text-xl text-slate-500 max-w-2xl mx-auto">One platform for citizens, representatives, and government officials — with AI doing the heavy lifting.</p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Card 1 -->
+        <div class="fade-in card-hover rounded-3xl border-2 border-yellow-400 bg-yellow-50/50 p-7">
+          <div class="h-12 w-12 rounded-2xl bg-yellow-100 border border-yellow-200 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">Quick Policy Testing</h3>
+          <p class="mt-3 text-sm leading-6 text-slate-600">Run focused surveys to validate public sentiment before policy rollout. Get real data, not guesses.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="fade-in card-hover rounded-3xl border-2 border-red-400 bg-red-50/50 p-7">
+          <div class="h-12 w-12 rounded-2xl bg-red-100 border border-red-200 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">Citizen Sentiment</h3>
+          <p class="mt-3 text-sm leading-6 text-slate-600">Capture support levels, concerns, and recommendations in one place — structured, searchable, and actionable.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="fade-in card-hover rounded-3xl border-2 border-green-400 bg-green-50/50 p-7">
+          <div class="h-12 w-12 rounded-2xl bg-green-100 border border-green-200 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">Chat with Representatives</h3>
+          <p class="mt-3 text-sm leading-6 text-slate-600">Connect directly with elected officials and share concerns in real time. No more waiting for town halls.</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="fade-in card-hover rounded-3xl border-2 border-blue-400 bg-blue-50/50 p-7">
+          <div class="h-12 w-12 rounded-2xl bg-blue-100 border border-blue-200 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">AI-Powered Insights</h3>
+          <p class="mt-3 text-sm leading-6 text-slate-600">Turn citizen feedback into data-driven decisions, communication strategies, and next steps — automatically.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how-it-works" class="py-24 px-5 bg-slate-950 text-white">
+    <div class="mx-auto max-w-7xl">
+      <div class="fade-in text-center mb-16">
+        <p class="text-sm font-bold uppercase tracking-widest text-green-400 mb-3">How It Works</p>
+        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">Three steps to civic impact</h2>
+        <p class="mt-4 text-xl text-slate-400 max-w-xl mx-auto">From signup to making your voice heard — in minutes.</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <div class="fade-in relative">
+          <div class="text-7xl font-black text-slate-800 mb-4 select-none">01</div>
+          <h3 class="text-2xl font-bold mb-3">Choose Your District</h3>
+          <p class="text-slate-400 leading-relaxed">Sign up and select your congressional district. Civix250 instantly surfaces the issues, representatives, and discussions that matter to your community.</p>
+          <div class="mt-6 h-px bg-slate-800"></div>
+        </div>
+
+        <div class="fade-in relative">
+          <div class="text-7xl font-black text-slate-800 mb-4 select-none">02</div>
+          <h3 class="text-2xl font-bold mb-3">Post &amp; Engage</h3>
+          <p class="text-slate-400 leading-relaxed">Create posts about local issues, vote on what matters, comment on discussions, and send AI-assisted messages directly to your elected representatives.</p>
+          <div class="mt-6 h-px bg-slate-800"></div>
+        </div>
+
+        <div class="fade-in relative">
+          <div class="text-7xl font-black text-slate-800 mb-4 select-none">03</div>
+          <h3 class="text-2xl font-bold mb-3">Drive Real Change</h3>
+          <p class="text-slate-400 leading-relaxed">Officials see aggregated sentiment, trending issues, and constituent priorities — enabling smarter, faster, and more accountable governance.</p>
+          <div class="mt-6 h-px bg-slate-800"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOR CITIZENS -->
+  <section id="citizens" class="py-24 px-5">
+    <div class="mx-auto max-w-7xl">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <div class="fade-in">
+          <p class="text-sm font-bold uppercase tracking-widest text-blue-600 mb-3">For Citizens</p>
+          <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-950">Your community. Your voice. Your district.</h2>
+          <p class="mt-6 text-xl text-slate-600 leading-relaxed">Browse real issues from your congressional district, vote on priorities, and directly message your representatives — all in one place.</p>
+
+          <ul class="mt-8 space-y-4">
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">Browse district issues</p>
+                <p class="text-sm text-slate-500 mt-0.5">See what your neighbors are talking about and what officials are responding to.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">Post civic issues</p>
+                <p class="text-sm text-slate-500 mt-0.5">Raise concerns about infrastructure, safety, healthcare, education, and more.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">Message representatives with AI</p>
+                <p class="text-sm text-slate-500 mt-0.5">Draft and send professional outreach to your elected officials in seconds.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">Track policy activity</p>
+                <p class="text-sm text-slate-500 mt-0.5">Stay informed on what your representatives are doing — or not doing.</p>
+              </div>
+            </li>
+          </ul>
+
+          <a href="#waitlist" class="mt-10 inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-7 py-4 text-base font-bold text-white hover:bg-blue-700 transition">
+            Join as a Citizen
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+          </a>
+        </div>
+
+        <!-- Right: dashboard mockup card -->
+        <div class="fade-in">
+          <div class="rounded-[2rem] border border-slate-200 bg-white shadow-xl overflow-hidden">
+            <!-- Mock header -->
+            <div class="bg-slate-950 px-6 py-4 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="h-3 w-3 rounded-full bg-red-500"></div>
+                <div class="h-3 w-3 rounded-full bg-yellow-400"></div>
+                <div class="h-3 w-3 rounded-full bg-green-500"></div>
+              </div>
+              <p class="text-xs text-slate-400 font-mono">civix250.ai/dashboard</p>
+              <div></div>
+            </div>
+            <!-- Mock dashboard content -->
+            <div class="p-6 bg-slate-50 space-y-4">
+              <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Citizen Dashboard</p>
+                <h4 class="text-xl font-extrabold text-slate-900">TX-35 · Austin / San Antonio</h4>
+                <p class="text-sm text-slate-500 mt-1">3 active issues · 2 upcoming votes</p>
+                <div class="mt-4 flex gap-2">
+                  <span class="rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1">Infrastructure</span>
+                  <span class="rounded-full bg-red-100 text-red-700 text-xs font-semibold px-3 py-1">Public Safety</span>
+                  <span class="rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1">Healthcare</span>
+                </div>
+              </div>
+              <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                <p class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Top Issue</p>
+                <p class="font-semibold text-slate-900">Waterlogging on IH-35 affecting commuters</p>
+                <p class="text-sm text-slate-500 mt-1">47 votes · 12 comments · Rep. Casar notified</p>
+                <div class="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-blue-500 rounded-full" style="width: 72%"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">72% community support</p>
+              </div>
+              <div class="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4">
+                <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+                </div>
+                <div>
+                  <p class="font-semibold text-slate-900 text-sm">Greg Casar replied</p>
+                  <p class="text-xs text-slate-500 mt-0.5">"We are reviewing the IH-35 drainage report..."</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOR OFFICIALS -->
+  <section id="for-officials" class="py-24 px-5 bg-gradient-to-br from-slate-50 to-green-50/40">
+    <div class="mx-auto max-w-7xl">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+
+        <!-- Left: official dashboard mockup -->
+        <div class="fade-in order-2 lg:order-1">
+          <div class="rounded-[2rem] border border-slate-200 bg-white shadow-xl overflow-hidden">
+            <div class="bg-green-700 px-6 py-4 flex items-center justify-between">
+              <p class="text-sm font-bold text-white">Official Dashboard</p>
+              <span class="rounded-full bg-green-600 border border-green-500 px-3 py-1 text-xs font-semibold text-green-100">Verified Official</span>
+            </div>
+            <div class="p-6 space-y-4">
+              <div class="grid grid-cols-3 gap-3">
+                <div class="rounded-2xl bg-blue-50 border border-blue-100 p-4 text-center">
+                  <p class="text-2xl font-extrabold text-blue-700">247</p>
+                  <p class="text-xs text-blue-500 mt-1 font-medium">Constituents</p>
+                </div>
+                <div class="rounded-2xl bg-yellow-50 border border-yellow-100 p-4 text-center">
+                  <p class="text-2xl font-extrabold text-yellow-700">18</p>
+                  <p class="text-xs text-yellow-500 mt-1 font-medium">Open Issues</p>
+                </div>
+                <div class="rounded-2xl bg-green-50 border border-green-100 p-4 text-center">
+                  <p class="text-2xl font-extrabold text-green-700">94%</p>
+                  <p class="text-xs text-green-500 mt-1 font-medium">Response Rate</p>
+                </div>
+              </div>
+              <div class="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Top Issues This Week</p>
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-700">Infrastructure</span>
+                    <div class="flex items-center gap-2">
+                      <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-yellow-500 rounded-full" style="width: 68%"></div></div>
+                      <span class="text-xs text-slate-500">68%</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-700">Public Safety</span>
+                    <div class="flex items-center gap-2">
+                      <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-red-500 rounded-full" style="width: 52%"></div></div>
+                      <span class="text-xs text-slate-500">52%</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-700">Healthcare</span>
+                    <div class="flex items-center gap-2">
+                      <div class="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-green-500 rounded-full" style="width: 39%"></div></div>
+                      <span class="text-xs text-slate-500">39%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-green-200 bg-green-50 p-4 flex items-center gap-3">
+                <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+                <p class="text-sm text-green-800 font-medium">AI drafted 3 constituent responses ready to review</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: copy -->
+        <div class="fade-in order-1 lg:order-2">
+          <p class="text-sm font-bold uppercase tracking-widest text-green-600 mb-3">For Officials</p>
+          <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-950">Govern smarter. Respond faster.</h2>
+          <p class="mt-6 text-xl text-slate-600 leading-relaxed">Get a real-time window into your district's priorities — with AI that helps you respond, analyze, and act before issues escalate.</p>
+
+          <ul class="mt-8 space-y-4">
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">District analytics dashboard</p>
+                <p class="text-sm text-slate-500 mt-0.5">See trending issues, constituent sentiment, and response metrics at a glance.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">AI-assisted constituent responses</p>
+                <p class="text-sm text-slate-500 mt-0.5">Draft professional, context-aware replies in seconds — you approve, AI drafts.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">Policy testing before rollout</p>
+                <p class="text-sm text-slate-500 mt-0.5">Survey your district on policy ideas before committing — with structured feedback you can act on.</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-4">
+              <div class="mt-1 flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-900">Verified official access</p>
+                <p class="text-sm text-slate-500 mt-0.5">Separate onboarding flow for government officials with role-specific features and permissions.</p>
+              </div>
+            </li>
+          </ul>
+
+          <a href="#waitlist" class="mt-10 inline-flex items-center gap-2 rounded-2xl bg-green-600 px-7 py-4 text-base font-bold text-white hover:bg-green-700 transition">
+            Register as Official
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section class="py-20 px-5 border-t border-slate-100">
+    <div class="mx-auto max-w-7xl">
+      <div class="fade-in text-center mb-12">
+        <p class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-3">Issue Categories</p>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">What communities care about</h2>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🏗️</div>
+          <p class="font-bold text-slate-900">Infrastructure</p>
+          <p class="text-xs text-slate-500 mt-1">Roads, bridges, drains</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🛡️</div>
+          <p class="font-bold text-slate-900">Public Safety</p>
+          <p class="text-xs text-slate-500 mt-1">Crime, police, security</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🏥</div>
+          <p class="font-bold text-slate-900">Healthcare</p>
+          <p class="text-xs text-slate-500 mt-1">Clinics, hospitals, wellness</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🎓</div>
+          <p class="font-bold text-slate-900">Education</p>
+          <p class="text-xs text-slate-500 mt-1">Schools, teachers, students</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🚌</div>
+          <p class="font-bold text-slate-900">Transportation</p>
+          <p class="text-xs text-slate-500 mt-1">Bus, traffic, transit</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🌿</div>
+          <p class="font-bold text-slate-900">Environment</p>
+          <p class="text-xs text-slate-500 mt-1">Pollution, waste, parks</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🏘️</div>
+          <p class="font-bold text-slate-900">Housing</p>
+          <p class="text-xs text-slate-500 mt-1">Rent, shelter, homelessness</p>
+        </div>
+        <div class="fade-in card-hover rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div class="text-3xl mb-3">🤝</div>
+          <p class="font-bold text-slate-900">Community</p>
+          <p class="text-xs text-slate-500 mt-1">Local events &amp; discussions</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WAITLIST / CTA -->
+  <section id="waitlist" class="py-24 px-5 bg-slate-950 text-white">
+    <div class="mx-auto max-w-3xl text-center fade-in">
+      <p class="text-sm font-bold uppercase tracking-widest text-green-400 mb-4">Get Early Access</p>
+      <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">Ready to engage your district?</h2>
+      <p class="mt-5 text-xl text-slate-400 leading-relaxed">Join Civix250 today — free for citizens. Verified official access available for elected representatives and government staff.</p>
+
+      <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/login" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-bold text-slate-950 hover:bg-slate-100 transition shadow-lg">
+          Join as Citizen — Free
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </a>
+        <a href="/login" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-green-500 bg-transparent px-8 py-4 text-base font-bold text-green-400 hover:bg-green-950 transition">
+          Register as Official
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </a>
+      </div>
+
+      <p class="mt-6 text-sm text-slate-500">No credit card required. Free for all citizens. Official verification required for government accounts.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-950 border-t border-slate-800 py-12 px-5 text-slate-400">
+    <div class="mx-auto max-w-7xl">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+        <div class="sm:col-span-2 lg:col-span-1">
+          <div class="flex items-center gap-3 mb-4">
+            <img src="logo.png" alt="Civix250" class="h-8 w-auto opacity-90" />
+            <span class="text-lg font-bold text-white">Civix250</span>
+          </div>
+          <p class="text-sm leading-relaxed">America's civic engagement platform. Connecting citizens, communities, and elected officials through AI-powered tools.</p>
+          <p class="text-xs mt-4 text-slate-600">civix250.ai</p>
+        </div>
+
+        <div>
+          <p class="text-sm font-bold text-white uppercase tracking-widest mb-4">Platform</p>
+          <ul class="space-y-2 text-sm">
+            <li><a href="#features" class="hover:text-white transition">Features</a></li>
+            <li><a href="#how-it-works" class="hover:text-white transition">How It Works</a></li>
+            <li><a href="#citizens" class="hover:text-white transition">For Citizens</a></li>
+            <li><a href="#for-officials" class="hover:text-white transition">For Officials</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="text-sm font-bold text-white uppercase tracking-widest mb-4">Districts</p>
+          <ul class="space-y-2 text-sm">
+            <li>TX-35 · Austin / San Antonio</li>
+            <li>TX-20 · San Antonio area</li>
+            <li>TX-12 · Fort Worth area</li>
+            <li>NH-01 · NH-02</li>
+            <li>CA-42 · Riverside</li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="text-sm font-bold text-white uppercase tracking-widest mb-4">Contact</p>
+          <ul class="space-y-2 text-sm">
+            <li><a href="mailto:donations@civix250.org" class="hover:text-white transition">Support Civix250</a></li>
+            <li><a href="/login" class="hover:text-white transition">Citizen Login</a></li>
+            <li><a href="/signup-official" class="hover:text-white transition">Official Registration</a></li>
+            <li><a href="/signup" class="hover:text-white transition">Citizen Signup</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+        <p>© 2025 Civix250. All rights reserved. This platform does not represent any political party, candidate, or campaign.</p>
+        <div class="flex gap-6">
+          <a href="#" class="hover:text-slate-400 transition">Privacy</a>
+          <a href="#" class="hover:text-slate-400 transition">Terms</a>
+          <a href="#" class="hover:text-slate-400 transition">Accessibility</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scroll-triggered fade-in animations -->
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
