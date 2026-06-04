@@ -385,6 +385,11 @@ export default function CreatePostPage() {
         return;
       }
 
+      if (isGuest) {
+        router.push("/login");
+        return;
+      }
+
       const cleanTitle = normalizeWhitespace(title);
       const cleanDescription = normalizeWhitespace(description);
 
@@ -625,14 +630,24 @@ export default function CreatePostPage() {
                         {reviewing ? "Reviewing..." : "Review with AI"}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={handleCreatePost}
-                        disabled={isDisabled}
-                        className="inline-flex h-14 items-center justify-center rounded-2xl bg-slate-950 px-7 text-lg font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {submitting ? "Creating..." : "Create Post"}
-                      </button>
+                      {guestUserId ? (
+                        <button
+                          type="button"
+                          onClick={() => router.push("/login")}
+                          className="inline-flex h-14 items-center justify-center rounded-2xl bg-slate-950 px-7 text-lg font-semibold text-white transition hover:bg-slate-800"
+                        >
+                          Sign in to Post
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleCreatePost}
+                          disabled={isDisabled}
+                          className="inline-flex h-14 items-center justify-center rounded-2xl bg-slate-950 px-7 text-lg font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {submitting ? "Creating..." : "Create Post"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>
