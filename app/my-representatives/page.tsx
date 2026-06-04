@@ -55,6 +55,7 @@ type Official = {
   contactUrl: string;
   phone?: string;
   imageUrl: string;
+  email_href?: string | null;
   badge: {
     text: string;
     tone: "red" | "green" | "blue" | "slate";
@@ -556,6 +557,13 @@ export default function MyRepresentativePage() {
   const [chatSending, setChatSending] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailOfficial, setEmailOfficial] = useState<Official | null>(null);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [meetingOfficial, setMeetingOfficial] = useState<Official | null>(null);
   const [meetingForm, setMeetingForm] = useState<MeetingRequestForm>({
@@ -798,6 +806,14 @@ export default function MyRepresentativePage() {
     setChatOpen(true);
   }
 
+  function openEmailCompose(official: Official) {
+    setEmailOfficial(official);
+    setEmailSubject(`Message from a constituent in ${official.officeLabel}`);
+    setEmailBody("");
+    setEmailResult(null);
+    setEmailOpen(true);
+  }
+
   function openMeetingRequest(official: Official) {
     setMeetingOfficial(official);
     setMeetingForm({
@@ -881,6 +897,52 @@ export default function MyRepresentativePage() {
       setChatMessages((prev) => [...prev, reply]);
       setChatSending(false);
     }, 700);
+  }
+
+  async function handleSendEmail() {
+    if (!emailOfficial || !emailSubject.trim() || !emailBody.trim() || emailSending) return;
+
+    try {
+      setEmailSending(true);
+      setEmailResult(null);
+
+      const res = await fetch("/api/send-representative-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          citizenName: profile?.full_name || "Civix250 Citizen",
+          citizenEmail: profile?.email || null,
+          representativeName: emailOfficial.name,
+          representativeTitle: emailOfficial.title || emailOfficial.officeLabel || "",
+          representativeEmail: emailOfficial.email_href?.startsWith("mailto:")
+            ? emailOfficial.email_href.replace("mailto:", "")
+            : null,
+          subject: emailSubject.trim(),
+          message: emailBody.trim(),
+          district: profile?.district || "",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setEmailResult({ type: "error", message: data.error || "Failed to send email." });
+        return;
+      }
+
+      setEmailResult({ type: "success", message: "Your message has been sent successfully via Civix250." });
+      setEmailSubject("");
+      setEmailBody("");
+      setTimeout(() => {
+        setEmailOpen(false);
+        setEmailResult(null);
+      }, 2500);
+    } catch (err) {
+      console.error("Send email error:", err);
+      setEmailResult({ type: "error", message: "Something went wrong. Please try again." });
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   async function handleLogout() {
@@ -1035,6 +1097,7 @@ export default function MyRepresentativePage() {
                     featured
                     onChat={startChat}
                     onMeetingRequest={openMeetingRequest}
+                    onEmail={openEmailCompose}
                   />
                 </div>
               ) : (
@@ -1109,6 +1172,7 @@ export default function MyRepresentativePage() {
                     wide
                     onChat={startChat}
                     onMeetingRequest={openMeetingRequest}
+                    onEmail={openEmailCompose}
                   />
                 ))}
               </div>
@@ -1120,6 +1184,104 @@ export default function MyRepresentativePage() {
           </section>
         </main>
       </div>
+
+      {emailOpen && emailOfficial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 sm:p-6">
+          <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  Civix250 · Send Email
+                </p>
+                <h4 className="mt-1 text-xl font-bold text-slate-900">
+                  {emailOfficial.name}
+                </h4>
+                <p className="mt-1 text-sm text-slate-500">
+                  {emailOfficial.title} · {emailOfficial.officeLabel}
+                </p>
+              </div>
+              <button
+                onClick={() => { setEmailOpen(false); setEmailResult(null); }}
+                className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* From badge */}
+            <div className="border-b border-slate-100 bg-slate-50 px-6 py-3">
+              <p className="text-xs text-slate-500">
+                Sending from{" "}
+                <span className="font-semibold text-slate-700">messages@civix250.ai</span>
+                {profile?.email && (
+                  <> · Reply-to: <span className="font-semibold text-slate-700">{profile.email}</span></>
+                )}
+              </p>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-4 p-6">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Subject</label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Enter subject..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Message</label>
+                <textarea
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  rows={8}
+                  placeholder={`Write your message to ${emailOfficial.name}...\n\nTip: Use the "Chat with Representative" feature to draft your message with AI assistance first.`}
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white"
+                />
+              </div>
+
+              {emailResult && (
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                  emailResult.type === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}>
+                  {emailResult.message}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setEmailOpen(false); setEmailResult(null); }}
+                  className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendEmail}
+                  disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {emailSending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+                  ) : (
+                    <><Mail className="h-4 w-4" /> Send via Civix250</>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-center text-xs text-slate-400">
+                Sent from messages@civix250.ai · civix250.ai
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {chatOpen && chatOfficial && (
         <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-900/40 p-4 sm:p-6">
@@ -1470,12 +1632,14 @@ function OfficialCard({
   wide = false,
   onChat,
   onMeetingRequest,
+  onEmail,
 }: {
   official: Official;
   featured?: boolean;
   wide?: boolean;
   onChat: (official: Official) => void;
   onMeetingRequest: (official: Official) => void;
+  onEmail: (official: Official) => void;
 }) {
   const imageUrl = official.imageUrl || "";
   const [failedImageUrl, setFailedImageUrl] = useState("");
@@ -1543,15 +1707,13 @@ function OfficialCard({
             Request Video Meeting
           </button>
 
-          <a
-            href={official.contactUrl || official.website || "#"}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => onEmail(official)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
           >
             <Mail className="h-4 w-4" />
             Send Email
-          </a>
+          </button>
 
           <a
             href={official.website || "#"}
