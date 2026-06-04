@@ -195,6 +195,8 @@ export default function CreatePostPage() {
     ? "Choose a district"
     : prettifyDistrictLabel(profile?.district ?? null, profile?.state ?? null);
 
+  const [guestUserId, setGuestUserId] = useState<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
 
@@ -209,7 +211,38 @@ export default function CreatePostPage() {
         } = await supabase.auth.getUser();
 
         if (authError || !user) {
-          router.replace("/login");
+          const guestRaw = typeof window !== "undefined" ? localStorage.getItem("guest_user") : null;
+          if (!guestRaw) {
+            router.replace("/login");
+            return;
+          }
+
+          const parsedGuest = JSON.parse(guestRaw);
+          const guestDistrict = parsedGuest.district_id || parsedGuest.district || "";
+          const guestState = parsedGuest.state || "";
+
+          if (!mounted) return;
+
+          const guestProfile: ProfileRow = {
+            id: "guest",
+            full_name: parsedGuest.name || "Guest Citizen",
+            email: null,
+            role: "guest",
+            district: guestDistrict,
+            state: guestState,
+          };
+
+          setGuestUserId("guest");
+          setProfile(guestProfile);
+          setCanChooseDistrict(false);
+          setAvailableDistricts(buildDistrictOptions([guestDistrict]));
+          setSelectedDistrict(normalizeDistrictCode(guestDistrict));
+
+          if (!guestDistrict) {
+            setError("Your guest session does not have a district assigned.");
+          }
+
+          setLoading(false);
           return;
         }
 
@@ -345,7 +378,9 @@ export default function CreatePostPage() {
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (authError || !user) {
+      const isGuest = !user && !!guestUserId;
+
+      if ((authError || !user) && !isGuest) {
         router.replace("/login");
         return;
       }
@@ -375,7 +410,7 @@ export default function CreatePostPage() {
       }
 
       const issuePayload = {
-        user_id: user.id,
+        user_id: isGuest ? null : user!.id,
         title: cleanTitle,
         description: cleanDescription,
         district: normalizedDistrict,
