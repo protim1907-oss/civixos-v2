@@ -228,39 +228,6 @@ export default function DonatePage() {
                 ) : null}
               </div>
 
-              <aside className="space-y-4">
-                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-emerald-500">
-                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                  <h3 className="mt-3 font-bold text-slate-950">Clean separation</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    This supports the Civix250 platform, not any official, candidate, or campaign.
-                  </p>
-                </div>
-
-                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-orange-500">
-                  <LockKeyhole className="h-5 w-5 text-orange-600" />
-                  <h3 className="mt-3 font-bold text-slate-950">Payment processing</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Connect Stripe for secure checkout, receipts, and compliance.
-                  </p>
-                </div>
-
-                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500">
-                  <CreditCard className="h-5 w-5 text-blue-600" />
-                  <h3 className="mt-3 font-bold text-slate-950">Provider setup</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Paste hosted donation links into env vars and the selector will show them as ready.
-                  </p>
-                </div>
-
-                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 pl-7 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-indigo-500">
-                  <Landmark className="h-5 w-5 text-indigo-600" />
-                  <h3 className="mt-3 font-bold text-slate-950">Transparency first</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Keep platform donations visibly separate from campaign-finance information.
-                  </p>
-                </div>
-              </aside>
             </section>
 
             <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
