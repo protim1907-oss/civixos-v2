@@ -157,7 +157,7 @@ type ModeratorSurveyForm = {
   deadline: string;
 };
 
-const MODERATOR_SURVEY_DISTRICTS = ["NH", "TX-35", "CA-42"];
+const MODERATOR_SURVEY_DISTRICTS = ["TX-35", "CA-42"];
 
 function getSurveyDeadlineTime(value: string) {
   if (!value) return Number.NaN;
@@ -439,7 +439,7 @@ export default function ModeratorDashboardPage() {
       );
 
       await fetchPolicySurveys();
-      setSurveyMessage("Survey launched for NH, TX-35, and CA-42.");
+      setSurveyMessage("Survey launched for TX-35 and CA-42.");
       setSurveyForm({
         title: "",
         summary: "",
@@ -1505,7 +1505,7 @@ export default function ModeratorDashboardPage() {
                     </h2>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">
-                    Launch one survey for NH, TX-35, and CA-42. Citizens see and vote
+                    Launch one survey for TX-35 and CA-42. Citizens see and vote
                     only on their district survey; moderators export results by district.
                   </p>
                 </div>
@@ -1610,7 +1610,7 @@ export default function ModeratorDashboardPage() {
                     )}
                     {surveyPublishing
                       ? "Launching surveys..."
-                      : "Launch for NH, TX-35, and CA-42"}
+                      : "Launch for TX-35 and CA-42"}
                   </button>
 
                   {surveyMessage ? (

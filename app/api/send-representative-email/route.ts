@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     return NextResponse.json(
       { error: "Email service is not configured. Please contact support." },
       { status: 503 }
     );
   }
-
-  const resend = new Resend(apiKey);
 
   try {
     const body = await req.json();
@@ -47,7 +54,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build the HTML email body
     const htmlBody = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 640px; margin: 0 auto; background: #ffffff;">
 
@@ -98,7 +104,6 @@ export async function POST(req: NextRequest) {
             </p>
           </div>
 
-          <!-- Divider -->
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
 
           <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">
@@ -109,35 +114,21 @@ export async function POST(req: NextRequest) {
       </div>
     `;
 
-    // Determine recipients
     const toAddresses: string[] = [];
-
-    // If representative has a direct email, send to them
     if (representativeEmail && representativeEmail.includes("@")) {
       toAddresses.push(representativeEmail);
     }
-
-    // Always send a copy to the Civix250 inbox for record-keeping
     toAddresses.push("messages@civix250.ai");
 
-    const replyToAddresses: string[] = [];
-    if (citizenEmail) replyToAddresses.push(citizenEmail);
-
-    const { data, error } = await resend.emails.send({
-      from: "Civix250 Messages <messages@civix250.ai>",
-      to: toAddresses,
-      ...(replyToAddresses.length > 0 && { replyTo: replyToAddresses }),
-      ...(citizenEmail && { cc: [citizenEmail] }),
+    await transporter.sendMail({
+      from: `"Civix250 Messages" <messages@civix250.ai>`,
+      to: toAddresses.join(", "),
+      ...(citizenEmail && { replyTo: citizenEmail, cc: citizenEmail }),
       subject: `[Civix250] ${subject}`,
       html: htmlBody,
     });
 
-    if (error) {
-      console.error("Resend error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, emailId: data?.id });
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Send representative email error:", err);
     return NextResponse.json(

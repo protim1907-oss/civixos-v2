@@ -147,27 +147,6 @@ function inferRegionFromProfile(
   const stateValue = String(rawState || "").toLowerCase().trim();
 
   if (
-    districtValue.includes("new hampshire") ||
-    districtValue === "nh" ||
-    districtValue.startsWith("nh-") ||
-    stateValue === "new hampshire" ||
-    stateValue === "nh"
-  ) {
-    const districtNumberMatch = districtValue.match(/(\d{1,2})/);
-    const districtNumber = districtNumberMatch ? Number(districtNumberMatch[1]) : null;
-
-    return {
-      stateName: "New Hampshire",
-      districtLabel: districtNumber ? `NH District ${districtNumber}` : "New Hampshire District",
-      districtNumber,
-      feedLabel: districtNumber ? `New Hampshire District ${districtNumber}` : "New Hampshire",
-      query: districtNumber
-        ? `"New Hampshire" district ${districtNumber} local government OR community OR policy OR housing OR transport OR education`
-        : `"New Hampshire" local government OR community OR policy OR housing OR transport OR education`,
-    };
-  }
-
-  if (
     districtValue.includes("texas") ||
     districtValue === "tx" ||
     districtValue.startsWith("tx-") ||

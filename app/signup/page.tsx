@@ -19,10 +19,7 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Texas voter registration",
     url: "https://teamrv-mvp.sos.texas.gov/voter-registration/search",
   },
-  "New Hampshire": {
-    label: "Check New Hampshire voter registration",
-    url: "https://app.sos.nh.gov/vr/",
-  },
+
   California: {
     label: "Check California voter registration",
     url: "https://voterstatus.sos.ca.gov",
@@ -49,8 +46,6 @@ function normalizeDistrictValue(value: string | null | undefined) {
   if (upper === "TX35") return "TX-35";
   if (upper === "TX20") return "TX-20";
   if (upper === "TX12") return "TX-12";
-  if (upper === "NH01") return "NH-01";
-  if (upper === "NH02") return "NH-02";
 
   const compactMatch = upper.match(/^([A-Z]{2})(\d{1,2})$/);
   if (compactMatch) {
@@ -533,7 +528,7 @@ export default function SignupPage() {
         >
           <option value="">Select State</option>
           <option value="Texas">Texas</option>
-          <option value="New Hampshire">New Hampshire</option>
+
           <option value="California">California</option>
         </select>
       </div>

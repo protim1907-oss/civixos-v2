@@ -12,14 +12,6 @@ function getDistrictMappingFromEmail(email?: string | null) {
     };
   }
 
-  if (normalized === "protimghosh93@gmail.com") {
-    return {
-      state: "New Hampshire",
-      district: "NH",
-      district_id: "NH",
-    };
-  }
-
   return null;
 }
 

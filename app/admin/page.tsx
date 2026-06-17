@@ -575,7 +575,7 @@ export default function AdminDashboardPage() {
   }
 
   function computeDistrictRiskSignals() {
-    const defaultDistricts = ["NH", "TX-35", "CA-42"];
+    const defaultDistricts = ["TX-35", "CA-42"];
     const districtMap = new Map<
       string,
       {
@@ -683,7 +683,7 @@ export default function AdminDashboardPage() {
         };
       })
       .sort((a, b) => {
-        const preferredDistrictOrder = ["NH", "TX-35", "CA-42"];
+        const preferredDistrictOrder = ["TX-35", "CA-42"];
         const aPreferredIndex = preferredDistrictOrder.indexOf(a.district);
         const bPreferredIndex = preferredDistrictOrder.indexOf(b.district);
 

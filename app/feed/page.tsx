@@ -132,12 +132,6 @@ function displayDistrictName(value?: string | null) {
   const normalized = (value || "").trim().toUpperCase();
 
   switch (normalized) {
-    case "NH":
-      return "New Hampshire";
-    case "NH-01":
-      return "New Hampshire 1st Congressional District";
-    case "NH-02":
-      return "New Hampshire 2nd Congressional District";
     case "TX":
       return "Texas";
     case "TX-12":

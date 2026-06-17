@@ -24,7 +24,7 @@ type CategoryOption =
   | "Housing"
   | "Community";
 
-const KNOWN_DISTRICT_OPTIONS = ["CA-42", "TX-12", "TX-20", "TX-35", "NH-01", "NH-02"];
+const KNOWN_DISTRICT_OPTIONS = ["CA-42", "TX-12", "TX-20", "TX-35"];
 
 function prettifyDistrictLabel(district: string | null, state: string | null) {
   if (!district && !state) return "Your district";

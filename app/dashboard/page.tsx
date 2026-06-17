@@ -114,14 +114,6 @@ function getDistrictMappingFromEmail(email?: string | null) {
     };
   }
 
-  if (normalized === "protimghosh93@gmail.com") {
-    return {
-      state: "New Hampshire",
-      district: "NH",
-      district_id: "NH",
-    };
-  }
-
   return null;
 }
 
@@ -139,12 +131,6 @@ function formatDistrictLabel(value?: string | null) {
   switch (normalized) {
     case "TX-35":
       return "TX-35";
-    case "NH":
-      return "NH";
-    case "NH-01":
-      return "NH-01";
-    case "NH-02":
-      return "NH-02";
     default:
       return value || "No district assigned";
   }
