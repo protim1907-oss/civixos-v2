@@ -22,13 +22,6 @@ const donationProviders = [
     envName: "NEXT_PUBLIC_STRIPE_DONATION_URL",
     url: process.env.NEXT_PUBLIC_STRIPE_DONATION_URL || "",
   },
-  {
-    key: "donorbox",
-    label: "Donorbox",
-    description: "Hosted donation form and recurring gifts",
-    envName: "NEXT_PUBLIC_DONORBOX_DONATION_URL",
-    url: process.env.NEXT_PUBLIC_DONORBOX_DONATION_URL || "",
-  },
 ] as const;
 const fallbackDonationHref =
   "mailto:donations@civix250.org?subject=Civix250%20donation%20inquiry";
