@@ -91,7 +91,7 @@ export default function DonatePage() {
               </div>
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            <section className="grid gap-6">
               <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
