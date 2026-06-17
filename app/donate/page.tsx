@@ -166,7 +166,7 @@ export default function DonatePage() {
                   <p className="text-sm font-semibold text-slate-700">
                     Choose a donation provider
                   </p>
-                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <div className="mt-3 grid gap-3">
                     {donationProviders.map((provider) => {
                       const active = selectedProvider.key === provider.key;
                       const configured = Boolean(provider.url);
