@@ -241,7 +241,7 @@ export default function DonatePage() {
                   <LockKeyhole className="h-5 w-5 text-orange-600" />
                   <h3 className="mt-3 font-bold text-slate-950">Payment processing</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Connect Stripe or Donorbox for secure checkout, receipts, and compliance.
+                    Connect Stripe for secure checkout, receipts, and compliance.
                   </p>
                 </div>
 
