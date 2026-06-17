@@ -316,15 +316,6 @@ export default function SignupPage() {
       return;
     }
 
-    if (!addressProof) {
-      setError("Please select an address proof document type.");
-      return;
-    }
-
-    if (!isAddressProofCertified) {
-      setError("Please certify that the address proof provided by you is current and recent.");
-      return;
-    }
 
     if (!isVoterCertified) {
       setError("Please certify that you are at least 18 years of age and legally eligible to vote in your jurisdiction.");
@@ -650,57 +641,6 @@ export default function SignupPage() {
         </div>
       ) : null}
 
-      <div className="mb-4 rounded-lg border bg-slate-50 px-4 py-4">
-        <label className="mb-2 block text-sm font-medium">Address Proof</label>
-        <select
-          value={addressProof}
-          onChange={(e) => {
-            setAddressProof(e.target.value);
-            clearMessages();
-          }}
-          className="w-full rounded-lg border bg-white px-3 py-2"
-        >
-          <option value="">Select one document type</option>
-          {addressProofOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <label className="mt-4 block text-sm font-medium">Upload address proof</label>
-        <input
-          type="file"
-          accept=".pdf,image/jpeg,image/png,image/webp"
-          onChange={(e) => {
-            handleAddressProofFileChange(e.target.files?.[0] ?? null);
-          }}
-          className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
-        />
-        <p className="mt-2 text-xs text-gray-500">
-          Optional. Upload a PDF, JPG, PNG, or WebP file up to 10 MB.
-        </p>
-        {addressProofFile ? (
-          <p className="mt-2 text-xs font-medium text-slate-700">
-            Selected: {addressProofFile.name} ({formatFileSize(addressProofFile.size)})
-          </p>
-        ) : null}
-      </div>
-
-      <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={isAddressProofCertified}
-          onChange={(e) => {
-            setIsAddressProofCertified(e.target.checked);
-            clearMessages();
-          }}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300"
-        />
-        <span>
-          I certify that the address proof provided by me is current and recent.
-        </span>
-      </label>
 
       <label className="mb-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
         <input
