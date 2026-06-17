@@ -37,14 +37,6 @@ function getDistrictMappingFromEmail(email?: string | null) {
     };
   }
 
-  if (normalized === "protimghosh93@gmail.com") {
-    return {
-      state: "New Hampshire",
-      district: "NH",
-      district_id: "NH",
-    };
-  }
-
   return null;
 }
 
@@ -382,10 +374,6 @@ export default function LoginPage() {
       { value: "TX-12", label: "TX-12 — Fort Worth area" },
       { value: "TX-20", label: "TX-20 — San Antonio area" },
       { value: "TX-35", label: "TX-35 — Austin / San Antonio corridor" },
-    ],
-    "New Hampshire": [
-      { value: "NH-01", label: "NH-01 — Manchester / Seacoast" },
-      { value: "NH-02", label: "NH-02 — Concord / North Country" },
     ],
     California: [
       { value: "CA-42", label: "CA-42 — Riverside / East LA" },

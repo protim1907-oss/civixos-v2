@@ -42,7 +42,7 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
 function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
     Texas: "TX",
-    "New Hampshire": "NH",
+
     California: "CA",
     Florida: "FL",
     "New York": "NY",

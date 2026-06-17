@@ -36,7 +36,7 @@ function getStateFromDistrict(district: string) {
 
   if (upper.startsWith("CA")) return "California";
   if (upper.startsWith("TX")) return "Texas";
-  if (upper.startsWith("NH")) return "New Hampshire";
+
   if (upper.startsWith("FL")) return "Florida";
   if (upper.startsWith("NY")) return "New York";
 
@@ -80,19 +80,6 @@ function getSourcesForDistrict(district: string): SourceConfig[] {
       {
         label: "Local Government News",
         url: "https://www.sanantonio.gov/News",
-      },
-    ];
-  }
-
-  if (upper.startsWith("NH")) {
-    return [
-      {
-        label: "NH Government News",
-        url: "https://www.nh.gov/nhinfo/news/index.htm",
-      },
-      {
-        label: "NHDOT News",
-        url: "https://www.dot.nh.gov/news-and-media",
       },
     ];
   }
@@ -251,16 +238,6 @@ function isRelevantToDistrict(district: string, title: string, url: string) {
       text.includes("san antonio") ||
       text.includes("austin") ||
       text.includes("texas")
-    );
-  }
-
-  if (upperDistrict === "NH" || upperDistrict === "NH-01" || upperDistrict === "NH-02") {
-    return (
-      text.includes("new hampshire") ||
-      text.includes("nh") ||
-      text.includes("concord") ||
-      text.includes("manchester") ||
-      text.includes("nashua")
     );
   }
 

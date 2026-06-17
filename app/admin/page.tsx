@@ -145,20 +145,17 @@ type DistrictRiskMetric = "total" | "escalated" | "removed" | "reviewTime";
 
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
-  if (!raw) return "NH";
+  if (!raw) return "";
 
   const upper = raw.toUpperCase();
 
-  if (upper === "UNKNOWN" || upper === "UNASSIGNED" || upper === "N/A") return "NH";
-  if (upper === "NEW HAMPSHIRE") return "NH";
+  if (upper === "UNKNOWN" || upper === "UNASSIGNED" || upper === "N/A") return "";
   if (upper === "DISTRICT 12") return "CA-42";
   if (upper === "DISTRICT 42") return "CA-42";
   if (upper === "CA42") return "CA-42";
   if (upper === "TX35") return "TX-35";
   if (upper === "TX20") return "TX-20";
   if (upper === "TX12") return "TX-12";
-  if (upper === "NH01") return "NH-01";
-  if (upper === "NH02") return "NH-02";
 
   const compactMatch = upper.match(/^([A-Z]{2})(\d{1,2})$/);
   if (compactMatch) {

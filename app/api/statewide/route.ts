@@ -40,7 +40,7 @@ function normalizeStateCode(state?: string | null): string {
 function normalizeStateName(stateCode: string): string {
   const map: Record<string, string> = {
     tx: "Texas",
-    nh: "New Hampshire",
+
     ca: "California",
     fl: "Florida",
     ny: "New York",
