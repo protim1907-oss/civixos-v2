@@ -63,12 +63,9 @@ function isVerifiedOfficial(role?: string | null) {
 
 function normalizeDistrict(value?: string | null) {
   const raw = String(value || "").trim().toUpperCase();
-  if (!raw || raw === "UNKNOWN" || raw === "UNASSIGNED" || raw === "N/A") return "NH";
-  if (raw === "NEW HAMPSHIRE") return "NH";
+  if (!raw || raw === "UNKNOWN" || raw === "UNASSIGNED" || raw === "N/A") return "";
   if (raw === "CA42") return "CA-42";
   if (raw === "TX35") return "TX-35";
-  if (raw === "NH01") return "NH-01";
-  if (raw === "NH02") return "NH-02";
 
   const compactMatch = raw.match(/^([A-Z]{2})(\d{1,2})$/);
   if (compactMatch) return `${compactMatch[1]}-${Number(compactMatch[2])}`;

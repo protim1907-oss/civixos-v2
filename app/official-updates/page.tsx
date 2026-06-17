@@ -335,44 +335,6 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     shares: 4,
     sourceUrl: "https://example.com/ca42-school-grants",
   },
-  {
-    id: "nh-water-maintenance",
-    district: "NH",
-    state: "New Hampshire",
-    title: "Water system maintenance notice for selected neighborhoods",
-    summary:
-      "Utility officials have scheduled routine maintenance that may affect water pressure in limited service areas.",
-    body:
-      "Residents in selected neighborhoods may experience temporary pressure reductions during scheduled maintenance windows. Emergency services and schools have been notified, and utility teams will provide updated completion timing as needed.",
-    category: "Public Notice",
-    office: "State Utility Coordination Office",
-    date: "Apr 14, 2026",
-    priority: "High",
-    status: "Active",
-    upvotes: 19,
-    comments: 3,
-    shares: 2,
-    sourceUrl: "https://example.com/nh-water-maintenance",
-  },
-  {
-    id: "nh-community-feedback",
-    district: "NH",
-    state: "New Hampshire",
-    title: "Community feedback sessions scheduled across the district",
-    summary:
-      "Officials are hosting listening sessions on transportation, public services, and neighborhood priorities.",
-    body:
-      "A series of community listening sessions will be held across the district to gather resident input on service delivery, transportation safety, and local priorities. Residents are encouraged to attend and submit recommendations.",
-    category: "Community",
-    office: "District Engagement Office",
-    date: "Apr 10, 2026",
-    priority: "Normal",
-    status: "Ongoing",
-    upvotes: 27,
-    comments: 9,
-    shares: 6,
-    sourceUrl: "https://example.com/nh-community-feedback",
-  },
 ];
 
 function getCategoryBadgeClasses(category: OfficialUpdateCategory) {

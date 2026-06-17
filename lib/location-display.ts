@@ -2,9 +2,6 @@ export function displayState(value: string | null | undefined) {
   const normalized = (value || "").trim().toUpperCase();
 
   switch (normalized) {
-    case "NH":
-    case "NEW HAMPSHIRE":
-      return "New Hampshire";
     case "TX":
     case "TEXAS":
       return "Texas";
@@ -23,12 +20,6 @@ export function displayDistrict(value: string | null | undefined) {
   const normalized = (value || "").trim().toUpperCase();
 
   switch (normalized) {
-    case "NH":
-      return "New Hampshire";
-    case "NH-01":
-      return "New Hampshire 1st Congressional District";
-    case "NH-02":
-      return "New Hampshire 2nd Congressional District";
     case "TX":
       return "Texas";
     case "TX-12":
@@ -52,7 +43,6 @@ export function normalizeStateFromDistrict(
 
   const normalizedDistrict = (district || "").trim().toUpperCase();
 
-  if (normalizedDistrict.startsWith("NH")) return "New Hampshire";
   if (normalizedDistrict.startsWith("TX")) return "Texas";
   if (normalizedDistrict.startsWith("CA")) return "California";
   if (normalizedDistrict.startsWith("FL")) return "Florida";

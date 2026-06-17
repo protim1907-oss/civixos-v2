@@ -134,8 +134,7 @@ function normalizeStateCode(state?: string | null): string {
   const map: Record<string, string> = {
     texas: "TX",
     tx: "TX",
-    "new hampshire": "NH",
-    nh: "NH",
+
     california: "CA",
     ca: "CA",
     florida: "FL",
@@ -153,8 +152,7 @@ function normalizeStateName(state?: string | null): string {
   const map: Record<string, string> = {
     texas: "Texas",
     tx: "Texas",
-    "new hampshire": "New Hampshire",
-    nh: "New Hampshire",
+
     california: "California",
     ca: "California",
     florida: "Florida",
@@ -457,80 +455,6 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       phone: "(916) 210-6276",
       imageUrl:
         "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Rob_Bonta_official_portrait.jpg/640px-Rob_Bonta_official_portrait.jpg",
-      badge: {
-        text: "State",
-        tone: "green",
-      },
-    },
-  ],
-  NH: [
-    {
-      id: "jeanne-shaheen",
-      name: "Jeanne Shaheen",
-      title: "U.S. Senator",
-      officeLabel: "New Hampshire",
-      level: "federal",
-      state: "New Hampshire",
-      party: "Democrat",
-      website: "https://www.shaheen.senate.gov",
-      contactUrl: "https://www.shaheen.senate.gov/contact/contact-jeanne",
-      phone: "(202) 224-2841",
-      imageUrl:
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Jeanne_Shaheen%2C_official_portrait%2C_113th_Congress.jpg/640px-Jeanne_Shaheen%2C_official_portrait%2C_113th_Congress.jpg",
-      badge: {
-        text: "Senate",
-        tone: "red",
-      },
-    },
-    {
-      id: "maggie-hassan",
-      name: "Maggie Hassan",
-      title: "U.S. Senator",
-      officeLabel: "New Hampshire",
-      level: "federal",
-      state: "New Hampshire",
-      party: "Democrat",
-      website: "https://www.hassan.senate.gov",
-      contactUrl: "https://www.hassan.senate.gov/contact/email",
-      phone: "(202) 224-3324",
-      imageUrl:
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Maggie_Hassan%2C_official_portrait%2C_116th_Congress.jpg/640px-Maggie_Hassan%2C_official_portrait%2C_116th_Congress.jpg",
-      badge: {
-        text: "Senate",
-        tone: "red",
-      },
-    },
-    {
-      id: "kelly-ayotte",
-      name: "Kelly Ayotte",
-      title: "Governor of New Hampshire",
-      officeLabel: "Statewide Office",
-      level: "state",
-      state: "New Hampshire",
-      party: "Republican",
-      website: "https://www.governor.nh.gov",
-      contactUrl: "https://www.governor.nh.gov/contact-us",
-      phone: "(603) 271-2121",
-      imageUrl:
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Kelly_Ayotte%2C_Official_Portrait%2C_112th_Congress_2_%28cropped%29.jpg/640px-Kelly_Ayotte%2C_Official_Portrait%2C_112th_Congress_2_%28cropped%29.jpg",
-      badge: {
-        text: "State",
-        tone: "green",
-      },
-    },
-    {
-      id: "john-formella",
-      name: "John M. Formella",
-      title: "Attorney General of New Hampshire",
-      officeLabel: "Statewide Office",
-      level: "state",
-      state: "New Hampshire",
-      party: "Republican",
-      website: "https://www.doj.nh.gov",
-      contactUrl: "https://www.doj.nh.gov/contact-us",
-      phone: "(603) 271-3658",
-      imageUrl:
-        "https://www.doj.nh.gov/sites/g/files/ehbemt721/files/styles/profile_featured_image/public/2024-09/ag-formella-portrait.jpg",
       badge: {
         text: "State",
         tone: "green",

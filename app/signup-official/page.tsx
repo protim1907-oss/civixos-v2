@@ -42,11 +42,6 @@ const texasZipCityToDistricts: Record<string, DistrictOption[]> = {
   "Fort Worth|76135": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
 };
 
-const newHampshireZipCityToDistricts: Record<string, DistrictOption[]> = {
-  "Manchester|03101": [{ value: "NH", label: "New Hampshire" }],
-  "Concord|03301": [{ value: "NH", label: "New Hampshire" }],
-  "Nashua|03060": [{ value: "NH", label: "New Hampshire" }],
-};
 
 function toTitleCase(value: string) {
   return value
@@ -65,10 +60,6 @@ function resolveDistrictOptions(state: string, city: string, zipCode: string): D
 
   if (state === "Texas") {
     return texasZipCityToDistricts[key] || [];
-  }
-
-  if (state === "New Hampshire") {
-    return newHampshireZipCityToDistricts[key] || [];
   }
 
   return [];
@@ -99,9 +90,6 @@ export default function SignupOfficialPage() {
     if (officialLevel === "state" || officialLevel === "federal") {
       if (state === "Texas") {
         return [{ value: "TX", label: "State of Texas" }];
-      }
-      if (state === "New Hampshire") {
-        return [{ value: "NH", label: "New Hampshire" }];
       }
     }
 
@@ -362,7 +350,7 @@ export default function SignupOfficialPage() {
             >
               <option value="">Select state</option>
               <option value="Texas">Texas</option>
-              <option value="New Hampshire">New Hampshire</option>
+
             </select>
           </div>
 
