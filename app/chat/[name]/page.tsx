@@ -122,17 +122,38 @@ export default function ChatPage() {
   async function sendMessage() {
     if (!newMessage.trim()) return
 
-    const { error } = await supabase.from("messages").insert([
+    const text = newMessage
+    setNewMessage("")
+
+    // Optimistically show the message immediately
+    const optimistic = {
+      id: `optimistic-${Date.now()}`,
+      sender_id: userId,
+      sender_name: myName,
+      receiver_name: repName,
+      message: text,
+      created_at: new Date().toISOString(),
+    }
+    setMessages((prev) => [...prev, optimistic])
+
+    const { data, error } = await supabase.from("messages").insert([
       {
         sender_id: userId,
         sender_name: myName,
         receiver_name: repName,
-        message: newMessage,
+        message: text,
       },
-    ])
+    ]).select().single()
 
-    if (!error) {
-      setNewMessage("")
+    if (error) {
+      // Roll back the optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
+      setNewMessage(text)
+    } else if (data) {
+      // Replace optimistic entry with the real one from the DB
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimistic.id ? data : m))
+      )
     }
   }
 
