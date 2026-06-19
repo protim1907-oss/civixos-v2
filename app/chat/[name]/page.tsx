@@ -154,6 +154,17 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((m) => (m.id === optimistic.id ? data : m))
       )
+
+      // Fire-and-forget email notification to recipient
+      fetch("/api/chat-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          senderName: myName || "A Civix250 user",
+          recipientName: repName,
+          messagePreview: text,
+        }),
+      }).catch(() => {/* non-critical */})
     }
   }
 
