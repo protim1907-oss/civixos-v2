@@ -198,6 +198,8 @@ export default function ModeratorDashboardPage() {
   const [surveyPublishing, setSurveyPublishing] = useState(false);
   const [surveyMessage, setSurveyMessage] = useState("");
   const [sharingSurveyDistrict, setSharingSurveyDistrict] = useState<string | null>(null);
+  const [broadcastingSurveyId, setBroadcastingSurveyId] = useState<string | null>(null);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
   const [auditActorFilter, setAuditActorFilter] = useState<{
     actorId: string;
     actorName: string;
@@ -581,6 +583,48 @@ export default function ModeratorDashboardPage() {
         block: "start",
       });
     });
+  }
+
+  async function handleBroadcastSurvey(survey: PolicyPulseSurvey) {
+    const targetDistricts = MODERATOR_SURVEY_DISTRICTS.filter(
+      (d) => d !== survey.district
+    );
+    if (targetDistricts.length === 0) return;
+
+    try {
+      setBroadcastingSurveyId(survey.id);
+      setBroadcastMessage("");
+
+      const batchId = `broadcast-${Date.now()}`;
+      await Promise.all(
+        targetDistricts.map((district) =>
+          publishPolicyPulseSurvey(supabase, {
+            id: `${batchId}-${district.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+            title: survey.title,
+            district,
+            createdByUserId: profile?.id || "",
+            createdByName: profile?.full_name || profile?.email || "Moderator",
+            summary: survey.summary,
+            primaryQuestion: survey.primaryQuestion,
+            deadline: survey.deadline,
+            uploadedFiles: [],
+            createdAt: new Date().toISOString(),
+            votes: { ...initialVotes },
+            recentResponses: [],
+          })
+        )
+      );
+
+      await fetchPolicySurveys();
+      setBroadcastMessage(
+        `Survey broadcast to ${targetDistricts.join(", ")}.`
+      );
+    } catch (error) {
+      console.error("Failed to broadcast survey:", error);
+      setBroadcastMessage("Failed to broadcast survey. Please try again.");
+    } finally {
+      setBroadcastingSurveyId(null);
+    }
   }
 
   function handleDistrictCardClick(district: string) {
@@ -1712,10 +1756,36 @@ export default function ModeratorDashboardPage() {
                             ? "Sharing..."
                             : "Share with reps"}
                         </button>
+                        {row.latestSurvey &&
+                          MODERATOR_SURVEY_DISTRICTS.some(
+                            (d) => d !== row.district
+                          ) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                row.latestSurvey &&
+                                handleBroadcastSurvey(row.latestSurvey)
+                              }
+                              disabled={
+                                broadcastingSurveyId === row.latestSurvey?.id
+                              }
+                              title={`Broadcast this survey to ${MODERATOR_SURVEY_DISTRICTS.filter((d) => d !== row.district).join(", ")}`}
+                              className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {broadcastingSurveyId === row.latestSurvey?.id
+                                ? "Broadcasting..."
+                                : `Broadcast to ${MODERATOR_SURVEY_DISTRICTS.filter((d) => d !== row.district).join(", ")}`}
+                            </button>
+                          )}
                       </div>
                     </div>
                   </div>
                 ))}
+                {broadcastMessage && (
+                  <p className="mt-2 text-sm font-medium text-indigo-700">
+                    {broadcastMessage}
+                  </p>
+                )}
               </div>
             </div>
           </section>
