@@ -694,7 +694,7 @@ export default function ModeratorDashboardPage() {
             summary: survey.summary,
             primaryQuestion: survey.primaryQuestion,
             deadline: survey.deadline,
-            uploadedFiles: [],
+            uploadedFiles: survey.uploadedFiles ?? [],
             createdAt: new Date().toISOString(),
             votes: { ...initialVotes },
             recentResponses: [],
@@ -1833,6 +1833,46 @@ export default function ModeratorDashboardPage() {
                                 </div>
                               );
                             })}
+                          </div>
+                        )}
+
+                        {row.latestSurvey && row.latestSurvey.uploadedFiles.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+                              Attached Documents ({row.latestSurvey.uploadedFiles.length})
+                            </p>
+                            <div className="space-y-2">
+                              {row.latestSurvey.uploadedFiles.map((file, i) => (
+                                <div key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+                                  <span className="text-lg">📄</span>
+                                  <div className="flex-1 min-w-0">
+                                    {file.url ? (
+                                      <a
+                                        href={file.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm font-semibold text-blue-700 hover:underline truncate block"
+                                      >
+                                        {file.name}
+                                      </a>
+                                    ) : (
+                                      <p className="text-sm font-semibold text-slate-800 truncate">{file.name}</p>
+                                    )}
+                                    <p className="text-xs text-slate-500">{file.type} · {file.size}</p>
+                                  </div>
+                                  {file.url && (
+                                    <a
+                                      href={file.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="shrink-0 rounded-lg bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                                    >
+                                      View
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
