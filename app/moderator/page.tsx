@@ -461,15 +461,34 @@ export default function ModeratorDashboardPage() {
     if (!printWindow) return;
 
     const totalVotes = Object.values(survey.votes).reduce((sum, count) => sum + count, 0);
-    const voteRows = voteOptions
+    const topVote = voteOptions
+      .map((option) => ({ option, count: survey.votes[option] }))
+      .sort((a, b) => b.count - a.count)[0];
+    const supportCount = (survey.votes["Strongly Support"] ?? 0) + (survey.votes["Support"] ?? 0);
+    const opposeCount = (survey.votes["Oppose"] ?? 0) + (survey.votes["Strongly Oppose"] ?? 0);
+    const supportPct = totalVotes > 0 ? Math.round((supportCount / totalVotes) * 100) : 0;
+    const opposePct = totalVotes > 0 ? Math.round((opposeCount / totalVotes) * 100) : 0;
+    const exportedAt = new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" });
+
+    const voteBarRows = voteOptions
       .map((option) => {
-        const value = survey.votes[option];
-        const percentage = totalVotes > 0 ? ((value / totalVotes) * 100).toFixed(1) : "0.0";
+        const value = survey.votes[option] ?? 0;
+        const pct = totalVotes > 0 ? ((value / totalVotes) * 100).toFixed(1) : "0.0";
+        const barColor =
+          option === "Strongly Support" ? "#10b981"
+          : option === "Support" ? "#6ee7b7"
+          : option === "Neutral" ? "#cbd5e1"
+          : option === "Oppose" ? "#fca5a5"
+          : "#ef4444";
         return `
           <tr>
-            <td>${escapeHtml(option)}</td>
-            <td>${value}</td>
-            <td>${percentage}%</td>
+            <td style="width:160px">${escapeHtml(option)}</td>
+            <td>
+              <div style="background:#f1f5f9;border-radius:4px;height:14px;width:100%">
+                <div style="background:${barColor};border-radius:4px;height:14px;width:${pct}%"></div>
+              </div>
+            </td>
+            <td style="width:90px;text-align:right">${value} (${pct}%)</td>
           </tr>
         `;
       })
@@ -479,53 +498,121 @@ export default function ModeratorDashboardPage() {
       survey.recentResponses.length > 0
         ? survey.recentResponses
             .map(
-              (response) => `
-                <tr>
-                  <td>${escapeHtml(response.citizenLabel)}</td>
-                  <td>${escapeHtml(response.supportLevel)}</td>
-                  <td>${escapeHtml(response.topConcern)}</td>
-                  <td>${escapeHtml(response.recommendation)}</td>
+              (r, i) => `
+                <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}">
+                  <td>${escapeHtml(r.citizenLabel)}</td>
+                  <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${
+                    r.supportLevel === "Strongly Support" || r.supportLevel === "Support" ? "#d1fae5;color:#065f46"
+                    : r.supportLevel === "Neutral" ? "#f1f5f9;color:#475569"
+                    : "#fee2e2;color:#991b1b"
+                  }">${escapeHtml(r.supportLevel)}</span></td>
+                  <td>${escapeHtml(r.topConcern)}</td>
+                  <td>${escapeHtml(r.recommendation)}</td>
                 </tr>
               `
             )
             .join("")
-        : `<tr><td colspan="4">No feedback submitted yet.</td></tr>`;
+        : `<tr><td colspan="4" style="text-align:center;color:#94a3b8">No feedback submitted.</td></tr>`;
 
     printWindow.document.write(`
       <!doctype html>
       <html>
         <head>
-          <title>${escapeHtml(survey.district)} Survey Results</title>
+          <title>Civix250 — ${escapeHtml(survey.district)} Survey Results</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 32px; color: #0f172a; }
-            h1, h2 { margin-bottom: 8px; }
-            p { line-height: 1.6; }
-            .meta { margin: 20px 0; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; vertical-align: top; }
-            th { background: #f8fafc; }
+            @media print { body { margin: 0; } .no-print { display: none; } }
+            * { box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; margin: 0; color: #0f172a; background: #fff; }
+            .header { background: #0f172a; color: #fff; padding: 28px 40px; display: flex; justify-content: space-between; align-items: center; }
+            .header-left h1 { margin: 0 0 4px; font-size: 22px; }
+            .header-left p { margin: 0; font-size: 13px; color: #94a3b8; }
+            .header-right { text-align: right; font-size: 12px; color: #94a3b8; }
+            .content { padding: 32px 40px; }
+            .badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #ede9fe; color: #4c1d95; margin-bottom: 12px; }
+            .title { font-size: 26px; font-weight: 700; margin: 0 0 8px; }
+            .summary { font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+            .meta-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+            .meta-box .label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+            .meta-box .value { font-size: 16px; font-weight: 700; color: #0f172a; }
+            .section-title { font-size: 15px; font-weight: 700; color: #0f172a; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            th { background: #f8fafc; padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid #e2e8f0; }
+            td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+            .bar-table td { border: none; padding: 5px 8px; vertical-align: middle; }
+            .footer { margin-top: 40px; padding: 16px 40px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }
+            .print-btn { display: block; margin: 20px auto 0; padding: 10px 28px; background: #0f172a; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
           </style>
         </head>
         <body>
-          <h1>${escapeHtml(survey.title)}</h1>
-          <p>${escapeHtml(survey.summary)}</p>
-          <div class="meta">
-            <p><strong>District:</strong> ${escapeHtml(survey.district)}</p>
-            <p><strong>Question:</strong> ${escapeHtml(survey.primaryQuestion)}</p>
-            <p><strong>Deadline:</strong> ${escapeHtml(formatDate(survey.deadline))}</p>
-            <p><strong>Total votes:</strong> ${totalVotes}</p>
-            <p><strong>Prepared by:</strong> ${escapeHtml(profile?.full_name || profile?.email || "Moderator")}</p>
+          <div class="header">
+            <div class="header-left">
+              <h1>Civix250 — Policy Pulse Report</h1>
+              <p>District Survey Results &nbsp;·&nbsp; Moderator Export</p>
+            </div>
+            <div class="header-right">
+              <div>Exported by: ${escapeHtml(profile?.full_name || profile?.email || "Moderator")}</div>
+              <div>${exportedAt}</div>
+            </div>
           </div>
-          <h2>Vote Breakdown</h2>
-          <table>
-            <thead><tr><th>Option</th><th>Votes</th><th>Share</th></tr></thead>
-            <tbody>${voteRows}</tbody>
-          </table>
-          <h2>Citizen Feedback</h2>
-          <table>
-            <thead><tr><th>Citizen</th><th>Support</th><th>Concern</th><th>Recommendation</th></tr></thead>
-            <tbody>${responseRows}</tbody>
-          </table>
+
+          <div class="content">
+            <span class="badge">${escapeHtml(survey.district)}</span>
+            <h2 class="title">${escapeHtml(survey.title)}</h2>
+            <p class="summary">${escapeHtml(survey.summary)}</p>
+
+            <div class="meta-grid">
+              <div class="meta-box">
+                <div class="label">Survey Question</div>
+                <div class="value" style="font-size:13px">${escapeHtml(survey.primaryQuestion)}</div>
+              </div>
+              <div class="meta-box">
+                <div class="label">Voting Period</div>
+                <div class="value" style="font-size:13px">Closed ${escapeHtml(formatDate(survey.deadline))}</div>
+              </div>
+              <div class="meta-box">
+                <div class="label">Total Votes Cast</div>
+                <div class="value">${totalVotes}</div>
+              </div>
+              <div class="meta-box">
+                <div class="label">Leading Response</div>
+                <div class="value" style="font-size:13px">${escapeHtml(topVote?.option ?? "—")} (${topVote?.count ?? 0})</div>
+              </div>
+              <div class="meta-box">
+                <div class="label">Support Rate</div>
+                <div class="value" style="color:#10b981">${supportPct}%</div>
+              </div>
+              <div class="meta-box">
+                <div class="label">Opposition Rate</div>
+                <div class="value" style="color:#ef4444">${opposePct}%</div>
+              </div>
+            </div>
+
+            <div class="section-title">Vote Breakdown</div>
+            <table class="bar-table">
+              <tbody>${voteBarRows}</tbody>
+            </table>
+
+            <div class="section-title">Citizen Feedback (${survey.recentResponses.length} responses)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Citizen</th>
+                  <th>Vote</th>
+                  <th>Top Concern</th>
+                  <th>Recommendation</th>
+                </tr>
+              </thead>
+              <tbody>${responseRows}</tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <span>Civix250 · civix250.ai · Confidential moderator report</span>
+            <span>Generated ${exportedAt}</span>
+          </div>
+
+          <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
         </body>
       </html>
     `);
