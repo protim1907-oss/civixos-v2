@@ -241,7 +241,7 @@ export default function LoginPage() {
     setMessage("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -257,6 +257,12 @@ export default function LoginPage() {
     }
 
     setMessage("Login successful. Redirecting...");
+
+    // Explicitly redirect — don't rely solely on onAuthStateChange
+    if (data.session) {
+      await handleSessionRedirect(data.session);
+    }
+
     setLoading(false);
   }
 
