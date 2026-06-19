@@ -1716,6 +1716,78 @@ export default function ModeratorDashboardPage() {
                             <span>Deadline {formatDate(row.latestSurvey.deadline)}</span>
                           ) : null}
                         </div>
+
+                        {row.latestSurvey && row.totalVotes > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                              Live Vote Breakdown
+                            </p>
+                            {voteOptions.map((option) => {
+                              const count = row.latestSurvey!.votes[option] ?? 0;
+                              const pct = row.totalVotes > 0 ? Math.round((count / row.totalVotes) * 100) : 0;
+                              const barColor =
+                                option === "Strongly Support" ? "bg-emerald-500"
+                                : option === "Support" ? "bg-emerald-300"
+                                : option === "Neutral" ? "bg-slate-300"
+                                : option === "Oppose" ? "bg-red-300"
+                                : "bg-red-500";
+                              return (
+                                <div key={option} className="flex items-center gap-2 text-sm">
+                                  <span className="w-32 shrink-0 text-slate-600">{option}</span>
+                                  <div className="flex-1 rounded-full bg-slate-100 h-2">
+                                    <div
+                                      className={`h-2 rounded-full ${barColor} transition-all`}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                  <span className="w-14 text-right text-slate-500">
+                                    {count} ({pct}%)
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {row.latestSurvey && row.latestSurvey.recentResponses.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+                              Citizen Responses (latest {row.latestSurvey.recentResponses.length})
+                            </p>
+                            <div className="overflow-x-auto rounded-xl border border-slate-200">
+                              <table className="w-full text-sm">
+                                <thead className="bg-slate-50 text-left">
+                                  <tr>
+                                    <th className="px-3 py-2 text-xs font-semibold text-slate-500">Citizen</th>
+                                    <th className="px-3 py-2 text-xs font-semibold text-slate-500">Vote</th>
+                                    <th className="px-3 py-2 text-xs font-semibold text-slate-500">Top Concern</th>
+                                    <th className="px-3 py-2 text-xs font-semibold text-slate-500">Recommendation</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {row.latestSurvey.recentResponses.map((r, i) => (
+                                    <tr key={i} className="bg-white">
+                                      <td className="px-3 py-2 text-slate-700">{r.citizenLabel}</td>
+                                      <td className="px-3 py-2">
+                                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                          r.supportLevel === "Strongly Support" || r.supportLevel === "Support"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : r.supportLevel === "Neutral"
+                                            ? "bg-slate-100 text-slate-600"
+                                            : "bg-red-100 text-red-700"
+                                        }`}>
+                                          {r.supportLevel}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-600">{r.topConcern}</td>
+                                      <td className="px-3 py-2 text-slate-600">{r.recommendation}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap gap-2 lg:flex-col">
