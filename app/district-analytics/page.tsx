@@ -617,6 +617,7 @@ export default function DistrictAnalyticsPage() {
     }
 
     return Object.values(metrics)
+      .filter((item) => item.district !== "")
       .map((item) => {
         const avgSentiment = item.total > 0 ? item.sentimentScore / item.total : 0;
         const topCategoryEntries = Object.entries(districtCategories[item.district] || {}).sort(
