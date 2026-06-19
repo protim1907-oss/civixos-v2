@@ -563,40 +563,47 @@ function PolicyPulsePageContent() {
                       {activeSurvey.title}
                     </h3>
                     <p className="mt-3 leading-7 text-slate-700">{activeSurvey.summary}</p>
-                  </div>
 
-                  {activeSurvey.uploadedFiles.length > 0 ? (
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        Attached Policy Files
-                      </h3>
-
-                      <div className="mt-4 space-y-3">
-                        {activeSurvey.uploadedFiles.map((file, index) => (
-                          <div
-                            key={`${file.name}-${index}`}
-                            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-                          >
-                            {file.url ? (
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-semibold text-blue-700 hover:underline"
-                              >
-                                {file.name}
-                              </a>
-                            ) : (
-                              <p className="font-semibold text-slate-900">{file.name}</p>
-                            )}
-                            <p className="text-sm text-slate-600">
-                              {file.type} • {file.size}
-                            </p>
-                          </div>
-                        ))}
+                    {activeSurvey.uploadedFiles.length > 0 && (
+                      <div className="mt-4 border-t border-slate-200 pt-4">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Policy Documents
+                        </p>
+                        <div className="space-y-2">
+                          {activeSurvey.uploadedFiles.map((file, index) => (
+                            <div
+                              key={`${file.name}-${index}`}
+                              className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3"
+                            >
+                              <span className="text-xl">📄</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-900">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {file.type} · {file.size}
+                                </p>
+                              </div>
+                              {file.url ? (
+                                <a
+                                  href={file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="shrink-0 rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                                >
+                                  View / Download
+                                </a>
+                              ) : (
+                                <span className="shrink-0 rounded-lg bg-slate-200 px-4 py-1.5 text-xs font-semibold text-slate-500">
+                                  No link
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="mt-6 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50 p-8 text-center">
