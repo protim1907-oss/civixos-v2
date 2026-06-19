@@ -136,9 +136,7 @@ export default function TownHallPage() {
             </h1>
             <p className="mt-3 max-w-2xl text-lg text-slate-600">
               Attend live video town halls hosted by your district representatives.
-              {district ? (
-                <span className="font-semibold text-slate-900"> Showing events for {district} and all districts.</span>
-              ) : null}
+              <span className="font-semibold text-slate-900"> Showing events for all districts.</span>
             </p>
           </section>
 
