@@ -21,29 +21,56 @@ export default function ChatPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [videoOpen, setVideoOpen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const roomId = buildRoomId(repName)
   const jitsiUrl = `https://meet.jit.si/${roomId}`
 
   useEffect(() => {
-    loadUser()
-    loadMessages()
-  }, [])
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-  async function loadUser() {
-    const { data } = await supabase.auth.getUser()
-    setUserId(data.user?.id || null)
-  }
+    async function init() {
+      const { data } = await supabase.auth.getUser()
+      const uid = data.user?.id || null
+      setUserId(uid)
 
-  async function loadMessages() {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("receiver_name", repName)
-      .order("created_at", { ascending: true })
+      // Initial load
+      const { data: initial } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("receiver_name", repName)
+        .order("created_at", { ascending: true })
+      setMessages(initial || [])
 
-    setMessages(data || [])
-  }
+      // Realtime subscription
+      channel = supabase
+        .channel(`chat-${roomId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `receiver_name=eq.${repName}`,
+          },
+          (payload) => {
+            setMessages((prev) => [...prev, payload.new])
+          }
+        )
+        .subscribe()
+    }
+
+    init()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [repName])
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   async function sendMessage() {
     if (!newMessage.trim()) return
@@ -58,7 +85,6 @@ export default function ChatPage() {
 
     if (!error) {
       setNewMessage("")
-      loadMessages()
     }
   }
 
@@ -83,23 +109,36 @@ export default function ChatPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="h-[480px] overflow-y-auto p-6 space-y-4">
+            <div className="h-[480px] overflow-y-auto p-6 space-y-3">
               {messages.length === 0 ? (
                 <p className="text-center text-sm text-slate-400 mt-16">
                   No messages yet. Say hello!
                 </p>
               ) : (
-                messages.map((msg) => (
-                  <div key={msg.id} className="flex flex-col gap-1">
-                    <div className="inline-block max-w-[75%] rounded-2xl bg-slate-100 px-4 py-2.5 text-sm text-slate-800">
-                      {msg.message}
+                messages.map((msg) => {
+                  const isMe = msg.sender_id === userId
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}
+                    >
+                      <div
+                        className={`inline-block max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+                          isMe
+                            ? "bg-blue-600 text-white rounded-br-sm"
+                            : "bg-slate-100 text-slate-800 rounded-bl-sm"
+                        }`}
+                      >
+                        {msg.message}
+                      </div>
+                      <span className="text-xs text-slate-400">
+                        {isMe ? "You" : repName} · {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </div>
-                    <span className="text-xs text-slate-400">
-                      {new Date(msg.created_at).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))
+                  )
+                })
               )}
+              <div ref={bottomRef} />
             </div>
 
             <div className="flex gap-3 border-t border-slate-100 p-4">
