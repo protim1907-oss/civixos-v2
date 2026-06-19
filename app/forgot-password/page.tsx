@@ -5,9 +5,10 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { supabase } from "../../lib/supabase"
+import { createClient } from "@/lib/supabase/client"
 
 export default function ForgotPasswordPage() {
+  const supabase = createClient()
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
