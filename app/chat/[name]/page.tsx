@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/client"
 import Sidebar from "@/components/layout/Sidebar"
 import { Video, PhoneOff } from "lucide-react"
 
+const JAAS_APP_ID = process.env.NEXT_PUBLIC_JAAS_APP_ID || ""
+
 function buildRoomId(a: string, b: string) {
   const parts = [a, b].map((s) => s.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()).sort()
-  return `civix250-${parts[0]}-${parts[1]}`
+  return `${JAAS_APP_ID}/${parts[0]}-${parts[1]}`
 }
 
 export default function ChatPage() {
@@ -21,7 +23,8 @@ export default function ChatPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [myName, setMyName] = useState<string | null>(null)
   const [videoOpen, setVideoOpen] = useState(false)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const jaasContainerRef = useRef<HTMLDivElement>(null)
+  const jaasApiRef = useRef<any>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -168,7 +171,59 @@ export default function ChatPage() {
     }
   }
 
-  const jitsiUrl = `https://meet.jit.si/${buildRoomId(myName || userId || "user", repName)}`
+  const jaasRoomName = buildRoomId(myName || userId || "user", repName)
+
+  // Load JaaS SDK and start call when videoOpen becomes true
+  useEffect(() => {
+    if (!videoOpen) return
+
+    const scriptId = "jaas-external-api"
+    const existingScript = document.getElementById(scriptId)
+
+    function initJaas() {
+      if (!jaasContainerRef.current) return
+      // Clean up any previous instance
+      if (jaasApiRef.current) {
+        jaasApiRef.current.dispose()
+        jaasApiRef.current = null
+      }
+      const api = new (window as any).JitsiMeetExternalAPI("8x8.vc", {
+        roomName: jaasRoomName,
+        parentNode: jaasContainerRef.current,
+        userInfo: {
+          displayName: myName || "Civix250 User",
+        },
+        configOverwrite: {
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          prejoinPageEnabled: false,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+        },
+      })
+      jaasApiRef.current = api
+    }
+
+    if (existingScript) {
+      initJaas()
+    } else {
+      const script = document.createElement("script")
+      script.id = scriptId
+      script.src = `https://8x8.vc/${JAAS_APP_ID}/external_api.js`
+      script.async = true
+      script.onload = initJaas
+      document.head.appendChild(script)
+    }
+
+    return () => {
+      if (jaasApiRef.current) {
+        jaasApiRef.current.dispose()
+        jaasApiRef.current = null
+      }
+    }
+  }, [videoOpen, jaasRoomName, myName])
 
   return (
     <div className="min-h-screen bg-slate-100 lg:flex">
@@ -264,13 +319,7 @@ export default function ChatPage() {
               End Call
             </button>
           </div>
-          <iframe
-            ref={iframeRef}
-            src={jitsiUrl}
-            allow="camera; microphone; display-capture; fullscreen; autoplay"
-            className="flex-1 w-full border-0"
-            title={`Video call with ${repName}`}
-          />
+          <div ref={jaasContainerRef} className="flex-1 w-full" />
         </div>
       )}
     </div>
