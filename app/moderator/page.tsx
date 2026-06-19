@@ -943,7 +943,15 @@ export default function ModeratorDashboardPage() {
   }, [auditLogs, auditActorFilter]);
 
   const districtSurveyRows = useMemo(() => {
-    return MODERATOR_SURVEY_DISTRICTS.map((district) => {
+    // Derive districts dynamically from all surveys in the database
+    const allDistricts = Array.from(
+      new Set([
+        ...MODERATOR_SURVEY_DISTRICTS,
+        ...policySurveys.map((s) => s.district).filter(Boolean),
+      ])
+    ).sort();
+
+    return allDistricts.map((district) => {
       const surveys = policySurveys
         .filter((survey) => survey.district === district)
         .sort(
