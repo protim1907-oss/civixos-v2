@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/client"
 import Sidebar from "@/components/layout/Sidebar"
 import { Video, PhoneOff } from "lucide-react"
 
-function buildRoomId(repName: string) {
-  const safe = repName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()
-  return `civix250-${safe}`
+function buildRoomId(a: string, b: string) {
+  const parts = [a, b].map((s) => s.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()).sort()
+  return `civix250-${parts[0]}-${parts[1]}`
 }
 
 export default function ChatPage() {
@@ -19,51 +19,98 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [userId, setUserId] = useState<string | null>(null)
+  const [myName, setMyName] = useState<string | null>(null)
   const [videoOpen, setVideoOpen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const roomId = buildRoomId(repName)
-  const jitsiUrl = `https://meet.jit.si/${roomId}`
-
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
+    let channelA: ReturnType<typeof supabase.channel> | null = null
+    let channelB: ReturnType<typeof supabase.channel> | null = null
 
     async function init() {
-      const { data } = await supabase.auth.getUser()
-      const uid = data.user?.id || null
+      // Load current user + profile
+      const { data: authData } = await supabase.auth.getUser()
+      const uid = authData.user?.id || null
       setUserId(uid)
 
-      // Initial load
-      const { data: initial } = await supabase
+      let name: string | null = null
+      if (uid) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", uid)
+          .single()
+        name = profile?.full_name || profile?.email || null
+        setMyName(name)
+      }
+
+      // Fetch all messages in both directions between the two participants
+      const { data: sent } = await supabase
         .from("messages")
         .select("*")
         .eq("receiver_name", repName)
-        .order("created_at", { ascending: true })
-      setMessages(initial || [])
+        .eq("sender_id", uid)
 
-      // Realtime subscription
-      channel = supabase
-        .channel(`chat-${roomId}`)
-        .on(
-          "postgres_changes",
-          {
+      const { data: received } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("receiver_name", name)
+        .neq("sender_id", uid)
+
+      const all = [...(sent || []), ...(received || [])]
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+      setMessages(all)
+
+      // Realtime: messages I sent (stored under repName)
+      channelA = supabase
+        .channel(`chat-out-${repName}`)
+        .on("postgres_changes", {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_name=eq.${repName}`,
+        }, (payload) => {
+          if (payload.new.sender_id === uid) {
+            setMessages((prev) => {
+              if (prev.find((m) => m.id === payload.new.id)) return prev
+              return [...prev, payload.new].sort(
+                (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )
+            })
+          }
+        })
+        .subscribe()
+
+      // Realtime: messages they sent to me (stored under my name)
+      if (name) {
+        channelB = supabase
+          .channel(`chat-in-${name}`)
+          .on("postgres_changes", {
             event: "INSERT",
             schema: "public",
             table: "messages",
-            filter: `receiver_name=eq.${repName}`,
-          },
-          (payload) => {
-            setMessages((prev) => [...prev, payload.new])
-          }
-        )
-        .subscribe()
+            filter: `receiver_name=eq.${name}`,
+          }, (payload) => {
+            if (payload.new.sender_id !== uid) {
+              setMessages((prev) => {
+                if (prev.find((m) => m.id === payload.new.id)) return prev
+                return [...prev, payload.new].sort(
+                  (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                )
+              })
+            }
+          })
+          .subscribe()
+      }
     }
 
     init()
 
     return () => {
-      if (channel) supabase.removeChannel(channel)
+      if (channelA) supabase.removeChannel(channelA)
+      if (channelB) supabase.removeChannel(channelB)
     }
   }, [repName])
 
@@ -78,6 +125,7 @@ export default function ChatPage() {
     const { error } = await supabase.from("messages").insert([
       {
         sender_id: userId,
+        sender_name: myName,
         receiver_name: repName,
         message: newMessage,
       },
@@ -87,6 +135,8 @@ export default function ChatPage() {
       setNewMessage("")
     }
   }
+
+  const jitsiUrl = `https://meet.jit.si/${buildRoomId(myName || userId || "user", repName)}`
 
   return (
     <div className="min-h-screen bg-slate-100 lg:flex">
@@ -117,6 +167,7 @@ export default function ChatPage() {
               ) : (
                 messages.map((msg) => {
                   const isMe = msg.sender_id === userId
+                  const senderLabel = isMe ? "You" : (msg.sender_name || repName)
                   return (
                     <div
                       key={msg.id}
@@ -132,7 +183,7 @@ export default function ChatPage() {
                         {msg.message}
                       </div>
                       <span className="text-xs text-slate-400">
-                        {isMe ? "You" : repName} · {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {senderLabel} · {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
                   )
