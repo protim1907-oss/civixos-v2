@@ -701,6 +701,10 @@ export default function SignupPage() {
           Register here
         </Link>
       </p>
+
+      <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 leading-5">
+        🔒 <strong>Your data is safe with us.</strong> We use industry-standard encryption to protect your personal information. Your address is used solely to confirm your congressional district — it is never shared with campaigns, candidates, or third parties.
+      </div>
     </div>
   );
 }

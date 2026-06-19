@@ -339,6 +339,7 @@ export default function HomePage() {
           </div>
           <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
             <p>© 2025 Civix250. All rights reserved. This platform does not represent any political party, candidate, or campaign.</p>
+            <p className="mt-2">🔒 Your data is safe with us. We use industry-standard encryption to protect your personal information. Your address is used solely to confirm your congressional district — it is never shared with campaigns, candidates, or third parties.</p>
             <div className="flex gap-6">
               <a href="#" className="hover:text-slate-400 transition">Privacy</a>
               <a href="#" className="hover:text-slate-400 transition">Terms</a>
