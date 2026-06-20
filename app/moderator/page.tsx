@@ -1241,7 +1241,7 @@ export default function ModeratorDashboardPage() {
         ensureDistrict(request.district).pendingMeetings += 1;
       });
 
-    return [...map.values()]
+    return [...map.values()].filter((entry) => entry.district !== "Unassigned")
       .map(({ categories, ...entry }) => {
         const [topCategory] =
           Object.entries(categories).sort((a, b) => b[1] - a[1])[0] || [];
