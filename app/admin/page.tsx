@@ -1418,6 +1418,11 @@ export default function AdminDashboardPage() {
       return;
     }
 
+    if (destination === "donations") {
+      scrollToAdminSection(donationsRef);
+      return;
+    }
+
     if (destination === "removed") {
       setAdminPostView("removed");
       setIssueSearch("removed");
@@ -1669,6 +1674,25 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="rounded-2xl bg-indigo-100 p-3">
                   <Video className="h-5 w-5 text-indigo-700" />
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleKpiCardClick("donations")}
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-emerald-500 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+              aria-label="View platform donations"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Total Raised</p>
+                  <p className="mt-2 text-3xl font-bold text-emerald-700">
+                    ${donations.reduce((sum, d) => sum + d.amount, 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-emerald-100 p-3">
+                  <HeartHandshake className="h-5 w-5 text-emerald-700" />
                 </div>
               </div>
             </button>
@@ -3066,6 +3090,184 @@ export default function AdminDashboardPage() {
                   Make final decisions where moderator action is not enough.
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* Platform Donations */}
+          <section ref={donationsRef} className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="border-b border-slate-200 px-6 py-5 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Platform Donations</h2>
+                <p className="mt-1 text-sm text-slate-500">All contributions received through Civix250</p>
+              </div>
+              <button
+                onClick={() => setShowDonationForm((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+              >
+                {showDonationForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {showDonationForm ? "Cancel" : "Record Donation"}
+              </button>
+            </div>
+
+            {/* Summary stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-6 py-5 border-b border-slate-100">
+              {[
+                {
+                  label: "Total Raised",
+                  value: `$${donations.reduce((s, d) => s + d.amount, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  color: "text-emerald-700",
+                },
+                {
+                  label: "Total Donations",
+                  value: donations.length,
+                  color: "text-slate-900",
+                },
+                {
+                  label: "Avg Donation",
+                  value: donations.length
+                    ? `$${(donations.reduce((s, d) => s + d.amount, 0) / donations.length).toFixed(2)}`
+                    : "$0.00",
+                  color: "text-blue-700",
+                },
+                {
+                  label: "This Month",
+                  value: `$${donations
+                    .filter((d) => {
+                      const dt = d.created_at ? new Date(d.created_at) : null;
+                      if (!dt) return false;
+                      const now = new Date();
+                      return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+                    })
+                    .reduce((s, d) => s + d.amount, 0)
+                    .toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  color: "text-violet-700",
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{stat.label}</p>
+                  <p className={`mt-1 text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Manual entry form */}
+            {showDonationForm && (
+              <form onSubmit={handleRecordDonation} className="px-6 py-5 border-b border-slate-100 bg-emerald-50">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Record a New Donation</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Donor Name</label>
+                    <input
+                      type="text"
+                      placeholder="Anonymous"
+                      value={donationForm.donor_name}
+                      onChange={(e) => setDonationForm((f) => ({ ...f, donor_name: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Donor Email</label>
+                    <input
+                      type="email"
+                      placeholder="donor@email.com"
+                      value={donationForm.donor_email}
+                      onChange={(e) => setDonationForm((f) => ({ ...f, donor_email: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Amount (USD) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      placeholder="25.00"
+                      required
+                      value={donationForm.amount}
+                      onChange={(e) => setDonationForm((f) => ({ ...f, amount: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Payment Method</label>
+                    <select
+                      value={donationForm.payment_method}
+                      onChange={(e) => setDonationForm((f) => ({ ...f, payment_method: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                    >
+                      <option value="stripe">Stripe</option>
+                      <option value="check">Check</option>
+                      <option value="cash">Cash</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
+                    <input
+                      type="text"
+                      placeholder="Optional notes..."
+                      value={donationForm.notes}
+                      onChange={(e) => setDonationForm((f) => ({ ...f, notes: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={donationFormLoading}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-50"
+                >
+                  {donationFormLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+                  {donationFormLoading ? "Saving..." : "Save Donation"}
+                </button>
+              </form>
+            )}
+
+            {/* Donations table */}
+            <div className="overflow-x-auto">
+              {donations.length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <HeartHandshake className="mx-auto h-8 w-8 text-slate-300 mb-3" />
+                  <p className="text-sm text-slate-500">No donations recorded yet.</p>
+                  <p className="text-xs text-slate-400 mt-1">Use "Record Donation" to log a contribution manually.</p>
+                </div>
+              ) : (
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      <th className="px-6 py-3 text-left">Date</th>
+                      <th className="px-6 py-3 text-left">Donor</th>
+                      <th className="px-6 py-3 text-left">Email</th>
+                      <th className="px-6 py-3 text-left">Method</th>
+                      <th className="px-6 py-3 text-right">Amount</th>
+                      <th className="px-6 py-3 text-left">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {donations.map((d) => (
+                      <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                        <td className="px-6 py-3 text-slate-600 whitespace-nowrap">
+                          {d.created_at ? new Date(d.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                        </td>
+                        <td className="px-6 py-3 font-medium text-slate-900">
+                          {d.donor_name || <span className="text-slate-400 italic">Anonymous</span>}
+                        </td>
+                        <td className="px-6 py-3 text-slate-600">{d.donor_email || "—"}</td>
+                        <td className="px-6 py-3">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 capitalize">
+                            {d.payment_method || "—"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right font-bold text-emerald-700">
+                          ${d.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-3 text-slate-500 max-w-[200px] truncate">{d.notes || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </section>
         </div>
