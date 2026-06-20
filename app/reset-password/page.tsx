@@ -16,15 +16,48 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    // Session was already established by /auth/callback via PKCE code exchange.
-    // Just confirm the user is authenticated before showing the form.
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function init() {
+      // Case 1: PKCE flow — session already set in cookies by /auth/callback
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setReady(true);
-      } else {
-        setErrorMessage("Invalid or expired reset link. Please request a new one.");
+        return;
       }
-    });
+
+      // Case 2: Implicit flow — access_token in URL hash fragment
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token")) {
+        const params = new URLSearchParams(hash.substring(1));
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+
+        if (access_token && refresh_token) {
+          const { error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+          if (!error) {
+            setReady(true);
+            return;
+          }
+        }
+      }
+
+      // Case 3: code in query string (PKCE but landed here directly)
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) {
+          setReady(true);
+          return;
+        }
+      }
+
+      setErrorMessage("Invalid or expired reset link. Please request a new one.");
+    }
+
+    init();
   }, []);
 
   const handleResetPassword = async (e: FormEvent) => {
