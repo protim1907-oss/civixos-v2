@@ -16,50 +16,40 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event — fires when user arrives from reset email
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
-          setReady(true);
-        }
-      }
-    );
+    let timeoutId: ReturnType<typeof setTimeout>;
 
-    // Also check if session already exists (e.g. page reload)
+    // Primary check: session cookie set by /auth/callback after PKCE code exchange
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+      if (session) {
+        setReady(true);
+        return;
+      }
+
+      // Fallback: listen for PASSWORD_RECOVERY / SIGNED_IN events
+      // (fires for implicit flow where token is in the URL hash)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+            setReady(true);
+            clearTimeout(timeoutId);
+          }
+        }
+      );
+
+      timeoutId = setTimeout(() => {
+        setErrorMessage("Invalid or expired reset link. Please request a new one.");
+      }, 5000);
+
+      // Cleanup — returned from inner async, not directly from useEffect
+      // so we capture the subscription reference for cleanup via the outer return
+      (window as any).__resetPasswordSubscription = subscription;
     });
 
-    // Fallback: handle hash fragment manually for implicit flow
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token")) {
-      const params = new URLSearchParams(hash.substring(1));
-      const access_token = params.get("access_token");
-      const refresh_token = params.get("refresh_token");
-      if (access_token && refresh_token) {
-        supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-          if (!error) setReady(true);
-        });
-      }
-    }
-
-    // Show error only after a short delay to allow async checks to complete
-    const timeout = setTimeout(() => {
-      setErrorMessage((prev) =>
-        prev || "Invalid or expired reset link. Please request a new one."
-      );
-    }, 3000);
-
     return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
+      clearTimeout(timeoutId);
+      (window as any).__resetPasswordSubscription?.unsubscribe();
     };
   }, []);
-
-  // Suppress error if ready
-  useEffect(() => {
-    if (ready) setErrorMessage("");
-  }, [ready]);
 
   const handleResetPassword = async (e: FormEvent) => {
     e.preventDefault();
