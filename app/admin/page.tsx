@@ -434,6 +434,35 @@ export default function AdminDashboardPage() {
     }
   }
 
+  async function loadDonations() {
+    const { data } = await supabase
+      .from("platform_donations")
+      .select("id, donor_name, donor_email, amount, currency, payment_method, notes, created_at")
+      .order("created_at", { ascending: false });
+    setDonations((data ?? []) as PlatformDonation[]);
+  }
+
+  async function handleRecordDonation(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseFloat(donationForm.amount);
+    if (isNaN(amount) || amount <= 0) return;
+    setDonationFormLoading(true);
+    const { error } = await supabase.from("platform_donations").insert([{
+      donor_name: donationForm.donor_name || null,
+      donor_email: donationForm.donor_email || null,
+      amount,
+      currency: "USD",
+      payment_method: donationForm.payment_method,
+      notes: donationForm.notes || null,
+    }]);
+    if (!error) {
+      setShowDonationForm(false);
+      setDonationForm({ donor_name: "", donor_email: "", amount: "", payment_method: "stripe", notes: "" });
+      await loadDonations();
+    }
+    setDonationFormLoading(false);
+  }
+
   async function loadVideoMeetingRequests() {
     const { data, error } = await supabase
       .from("video_meeting_requests")
