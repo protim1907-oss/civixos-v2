@@ -5,10 +5,8 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/client"
 
 export default function ForgotPasswordPage() {
-  const supabase = createClient()
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
@@ -19,19 +17,20 @@ export default function ForgotPasswordPage() {
     setMessage("")
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-      });
+      const res = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
 
-      if (error) {
-        alert(error.message)
-        return
+      if (!res.ok) {
+        setMessage(data.error || "Something went wrong.")
+      } else {
+        setMessage("Password reset email sent. Please check your inbox.")
       }
-
-      setMessage("Password reset email sent. Please check your inbox.")
-    } catch (error) {
-      console.error(error)
-      alert("Something went wrong.")
+    } catch {
+      setMessage("Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -43,7 +42,7 @@ export default function ForgotPasswordPage() {
         <Card className="w-full max-w-md p-8">
           <h1 className="text-2xl font-bold text-slate-900">Forgot Password</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Enter your email and we’ll send you a password reset link.
+            Enter your email and we'll send you a password reset link.
           </p>
 
           <form onSubmit={handleResetPassword} className="mt-6 space-y-5">
@@ -62,7 +61,9 @@ export default function ForgotPasswordPage() {
           </form>
 
           {message && (
-            <p className="mt-4 text-sm font-medium text-green-600">{message}</p>
+            <p className={`mt-4 text-sm font-medium ${message.includes("sent") ? "text-green-600" : "text-red-600"}`}>
+              {message}
+            </p>
           )}
 
           <p className="mt-6 text-center text-sm text-slate-600">

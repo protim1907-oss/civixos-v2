@@ -1,55 +1,25 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
-  const supabase = createClient();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-
-    // Primary check: session cookie set by /auth/callback after PKCE code exchange
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setReady(true);
-        return;
-      }
-
-      // Fallback: listen for PASSWORD_RECOVERY / SIGNED_IN events
-      // (fires for implicit flow where token is in the URL hash)
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event, session) => {
-          if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
-            setReady(true);
-            clearTimeout(timeoutId);
-          }
-        }
-      );
-
-      timeoutId = setTimeout(() => {
-        setErrorMessage("Invalid or expired reset link. Please request a new one.");
-      }, 5000);
-
-      // Cleanup — returned from inner async, not directly from useEffect
-      // so we capture the subscription reference for cleanup via the outer return
-      (window as any).__resetPasswordSubscription = subscription;
-    });
-
-    return () => {
-      clearTimeout(timeoutId);
-      (window as any).__resetPasswordSubscription?.unsubscribe();
-    };
-  }, []);
+    if (!token) {
+      setErrorMessage("Invalid reset link. Please request a new one.");
+    }
+  }, [token]);
 
   const handleResetPassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -69,32 +39,36 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({ password });
+    try {
+      const res = await fetch("/api/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
 
-    if (error) {
-      setErrorMessage(error.message);
+      if (!res.ok) {
+        setErrorMessage(data.error || "Failed to reset password.");
+        setLoading(false);
+        return;
+      }
+
+      setMessage("Password updated successfully! Redirecting to login...");
+      setTimeout(() => router.push("/login"), 1500);
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setMessage("Password updated successfully! Redirecting to login...");
-    setTimeout(() => router.push("/login"), 1500);
-    setLoading(false);
   };
 
-  if (!ready && !errorMessage) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <p className="text-slate-500 text-sm">Validating reset link...</p>
-      </div>
-    );
-  }
-
-  if (!ready && errorMessage) {
+  if (!token || errorMessage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border text-center">
-          <p className="text-red-600 font-semibold mb-4">{errorMessage}</p>
+          <p className="text-red-600 font-semibold mb-4">
+            {errorMessage || "Invalid reset link."}
+          </p>
           <a
             href="/forgot-password"
             className="inline-block bg-black text-white px-6 py-3 rounded-2xl text-sm font-semibold hover:bg-slate-800 transition"
@@ -147,5 +121,17 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <p className="text-slate-500 text-sm">Loading...</p>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
