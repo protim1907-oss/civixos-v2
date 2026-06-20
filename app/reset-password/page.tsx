@@ -16,49 +16,50 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    async function init() {
-      // Case 1: PKCE flow — session already set in cookies by /auth/callback
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setReady(true);
-        return;
-      }
-
-      // Case 2: Implicit flow — access_token in URL hash fragment
-      const hash = window.location.hash;
-      if (hash && hash.includes("access_token")) {
-        const params = new URLSearchParams(hash.substring(1));
-        const access_token = params.get("access_token");
-        const refresh_token = params.get("refresh_token");
-
-        if (access_token && refresh_token) {
-          const { error } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-          if (!error) {
-            setReady(true);
-            return;
-          }
-        }
-      }
-
-      // Case 3: code in query string (PKCE but landed here directly)
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) {
+    // Listen for PASSWORD_RECOVERY event — fires when user arrives from reset email
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
           setReady(true);
-          return;
         }
       }
+    );
 
-      setErrorMessage("Invalid or expired reset link. Please request a new one.");
+    // Also check if session already exists (e.g. page reload)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
+    });
+
+    // Fallback: handle hash fragment manually for implicit flow
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+          if (!error) setReady(true);
+        });
+      }
     }
 
-    init();
+    // Show error only after a short delay to allow async checks to complete
+    const timeout = setTimeout(() => {
+      setErrorMessage((prev) =>
+        prev || "Invalid or expired reset link. Please request a new one."
+      );
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
+
+  // Suppress error if ready
+  useEffect(() => {
+    if (ready) setErrorMessage("");
+  }, [ready]);
 
   const handleResetPassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -99,7 +100,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  if (errorMessage && !ready) {
+  if (!ready && errorMessage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border text-center">
