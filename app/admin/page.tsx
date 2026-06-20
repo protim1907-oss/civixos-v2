@@ -27,6 +27,10 @@ import {
   Video,
   CheckCircle2,
   XCircle,
+  HeartHandshake,
+  DollarSign,
+  Plus,
+  X,
 } from "lucide-react";
 
 type Issue = {
@@ -124,6 +128,17 @@ type DistrictRepresentativeAdminRow = {
   is_active: boolean;
 };
 
+type PlatformDonation = {
+  id: string;
+  donor_name: string | null;
+  donor_email: string | null;
+  amount: number;
+  currency: string;
+  payment_method: string | null;
+  notes: string | null;
+  created_at: string | null;
+};
+
 type AdminKpiDestination =
   | "users"
   | "posts"
@@ -131,7 +146,8 @@ type AdminKpiDestination =
   | "removed"
   | "moderators"
   | "officials"
-  | "meetings";
+  | "meetings"
+  | "donations";
 
 type ModerationInsightDestination =
   | "outcomes"
@@ -198,6 +214,17 @@ export default function AdminDashboardPage() {
   });
 
   const [districtRiskRows, setDistrictRiskRows] = useState<DistrictRiskRow[]>([]);
+  const [donations, setDonations] = useState<PlatformDonation[]>([]);
+  const [showDonationForm, setShowDonationForm] = useState(false);
+  const [donationFormLoading, setDonationFormLoading] = useState(false);
+  const [donationForm, setDonationForm] = useState({
+    donor_name: "",
+    donor_email: "",
+    amount: "",
+    payment_method: "stripe",
+    notes: "",
+  });
+  const donationsRef = useRef<HTMLElement | null>(null);
 
   const [issueSearch, setIssueSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
@@ -340,6 +367,7 @@ export default function AdminDashboardPage() {
       loadActivityLogs(),
       loadDistrictRepresentatives(),
       loadVideoMeetingRequests(),
+      loadDonations(),
     ]);
   }
 
