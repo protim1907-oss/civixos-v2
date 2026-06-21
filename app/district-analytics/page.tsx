@@ -51,6 +51,19 @@ type DiscussionRow = {
   topic: string | null;
 };
 
+type SurveyResponseRow = {
+  id: string;
+  district: string | null;
+  supportLevel: string | null;
+  createdAt: string | null;
+};
+
+function scoreSupportLevel(level: string | null): number {
+  if (level === "Strongly Support" || level === "Support") return 1;
+  if (level === "Oppose" || level === "Strongly Oppose") return -1;
+  return 0;
+}
+
 type DistrictMetric = {
   district: string;
   issues: number;
@@ -288,7 +301,11 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 function formatDateLabel(value: string) {
-  const date = new Date(value);
+  // value is a "YYYY-MM-DD" key; parsing it directly with `new Date()` treats
+  // it as UTC midnight, which shifts the displayed day backward in any
+  // timezone west of UTC. Parse the parts and build a local-time date instead.
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, (month || 1) - 1, day || 1);
   if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat("en-US", {
@@ -363,6 +380,7 @@ export default function DistrictAnalyticsPage() {
   const [issues, setIssues] = useState<IssueRow[]>([]);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [discussions, setDiscussions] = useState<DiscussionRow[]>([]);
+  const [surveyResponses, setSurveyResponses] = useState<SurveyResponseRow[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"total" | "risk" | "sentiment" | "lastActivity">("total");
@@ -379,7 +397,7 @@ export default function DistrictAnalyticsPage() {
       try {
         setLoading(true);
 
-        const [issuesRes, postsRes, discussionsRes] = await Promise.all([
+        const [issuesRes, postsRes, discussionsRes, surveysRes] = await Promise.all([
           supabase
             .from("issues")
             .select("id, title, description, district, category, status, created_at")
@@ -396,6 +414,10 @@ export default function DistrictAnalyticsPage() {
             .from("discussions")
             .select("id, district, title, topic, status")
             .eq("status", "active"),
+
+          supabase
+            .from("policy_pulse_surveys")
+            .select("id, district, recent_responses"),
         ]);
 
         if (issuesRes.error) {
@@ -406,6 +428,9 @@ export default function DistrictAnalyticsPage() {
         }
         if (discussionsRes.error) {
           console.error("Discussions analytics load error:", discussionsRes.error);
+        }
+        if (surveysRes.error) {
+          console.error("Survey responses analytics load error:", surveysRes.error);
         }
 
         setIssues((issuesRes.data as IssueRow[]) ?? []);
@@ -426,6 +451,18 @@ export default function DistrictAnalyticsPage() {
           title: (row.title as string | null) ?? null,
           topic: (row.topic as string | null) ?? null,
         })));
+        setSurveyResponses(
+          ((surveysRes.data as Array<Record<string, unknown>>) ?? []).flatMap((row) => {
+            const district = (row.district as string | null) ?? null;
+            const responses = (row.recent_responses as Array<Record<string, unknown>> | null) ?? [];
+            return responses.map((response) => ({
+              id: String(response.id ?? `${row.id}-${response.createdAt}`),
+              district,
+              supportLevel: (response.supportLevel as string | null) ?? null,
+              createdAt: (response.createdAt as string | null) ?? null,
+            }));
+          })
+        );
       } finally {
         setLoading(false);
       }
@@ -499,8 +536,21 @@ export default function DistrictAnalyticsPage() {
       else point.neutral += 1;
     }
 
+    for (const response of surveyResponses) {
+      const key = toDayKey(response.createdAt);
+      if (!key || !baseMap.has(key)) continue;
+
+      const point = baseMap.get(key)!;
+      const sentiment = scoreSupportLevel(response.supportLevel);
+      point.total += 1;
+
+      if (sentiment > 0) point.positive += 1;
+      else if (sentiment < 0) point.negative += 1;
+      else point.neutral += 1;
+    }
+
     return keys.map((key) => baseMap.get(key)!);
-  }, [analyticsPosts, issues]);
+  }, [analyticsPosts, issues, surveyResponses]);
 
   const districtMetrics = useMemo<DistrictMetric[]>(() => {
     const metrics: Record<string, DistrictMetric> = {};
@@ -616,6 +666,36 @@ export default function DistrictAnalyticsPage() {
       }
     }
 
+    for (const response of surveyResponses) {
+      const district = normalizeDistrict(response.district);
+      ensureMetric(district);
+
+      metrics[district].total += 1;
+
+      const responseSentiment = scoreSupportLevel(response.supportLevel);
+      if (responseSentiment > 0) metrics[district].positive += 1;
+      else if (responseSentiment < 0) metrics[district].negative += 1;
+      else metrics[district].neutral += 1;
+
+      metrics[district].sentimentScore += responseSentiment;
+
+      const createdAt = response.createdAt ? new Date(response.createdAt).getTime() : 0;
+      if (createdAt >= currentWindowStart) {
+        districtCurrentCounts[district] = (districtCurrentCounts[district] || 0) + 1;
+      } else if (createdAt >= previousWindowStart && createdAt < currentWindowStart) {
+        districtPreviousCounts[district] = (districtPreviousCounts[district] || 0) + 1;
+      }
+
+      if (
+        response.createdAt &&
+        (!districtLastActivity[district] ||
+          new Date(response.createdAt).getTime() >
+            new Date(districtLastActivity[district] || 0).getTime())
+      ) {
+        districtLastActivity[district] = response.createdAt;
+      }
+    }
+
     return Object.values(metrics)
       .filter((item) => item.district !== "")
       .map((item) => {
@@ -658,7 +738,7 @@ export default function DistrictAnalyticsPage() {
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [analyticsPosts, issues, discussionMap]);
+  }, [analyticsPosts, issues, discussionMap, surveyResponses]);
 
   const availableDistricts = useMemo(() => {
     return ["All", ...districtMetrics.map((d) => d.district)];
