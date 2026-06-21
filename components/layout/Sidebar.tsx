@@ -67,7 +67,7 @@ export default function Sidebar() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (userError) {
+      if (userError && userError.name !== "AuthSessionMissingError") {
         console.error("Sidebar user load error:", userError);
       }
 
