@@ -682,30 +682,59 @@ export default function ModeratorDashboardPage() {
       setBroadcastingSurveyId(survey.id);
       setBroadcastMessage("");
 
-      const batchId = `broadcast-${Date.now()}`;
-      await Promise.all(
-        targetDistricts.map((district) =>
-          publishPolicyPulseSurvey(supabase, {
-            id: `${batchId}-${district.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
-            title: survey.title,
-            district,
-            createdByUserId: profile?.id || "",
-            createdByName: profile?.full_name || profile?.email || "Moderator",
-            summary: survey.summary,
-            primaryQuestion: survey.primaryQuestion,
-            deadline: survey.deadline,
-            uploadedFiles: survey.uploadedFiles ?? [],
-            createdAt: new Date().toISOString(),
-            votes: { ...initialVotes },
-            recentResponses: [],
-          })
-        )
+      // Deterministic per (source survey, target district) so re-broadcasting
+      // the same survey reuses the existing row instead of creating a
+      // duplicate that fragments votes across multiple rows.
+      const targetIdFor = (district: string) =>
+        `broadcast-${survey.id}-${district.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+
+      const { data: existingRows } = await supabase
+        .from("policy_pulse_surveys")
+        .select("id")
+        .in("id", targetDistricts.map(targetIdFor));
+
+      const existingIds = new Set((existingRows ?? []).map((row) => row.id));
+      const newDistricts = targetDistricts.filter(
+        (district) => !existingIds.has(targetIdFor(district))
+      );
+      const alreadyBroadcastDistricts = targetDistricts.filter((district) =>
+        existingIds.has(targetIdFor(district))
       );
 
+      if (newDistricts.length > 0) {
+        await Promise.all(
+          newDistricts.map((district) =>
+            publishPolicyPulseSurvey(supabase, {
+              id: targetIdFor(district),
+              title: survey.title,
+              district,
+              createdByUserId: profile?.id || "",
+              createdByName: profile?.full_name || profile?.email || "Moderator",
+              summary: survey.summary,
+              primaryQuestion: survey.primaryQuestion,
+              deadline: survey.deadline,
+              uploadedFiles: survey.uploadedFiles ?? [],
+              createdAt: new Date().toISOString(),
+              votes: { ...initialVotes },
+              recentResponses: [],
+            })
+          )
+        );
+      }
+
       await fetchPolicySurveys();
-      setBroadcastMessage(
-        `Survey broadcast to ${targetDistricts.join(", ")}.`
-      );
+
+      if (newDistricts.length > 0 && alreadyBroadcastDistricts.length > 0) {
+        setBroadcastMessage(
+          `Survey broadcast to ${newDistricts.join(", ")}. Already broadcast to ${alreadyBroadcastDistricts.join(", ")} — existing votes preserved.`
+        );
+      } else if (newDistricts.length > 0) {
+        setBroadcastMessage(`Survey broadcast to ${newDistricts.join(", ")}.`);
+      } else {
+        setBroadcastMessage(
+          `Already broadcast to ${alreadyBroadcastDistricts.join(", ")} — no new districts to broadcast to.`
+        );
+      }
     } catch (error) {
       console.error("Failed to broadcast survey:", error);
       setBroadcastMessage("Failed to broadcast survey. Please try again.");
