@@ -24,6 +24,32 @@ type CategoryOption =
   | "Housing"
   | "Community";
 
+type PostAttachment = {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+};
+
+const ATTACHMENTS_BUCKET = "post-attachments";
+const MAX_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
+const acceptedAttachmentTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+];
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const KNOWN_DISTRICT_OPTIONS = ["CA-42", "TX-12", "TX-20", "TX-35"];
 
 function prettifyDistrictLabel(district: string | null, state: string | null) {
@@ -187,6 +213,10 @@ export default function CreatePostPage() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [aiNote, setAiNote] = useState("");
+
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
 
   const activeDistrict = canChooseDistrict ? selectedDistrict : profile?.district ?? "";
   const districtLabel = activeDistrict
@@ -366,6 +396,73 @@ export default function CreatePostPage() {
     }
   }
 
+  function handleAttachmentSelect(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+
+    setAttachmentError("");
+    const incoming = Array.from(fileList);
+    const accepted: File[] = [];
+
+    for (const file of incoming) {
+      if (pendingFiles.length + accepted.length >= MAX_ATTACHMENTS) {
+        setAttachmentError(`You can attach up to ${MAX_ATTACHMENTS} files.`);
+        break;
+      }
+      if (!acceptedAttachmentTypes.includes(file.type)) {
+        setAttachmentError("Only images, PDFs, and Word documents are supported.");
+        continue;
+      }
+      if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
+        setAttachmentError("Each file must be 10MB or smaller.");
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    setPendingFiles((prev) => [...prev, ...accepted]);
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function uploadAttachments(userId: string): Promise<PostAttachment[]> {
+    if (pendingFiles.length === 0) return [];
+
+    setUploadingAttachments(true);
+    try {
+      const uploaded: PostAttachment[] = [];
+
+      for (const file of pendingFiles) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${userId}/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(ATTACHMENTS_BUCKET)
+          .upload(path, file, { contentType: file.type });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from(ATTACHMENTS_BUCKET)
+          .getPublicUrl(path);
+
+        uploaded.push({
+          name: file.name,
+          url: publicUrlData.publicUrl,
+          type: file.type,
+          size: file.size,
+        });
+      }
+
+      return uploaded;
+    } finally {
+      setUploadingAttachments(false);
+    }
+  }
+
   async function handleCreatePost() {
     try {
       setSubmitting(true);
@@ -414,6 +511,15 @@ export default function CreatePostPage() {
         return;
       }
 
+      let attachments: PostAttachment[] = [];
+      try {
+        attachments = await uploadAttachments(user!.id);
+      } catch (uploadErr) {
+        console.error("Attachment upload error:", uploadErr);
+        setError("We could not upload your attachments. Please try again.");
+        return;
+      }
+
       const issuePayload = {
         user_id: isGuest ? null : user!.id,
         title: cleanTitle,
@@ -421,6 +527,7 @@ export default function CreatePostPage() {
         district: normalizedDistrict,
         category,
         status: "active",
+        attachments,
       };
 
       const { error: insertError } = await supabase.from("issues").insert([issuePayload]);
@@ -592,6 +699,63 @@ export default function CreatePostPage() {
                       </div>
                     </div>
 
+                    <div>
+                      <label className="mb-3 block text-lg font-medium text-slate-800">
+                        Attachments (optional)
+                      </label>
+                      <label
+                        htmlFor="post-attachments"
+                        className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[28px] border-2 border-dashed border-slate-300 bg-slate-50 px-7 py-10 text-center transition hover:border-slate-400 hover:bg-white"
+                      >
+                        <span className="text-base font-semibold text-slate-700">
+                          Click to attach photos or documents
+                        </span>
+                        <span className="text-sm text-slate-500">
+                          Images, PDF, or Word — up to {MAX_ATTACHMENTS} files, 10MB each
+                        </span>
+                      </label>
+                      <input
+                        id="post-attachments"
+                        type="file"
+                        multiple
+                        accept={acceptedAttachmentTypes.join(",")}
+                        className="hidden"
+                        onChange={(e) => {
+                          handleAttachmentSelect(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+
+                      {attachmentError ? (
+                        <p className="mt-2 text-sm text-red-600">{attachmentError}</p>
+                      ) : null}
+
+                      {pendingFiles.length > 0 ? (
+                        <ul className="mt-4 space-y-2">
+                          {pendingFiles.map((file, index) => (
+                            <li
+                              key={`${file.name}-${index}`}
+                              className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-800">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removePendingFile(index)}
+                                className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+
                     {(disableReason || error || success || aiNote) && (
                       <div className="space-y-3">
                         {disableReason && !error ? (
@@ -645,7 +809,11 @@ export default function CreatePostPage() {
                           disabled={isDisabled}
                           className="inline-flex h-14 items-center justify-center rounded-2xl bg-slate-950 px-7 text-lg font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {submitting ? "Creating..." : "Create Post"}
+                          {uploadingAttachments
+                            ? "Uploading attachments..."
+                            : submitting
+                            ? "Creating..."
+                            : "Create Post"}
                         </button>
                       )}
                     </div>
