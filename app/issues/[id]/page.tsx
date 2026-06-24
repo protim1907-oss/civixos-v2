@@ -177,7 +177,7 @@ export default function IssueDetailPage() {
         const [issueRes, historyRes, responsesRes, commentsRes, votesRes] = await Promise.all([
           supabase
             .from("issues")
-            .select("id, title, description, status, category, district, user_id, created_at, severity, ai_summary")
+            .select("id, title, description, status, category, district, user_id, created_at, severity, ai_summary, attachments")
             .eq("id", issueId)
             .single(),
 
@@ -380,6 +380,44 @@ export default function IssueDetailPage() {
             <p className="mt-5 text-sm leading-7 text-slate-700 whitespace-pre-line">
               {issue.description}
             </p>
+
+            {issue.attachments && issue.attachments.length > 0 && (
+              <div className="mt-5">
+                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Attachments ({issue.attachments.length})
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {issue.attachments.map((file, index) => (
+                    <a
+                      key={`${file.url}-${index}`}
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={file.name}
+                      className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50"
+                    >
+                      {isImageAttachment(file.type) ? (
+                        <img
+                          src={file.url}
+                          alt={file.name}
+                          className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-400">
+                          <FileText className="h-6 w-6" />
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-800">{file.name}</p>
+                        <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                      </div>
+                      <Download className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-blue-500" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Vote */}
             <div className="mt-6 flex items-center gap-3">
