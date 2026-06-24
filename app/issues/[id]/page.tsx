@@ -20,9 +20,20 @@ import {
   Tag,
   Users,
   AlertTriangle,
+  Paperclip,
+  Download,
+  FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type IssueAttachment = {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+};
 
 type Issue = {
   id: string;
@@ -35,6 +46,7 @@ type Issue = {
   created_at: string | null;
   severity: string | null;
   ai_summary: string | null;
+  attachments: IssueAttachment[] | null;
 };
 
 type StatusHistoryRow = {
@@ -110,6 +122,17 @@ function formatDateShort(v?: string | null) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short", day: "numeric", year: "numeric",
   }).format(new Date(v));
+}
+
+function formatFileSize(bytes: number) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isImageAttachment(type: string) {
+  return type.startsWith("image/");
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
