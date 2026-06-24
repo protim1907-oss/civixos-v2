@@ -23,7 +23,6 @@ import {
   Paperclip,
   Download,
   FileText,
-  Image as ImageIcon,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
