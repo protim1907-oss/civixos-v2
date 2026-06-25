@@ -280,8 +280,16 @@ function mapRepresentativeRow(row: RepresentativeRow): Official {
     website: row.linkedin_url || "#",
     contactUrl: row.email_href || row.linkedin_url || "#",
     imageUrl: row.photo_url || row.photo || "",
+    email_href: row.email_href,
     badge,
   };
+}
+
+function getRealEmail(official: Official): string | null {
+  if (official.email_href?.startsWith("mailto:")) {
+    return official.email_href.replace("mailto:", "").split("?")[0];
+  }
+  return null;
 }
 
 function sortOfficials(items: Official[]) {
@@ -838,9 +846,7 @@ export default function MyRepresentativePage() {
           citizenEmail: profile?.email || null,
           representativeName: emailOfficial.name,
           representativeTitle: emailOfficial.title || emailOfficial.officeLabel || "",
-          representativeEmail: emailOfficial.email_href?.startsWith("mailto:")
-            ? emailOfficial.email_href.replace("mailto:", "")
-            : null,
+          representativeEmail: getRealEmail(emailOfficial),
           subject: emailSubject.trim(),
           message: emailBody.trim(),
           district: profile?.district || "",
@@ -1137,8 +1143,9 @@ export default function MyRepresentativePage() {
             {/* From badge */}
             <div className="border-b border-slate-100 bg-slate-50 px-6 py-3">
               <p className="text-xs text-slate-500">
-                Sending from{" "}
-                <span className="font-semibold text-slate-700">messages@civix250.ai</span>
+                Sending directly to{" "}
+                <span className="font-semibold text-slate-700">{getRealEmail(emailOfficial)}</span>
+                {" "}· a copy is logged at messages@civix250.ai
                 {profile?.email && (
                   <> · Reply-to: <span className="font-semibold text-slate-700">{profile.email}</span></>
                 )}
@@ -1200,7 +1207,7 @@ export default function MyRepresentativePage() {
               </div>
 
               <p className="text-center text-xs text-slate-400">
-                Sent from messages@civix250.ai · civix250.ai
+                Sent via messages@civix250.ai · civix250.ai
               </p>
             </div>
           </div>
@@ -1631,13 +1638,26 @@ function OfficialCard({
             Request Video Meeting
           </button>
 
-          <button
-            onClick={() => onEmail(official)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
-          >
-            <Mail className="h-4 w-4" />
-            Send Email
-          </button>
+          {getRealEmail(official) ? (
+            <button
+              onClick={() => onEmail(official)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+            >
+              <Mail className="h-4 w-4" />
+              Send Email
+            </button>
+          ) : (
+            <a
+              href={official.contactUrl || official.website || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-200"
+              title="This office does not publish a direct email — submit your message through their official contact form."
+            >
+              <Mail className="h-4 w-4" />
+              Open Contact Form
+            </a>
+          )}
 
           <a
             href={official.website || "#"}
