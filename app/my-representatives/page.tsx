@@ -594,14 +594,7 @@ export default function MyRepresentativePage() {
           ((statewideRows as RepresentativeRow[] | null) || [])
             .filter((row) => {
               const level = String(row.level || "").toLowerCase();
-              if (level === "senate" || level === "state") return true;
-              if (level !== "state senate") return false;
-
-              const rowDistrict = normalizeDistrict(
-                row.district || row.district_id,
-                row.state
-              );
-              return rowDistrict === normalizedDistrict;
+              return level === "senate" || level === "state" || level === "state senate";
             })
             .map(mapRepresentativeRow)
         );
