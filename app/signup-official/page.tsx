@@ -209,6 +209,12 @@ export default function SignupOfficialPage() {
       }
     }
 
+    fetch("/api/send-welcome-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), fullName: fullName.trim() }),
+    }).catch((err) => console.error("Welcome email request failed:", err));
+
     if (!data.session) {
       setInfo(
         `Official account created or already exists. Jurisdiction confirmed as ${selectedDistrict}. Please check your email or login. If this is a new verified account, an admin may need to finish profile approval.`

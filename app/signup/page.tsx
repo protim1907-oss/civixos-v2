@@ -430,6 +430,12 @@ export default function SignupPage() {
         }
       }
 
+      fetch("/api/send-welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail, fullName: normalizedFullName }),
+      }).catch((err) => console.error("Welcome email request failed:", err));
+
       if (!data.session) {
         setInfo(
           addressProofFile
