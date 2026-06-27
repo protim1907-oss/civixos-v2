@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -9,6 +10,7 @@ import {
   ArrowLeft,
   Landmark,
 } from "lucide-react";
+import ReferralCapture from "@/components/ReferralCapture";
 
 type DistrictRepRow = {
   district_code: string;
@@ -123,6 +125,9 @@ export default async function DistrictRepresentativePage({
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <Suspense fallback={null}>
+        <ReferralCapture />
+      </Suspense>
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-4xl px-6 py-5 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-slate-950">

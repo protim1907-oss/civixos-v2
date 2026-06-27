@@ -574,6 +574,34 @@ export default function DashboardPage() {
     }
   }
 
+  const referralLink = useMemo(() => {
+    if (!currentUserId) return "";
+    const districtSlug = currentDistrict
+      ? currentDistrict.trim().toLowerCase().replace(/[^a-z0-9-]/g, "")
+      : "";
+    const path = districtSlug ? `/representatives/${districtSlug}` : "/signup";
+    return `https://civix250.ai${path}?ref=${currentUserId}`;
+  }, [currentUserId, currentDistrict]);
+
+  const referralShareText = `I just joined Civix250 to message my representatives and weigh in on local issues in ${formatDistrictLabel(
+    currentDistrict
+  )}. Check your own district and make your voice count:`;
+
+  const twitterShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+    referralShareText
+  )}&url=${encodeURIComponent(referralLink)}`;
+
+  async function handleCopyReferralLink() {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setReferralCopied(true);
+      setTimeout(() => setReferralCopied(false), 2000);
+    } catch (error) {
+      console.error("Copy referral link error:", error);
+    }
+  }
+
   const discussionMap = useMemo(() => {
     const map = new Map<string, DiscussionRow>();
     discussions.forEach((discussion) => {
@@ -1229,6 +1257,59 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </section>
+
+              {currentUserId && !isGuest ? (
+                <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-6 pl-8 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-indigo-500">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">
+                        <Share2 className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-indigo-700">
+                          Invite Your Neighbors
+                        </p>
+                        <h2 className="mt-1 text-xl font-bold text-slate-900">
+                          Bring more voices from {formatDistrictLabel(currentDistrict)} to Civix250.
+                        </h2>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                          Share your personal link — anyone who joins through it helps grow your
+                          district&apos;s voice.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleCopyReferralLink}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 active:scale-[0.98]"
+                      >
+                        {referralCopied ? (
+                          <>
+                            <Check className="h-4 w-4 text-emerald-600" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            Copy Link
+                          </>
+                        )}
+                      </button>
+                      <a
+                        href={twitterShareUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98]"
+                      >
+                        <Share2 className="h-4 w-4" />
+                        Share on X
+                      </a>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
 
               <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
                 <div className="space-y-6 xl:col-span-8">

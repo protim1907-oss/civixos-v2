@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -79,6 +79,14 @@ function getSafeStorageFileName(fileName: string) {
 
 export default function SignupPage() {
   const supabase = createClient();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) {
+      localStorage.setItem("civix_referral", ref);
+    }
+  }, []);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -324,6 +332,9 @@ export default function SignupPage() {
 
     setLoading(true);
 
+    const referredBy =
+      typeof window !== "undefined" ? localStorage.getItem("civix_referral") : null;
+
     try {
       const { data, error: signupError } = await supabase.auth.signUp({
         email: normalizedEmail,
@@ -343,6 +354,7 @@ export default function SignupPage() {
             address_proof_file_mime_type: addressProofFile?.type || null,
             address_proof_current_certified: isAddressProofCertified,
             role: "citizen",
+            referred_by: referredBy || null,
           },
         },
       });
@@ -414,6 +426,7 @@ export default function SignupPage() {
           street_address: normalizedStreetAddress,
           city: normalizedCity,
           zip_code: normalizedZip,
+          referred_by: referredBy || null,
         };
 
         const { error: profileUpsertError } = await supabase
@@ -435,6 +448,10 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail, fullName: normalizedFullName }),
       }).catch((err) => console.error("Welcome email request failed:", err));
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("civix_referral");
+      }
 
       if (!data.session) {
         setInfo(
