@@ -26,6 +26,9 @@ import {
   HeartHandshake,
   Vote,
   MapPin,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   loadPublishedPolicyPulseSurveys,
@@ -160,6 +163,8 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [currentDistrict, setCurrentDistrict] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [referralCopied, setReferralCopied] = useState(false);
 
   const [myComments, setMyComments] = useState<MyCommentRow[]>([]);
   const [myUpvotes, setMyUpvotes] = useState<MyUpvoteRow[]>([]);
@@ -413,6 +418,7 @@ export default function DashboardPage() {
         "";
 
       setCurrentDistrict(resolvedDistrict);
+      setCurrentUserId(user.id);
 
       await loadMyActivity(user.id);
 
