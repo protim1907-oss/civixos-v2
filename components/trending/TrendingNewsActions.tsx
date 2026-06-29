@@ -14,7 +14,7 @@ type CommentRow = {
   comment_text: string;
   created_at: string;
   user_id: string;
-  profiles: ProfileRow[] | null;
+  profiles: ProfileRow | null;
 };
 
 type Props = {
@@ -117,16 +117,7 @@ export default function TrendingNewsActions({
     try {
       const { data, error } = await supabase
         .from("news_comments")
-        .select(`
-          id,
-          comment_text,
-          created_at,
-          user_id,
-          profiles (
-            full_name,
-            email
-          )
-        `)
+        .select("id, comment_text, created_at, user_id")
         .eq("story_id", storyId)
         .order("created_at", { ascending: false });
 
@@ -135,15 +126,38 @@ export default function TrendingNewsActions({
         return;
       }
 
-      const rows: CommentRow[] = (data ?? []).map((item: any) => ({
-        id: item.id,
-        comment_text: item.comment_text,
-        created_at: item.created_at,
-        user_id: item.user_id,
-        profiles: Array.isArray(item.profiles) ? item.profiles : item.profiles ? [item.profiles] : [],
-      }));
+      const rows = data ?? [];
+      const authorIds = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean)));
 
-      setComments(rows);
+      let profilesById = new Map<string, ProfileRow>();
+
+      if (authorIds.length > 0) {
+        const { data: profileRows, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", authorIds);
+
+        if (profileError) {
+          console.error("Error loading comment authors:", profileError);
+        } else {
+          profilesById = new Map(
+            (profileRows ?? []).map((profile: any) => [
+              profile.id,
+              { full_name: profile.full_name, email: profile.email },
+            ])
+          );
+        }
+      }
+
+      setComments(
+        rows.map((row) => ({
+          id: row.id,
+          comment_text: row.comment_text,
+          created_at: row.created_at,
+          user_id: row.user_id,
+          profiles: profilesById.get(row.user_id) ?? null,
+        }))
+      );
     } catch (error) {
       console.error("Unexpected error loading comments:", error);
     }
@@ -417,9 +431,7 @@ export default function TrendingNewsActions({
               <p className="text-sm text-slate-500">No comments yet.</p>
             ) : (
               comments.map((comment) => {
-                const profile = Array.isArray(comment.profiles)
-                  ? comment.profiles[0]
-                  : null;
+                const profile = comment.profiles;
 
                 return (
                   <div

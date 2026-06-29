@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { createHash } from "crypto";
 import Sidebar from "@/components/layout/Sidebar";
 import { MessageCircle } from "lucide-react";
 import { XMLParser } from "fast-xml-parser";
@@ -65,11 +66,13 @@ function slugify(value: string) {
     .replace(/https?:\/\//g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
-    .slice(0, 120);
+    .slice(0, 100);
 }
 
 function buildStoryId(item: Omit<FeedItem, "id">) {
-  return slugify(`${item.title}-${item.link}`);
+  const raw = `${item.title}-${item.link}`;
+  const hash = createHash("sha1").update(raw).digest("hex").slice(0, 10);
+  return `${slugify(raw)}-${hash}`;
 }
 
 function formatDate(dateStr?: string) {
