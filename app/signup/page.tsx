@@ -426,7 +426,6 @@ export default function SignupPage() {
           street_address: normalizedStreetAddress,
           city: normalizedCity,
           zip_code: normalizedZip,
-          referred_by: referredBy || null,
         };
 
         const { error: profileUpsertError } = await supabase
