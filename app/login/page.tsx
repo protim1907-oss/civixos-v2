@@ -342,10 +342,7 @@ export default function LoginPage() {
         localStorage.removeItem("guest_user");
       }
 
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
+      const redirectTo = "https://www.civix250.ai/auth/callback";
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
