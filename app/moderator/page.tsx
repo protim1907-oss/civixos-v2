@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   initialVotes,
-  loadPublishedPolicyPulseSurveys,
+  loadAllPolicyPulseSurveys,
+  toggleSurveyPublished,
   PolicyPulseSurvey,
   publishPolicyPulseSurvey,
   voteOptions,
@@ -360,7 +361,7 @@ export default function ModeratorDashboardPage() {
   }
 
   async function fetchPolicySurveys() {
-    const surveys = await loadPublishedPolicyPulseSurveys(supabase);
+    const surveys = await loadAllPolicyPulseSurveys(supabase);
     setPolicySurveys(surveys);
   }
 
@@ -2005,6 +2006,24 @@ export default function ModeratorDashboardPage() {
                                 : `Broadcast to ${MODERATOR_SURVEY_DISTRICTS.filter((d) => d !== row.district).join(", ")}`}
                             </button>
                           )}
+                        {row.latestSurvey && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!row.latestSurvey) return;
+                              const next = !row.latestSurvey.isPublished;
+                              await toggleSurveyPublished(supabase, row.latestSurvey.id, next);
+                              await fetchPolicySurveys();
+                            }}
+                            className={`rounded-xl px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                              row.latestSurvey.isPublished
+                                ? "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                                : "border border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                            }`}
+                          >
+                            {row.latestSurvey.isPublished ? "Unpublish" : "Republish"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

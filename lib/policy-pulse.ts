@@ -37,6 +37,7 @@ export type PolicyPulseSurvey = {
   createdAt: string;
   votes: Record<VoteOption, number>;
   recentResponses: PolicyPulseResponse[];
+  isPublished: boolean;
 };
 
 export const POLICY_PULSE_STORAGE_KEY = "policy-pulse-surveys";
@@ -99,6 +100,7 @@ type PolicyPulseSurveyRow = {
   created_at: string;
   votes: Record<VoteOption, number> | null;
   recent_responses: PolicyPulseResponse[] | null;
+  is_published: boolean;
 };
 
 function normalizeVotes(value: Record<VoteOption, number> | null | undefined) {
@@ -123,6 +125,7 @@ function mapSurveyRow(row: PolicyPulseSurveyRow): PolicyPulseSurvey {
     createdAt: row.created_at,
     votes: normalizeVotes(row.votes),
     recentResponses: row.recent_responses ?? [],
+    isPublished: row.is_published ?? true,
   };
 }
 
@@ -149,8 +152,9 @@ export async function loadPublishedPolicyPulseSurveys(
   const { data, error } = await supabase
     .from("policy_pulse_surveys")
     .select(
-      "id, title, district, created_by_user_id, created_by_name, summary, primary_question, deadline, uploaded_files, created_at, votes, recent_responses"
+      "id, title, district, created_by_user_id, created_by_name, summary, primary_question, deadline, uploaded_files, created_at, votes, recent_responses, is_published"
     )
+    .eq("is_published", true)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -174,6 +178,37 @@ export async function publishPolicyPulseSurvey(
   }
 
   upsertPolicyPulseSurvey(survey);
+}
+
+export async function loadAllPolicyPulseSurveys(
+  supabase: SupabaseClient
+): Promise<PolicyPulseSurvey[]> {
+  const { data, error } = await supabase
+    .from("policy_pulse_surveys")
+    .select(
+      "id, title, district, created_by_user_id, created_by_name, summary, primary_question, deadline, uploaded_files, created_at, votes, recent_responses, is_published"
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Failed to load all policy pulse surveys:", error);
+    return [];
+  }
+
+  return ((data ?? []) as PolicyPulseSurveyRow[]).map(mapSurveyRow);
+}
+
+export async function toggleSurveyPublished(
+  supabase: SupabaseClient,
+  surveyId: string,
+  isPublished: boolean
+) {
+  const { error } = await supabase
+    .from("policy_pulse_surveys")
+    .update({ is_published: isPublished })
+    .eq("id", surveyId);
+
+  if (error) throw error;
 }
 
 export async function updatePublishedPolicyPulseSurvey(
