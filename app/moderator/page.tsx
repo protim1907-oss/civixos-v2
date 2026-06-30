@@ -157,7 +157,7 @@ type ModeratorSurveyForm = {
   deadline: string;
 };
 
-const MODERATOR_SURVEY_DISTRICTS = ["TX-21", "TX-23", "TX-35", "CA-42", "NH", "NY-10"];
+const MODERATOR_SURVEY_DISTRICTS = ["TX-21", "TX-23", "TX-35", "CA-42"];
 
 function getSurveyDeadlineTime(value: string) {
   if (!value) return Number.NaN;
