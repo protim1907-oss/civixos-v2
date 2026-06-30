@@ -710,6 +710,7 @@ export default function AdminDashboardPage() {
     }
 
     const rows: DistrictRiskRow[] = Array.from(districtMap.entries())
+      .filter(([district]) => district && district.trim() !== "")
       .map(([district, value]) => {
         const escalationRate =
           value.totalPosts > 0
