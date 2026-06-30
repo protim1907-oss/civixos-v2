@@ -181,7 +181,7 @@ export default function LoginPage() {
         districtId,
       });
 
-      router.replace(redirectPath);
+      window.location.href = redirectPath;
     } catch (error) {
       console.error("Session redirect error:", error);
 
