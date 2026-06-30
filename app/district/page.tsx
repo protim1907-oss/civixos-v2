@@ -7,7 +7,7 @@ export default function DistrictPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/signup");
+    router.replace("/login");
   }, [router]);
 
   return null;
