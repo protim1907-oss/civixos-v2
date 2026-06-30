@@ -719,6 +719,7 @@ export default function ModeratorDashboardPage() {
               createdAt: new Date().toISOString(),
               votes: { ...initialVotes },
               recentResponses: [],
+              isPublished: true,
             })
           )
         );

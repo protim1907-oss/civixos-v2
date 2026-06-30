@@ -116,6 +116,7 @@ export default function NewPolicyPulseSurveyPage() {
         createdAt: new Date().toISOString(),
         votes: { ...initialVotes },
         recentResponses: [],
+        isPublished: true,
       };
 
       await publishPolicyPulseSurvey(supabase, survey);
