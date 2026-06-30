@@ -394,12 +394,9 @@ export default function AdminDashboardPage() {
   }
 
   async function loadProfiles() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, role, district")
-      .order("full_name", { ascending: true });
-
-    if (!error) {
+    const res = await fetch("/api/admin-profiles");
+    if (res.ok) {
+      const data = await res.json();
       setProfiles(data ?? []);
     }
   }
