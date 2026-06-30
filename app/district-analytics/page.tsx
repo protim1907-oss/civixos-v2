@@ -381,6 +381,7 @@ export default function DistrictAnalyticsPage() {
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [discussions, setDiscussions] = useState<DiscussionRow[]>([]);
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponseRow[]>([]);
+  const [allDistricts, setAllDistricts] = useState<string[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"total" | "risk" | "sentiment" | "lastActivity">("total");
@@ -397,7 +398,7 @@ export default function DistrictAnalyticsPage() {
       try {
         setLoading(true);
 
-        const [issuesRes, postsRes, discussionsRes, surveysRes] = await Promise.all([
+        const [issuesRes, postsRes, discussionsRes, surveysRes, profilesRes] = await Promise.all([
           supabase
             .from("issues")
             .select("id, title, description, district, category, status, created_at")
@@ -418,6 +419,11 @@ export default function DistrictAnalyticsPage() {
           supabase
             .from("policy_pulse_surveys")
             .select("id, district, recent_responses"),
+
+          supabase
+            .from("profiles")
+            .select("district")
+            .not("district", "is", null),
         ]);
 
         if (issuesRes.error) {
@@ -462,6 +468,19 @@ export default function DistrictAnalyticsPage() {
               createdAt: (response.createdAt as string | null) ?? null,
             }));
           })
+        );
+
+        if (profilesRes.error) {
+          console.error("Profiles district load error:", profilesRes.error);
+        }
+        setAllDistricts(
+          Array.from(
+            new Set(
+              ((profilesRes.data as Array<{ district: string | null }>) ?? [])
+                .map((row) => normalizeDistrict(row.district))
+                .filter((d) => d !== "")
+            )
+          )
         );
       } finally {
         setLoading(false);
@@ -588,6 +607,11 @@ export default function DistrictAnalyticsPage() {
         };
       }
     };
+
+    // Seed every district from the database so zero-activity districts still appear
+    for (const district of allDistricts) {
+      ensureMetric(district);
+    }
 
     for (const issue of issues) {
       const district = normalizeDistrict(issue.district);
@@ -738,7 +762,7 @@ export default function DistrictAnalyticsPage() {
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [analyticsPosts, issues, discussionMap, surveyResponses]);
+  }, [analyticsPosts, issues, discussionMap, surveyResponses, allDistricts]);
 
   const availableDistricts = useMemo(() => {
     return ["All", ...districtMetrics.map((d) => d.district)];
