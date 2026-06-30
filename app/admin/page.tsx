@@ -1210,7 +1210,11 @@ export default function AdminDashboardPage() {
   }, [videoMeetingRequests]);
 
   const stats = useMemo(() => {
-    const totalUsers = profiles.length;
+    const excludedNames = ["protim ghosh", "costa brown"];
+    const publicUsers = profiles.filter(
+      (p) => !excludedNames.includes((p.full_name ?? "").toLowerCase())
+    );
+    const totalUsers = publicUsers.length;
     const totalPosts = issues.length;
     const underReview = issues.filter((i) => i.status === "under_review").length;
     const removed = issues.filter((i) => i.status === "removed").length;
