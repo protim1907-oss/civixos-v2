@@ -161,6 +161,13 @@ export default function LoginPage() {
         updatedUser?.user_metadata?.district_name ??
         null;
 
+      // If profile fetch failed and no district, sign out to break redirect loop
+      if (!role && !districtId) {
+        await supabase.auth.signOut();
+        redirectingRef.current = false;
+        return;
+      }
+
       const redirectPath = getRedirectPath({
         accountType,
         role,
