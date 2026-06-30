@@ -441,7 +441,7 @@ export default function ModeratorDashboardPage() {
       );
 
       await fetchPolicySurveys();
-      setSurveyMessage("Survey launched for TX-35 and CA-42.");
+      setSurveyMessage("Survey launched for all districts.");
       setSurveyForm({
         title: "",
         summary: "",
@@ -1778,7 +1778,7 @@ export default function ModeratorDashboardPage() {
                     )}
                     {surveyPublishing
                       ? "Launching surveys..."
-                      : "Launch for TX-35 and CA-42"}
+                      : "Launch for All Districts"}
                   </button>
 
                   {surveyMessage ? (
