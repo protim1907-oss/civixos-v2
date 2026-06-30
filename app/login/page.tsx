@@ -146,7 +146,14 @@ export default function LoginPage() {
       }
 
       const profile = await getProfile(session.user?.id);
-      const role = profile?.role ?? null;
+      // Fallback: if profile fetch failed, check email for known admin accounts
+      const emailRole: string | null =
+        !profile && session.user?.email === "protim_2003@rediffmail.com"
+          ? "admin"
+          : !profile && session.user?.email === "costabrown@hotmail.com"
+          ? "admin"
+          : null;
+      const role = profile?.role ?? emailRole ?? null;
 
       const updatedUser =
         role === "admin" || role === "moderator" || role === "official"
