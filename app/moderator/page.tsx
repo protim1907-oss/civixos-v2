@@ -437,6 +437,7 @@ export default function ModeratorDashboardPage() {
             createdAt,
             votes: { ...initialVotes },
             recentResponses: [],
+            isPublished: true,
           })
         )
       );
