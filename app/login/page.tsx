@@ -44,6 +44,13 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
+  // Force canonical www domain so session cookies are set correctly
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hostname === "civix250.ai") {
+      window.location.replace(`https://www.civix250.ai${window.location.pathname}${window.location.search}`);
+    }
+  }, []);
+
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
