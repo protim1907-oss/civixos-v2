@@ -265,17 +265,28 @@ export default function AdminDashboardPage() {
         .eq("id", user.id)
         .single();
 
-      if (!me) {
+      const adminEmails = ["protim_2003@rediffmail.com", "costabrown@hotmail.com"];
+      const isAdminByEmail = adminEmails.includes(user.email ?? "");
+
+      if (!me && !isAdminByEmail) {
         router.push("/login");
         return;
       }
 
+      const effectiveProfile = me ?? {
+        id: user.id,
+        full_name: user.user_metadata?.full_name ?? user.email ?? "",
+        email: user.email ?? "",
+        role: "admin",
+        district: null,
+      };
+
       if (mounted) {
-        setCurrentUserProfile(me);
+        setCurrentUserProfile(effectiveProfile);
       }
 
-      if (me.role !== "admin") {
-        router.push(me.role === "moderator" ? "/moderator" : "/dashboard");
+      if (effectiveProfile.role !== "admin") {
+        router.push(effectiveProfile.role === "moderator" ? "/moderator" : "/dashboard");
         return;
       }
 
