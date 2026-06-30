@@ -58,5 +58,22 @@ export async function GET(request: Request) {
     }
   }
 
+  const {
+    data: { user: finalUser },
+  } = await supabase.auth.getUser();
+
+  if (finalUser && !searchParams.get("next")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", finalUser.id)
+      .maybeSingle();
+
+    const role = profile?.role;
+    if (role === "admin") return NextResponse.redirect(`${origin}/admin`);
+    if (role === "moderator") return NextResponse.redirect(`${origin}/moderator`);
+    if (role === "official") return NextResponse.redirect(`${origin}/official-dashboard`);
+  }
+
   return NextResponse.redirect(`${origin}${next}`);
 }

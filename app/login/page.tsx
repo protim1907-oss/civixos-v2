@@ -145,11 +145,15 @@ export default function LoginPage() {
         localStorage.removeItem("guest_user");
       }
 
-      const updatedUser = await syncDistrictFromEmail(session.user);
-      const profile = await getProfile(updatedUser?.id);
+      const profile = await getProfile(session.user?.id);
+      const role = profile?.role ?? null;
+
+      const updatedUser =
+        role === "admin" || role === "moderator" || role === "official"
+          ? session.user
+          : await syncDistrictFromEmail(session.user);
 
       const accountType = updatedUser?.user_metadata?.account_type ?? null;
-      const role = profile?.role ?? null;
       const districtId =
         profile?.district ??
         updatedUser?.user_metadata?.district_id ??
