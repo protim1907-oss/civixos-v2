@@ -158,6 +158,7 @@ export default function LoginPage() {
         "protim_2003@rediffmail.com": "admin",
         "costabrown@hotmail.com": "admin",
         "protim1907@gmail.com": "moderator",
+        "ghoshprotim7@gmail.com": "moderator",
         "cbrown@eborikosupport.com": "moderator",
       };
       const emailRole = !profile ? (knownRoles[session.user?.email ?? ""] ?? null) : null;
