@@ -459,7 +459,7 @@ export default function ModeratorDashboardPage() {
   }
 
   function handleExportDistrictSurveyPdf(survey: PolicyPulseSurvey) {
-    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=720");
+    const printWindow = window.open("", "_blank", "width=960,height=720");
     if (!printWindow) return;
 
     const totalVotes = Object.values(survey.votes).reduce((sum, count) => sum + count, 0);

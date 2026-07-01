@@ -304,7 +304,7 @@ function PolicyPulsePageContent() {
   const handleExportPdf = () => {
     if (!activeSurvey) return;
 
-    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=720");
+    const printWindow = window.open("", "_blank", "width=960,height=720");
     if (!printWindow) return;
 
     const responsesMarkup =
