@@ -270,6 +270,9 @@ export default function Sidebar() {
       (item.officialOnly
         ? userRole === "official" || userRole === "admin" || userRole === "moderator"
         : true) &&
+      // Official Dashboard is only meaningful for actual officials. Hide it
+      // for moderators/admins until we have signed officials in the system.
+      !(item.href === "/official-dashboard" && userRole !== "official") &&
       !(
         (userRole === "admin" || userRole === "moderator" || userRole === "official") &&
         item.href === "/my-representatives"
