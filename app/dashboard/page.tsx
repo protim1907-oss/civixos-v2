@@ -387,25 +387,14 @@ export default function DashboardPage() {
 
       const typedProfile = profile as ProfileRow | null;
 
-      // Email-based role fallback when profile fetch fails via RLS
-      const knownRoles: Record<string, string> = {
-        "protim_2003@rediffmail.com": "admin",
-        "costabrown@hotmail.com": "admin",
-        "protim1907@gmail.com": "moderator",
-        "ghoshprotim7@gmail.com": "moderator",
-        "cbrown@eborikosupport.com": "moderator",
-      };
-      const effectiveRole =
-        typedProfile?.role ?? knownRoles[user.email ?? ""] ?? null;
-
-      if (effectiveRole === "admin") {
+      if (typedProfile?.role === "admin") {
         setRedirecting(true);
         setDashboardReady(true);
         window.location.href = "/admin";
         return;
       }
 
-      if (effectiveRole === "moderator") {
+      if (typedProfile?.role === "moderator") {
         setRedirecting(true);
         setDashboardReady(true);
         window.location.href = "/moderator";

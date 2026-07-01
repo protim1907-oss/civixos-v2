@@ -153,16 +153,7 @@ export default function LoginPage() {
       }
 
       const profile = await getProfile(session.user?.id);
-      // Fallback: if profile fetch failed, check email for known role accounts
-      const knownRoles: Record<string, string> = {
-        "protim_2003@rediffmail.com": "admin",
-        "costabrown@hotmail.com": "admin",
-        "protim1907@gmail.com": "moderator",
-        "ghoshprotim7@gmail.com": "moderator",
-        "cbrown@eborikosupport.com": "moderator",
-      };
-      const emailRole = !profile ? (knownRoles[session.user?.email ?? ""] ?? null) : null;
-      const role = profile?.role ?? emailRole ?? null;
+      const role = profile?.role ?? null;
 
       const updatedUser =
         role === "admin" || role === "moderator" || role === "official"

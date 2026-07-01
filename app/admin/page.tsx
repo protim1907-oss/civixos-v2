@@ -265,28 +265,17 @@ export default function AdminDashboardPage() {
         .eq("id", user.id)
         .single();
 
-      const adminEmails = ["protim_2003@rediffmail.com", "costabrown@hotmail.com"];
-      const isAdminByEmail = adminEmails.includes(user.email ?? "");
-
-      if (!me && !isAdminByEmail) {
+      if (!me) {
         router.push("/login");
         return;
       }
 
-      const effectiveProfile = me ?? {
-        id: user.id,
-        full_name: user.user_metadata?.full_name ?? user.email ?? "",
-        email: user.email ?? "",
-        role: "admin",
-        district: null,
-      };
-
       if (mounted) {
-        setCurrentUserProfile(effectiveProfile);
+        setCurrentUserProfile(me);
       }
 
-      if (effectiveProfile.role !== "admin") {
-        router.push(effectiveProfile.role === "moderator" ? "/moderator" : "/dashboard");
+      if (me.role !== "admin") {
+        router.push(me.role === "moderator" ? "/moderator" : "/dashboard");
         return;
       }
 
@@ -394,9 +383,12 @@ export default function AdminDashboardPage() {
   }
 
   async function loadProfiles() {
-    const res = await fetch("/api/admin-profiles");
-    if (res.ok) {
-      const data = await res.json();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, district")
+      .order("full_name", { ascending: true });
+
+    if (!error) {
       setProfiles(data ?? []);
     }
   }
