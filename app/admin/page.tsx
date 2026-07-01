@@ -629,7 +629,15 @@ export default function AdminDashboardPage() {
   }
 
   function computeDistrictRiskSignals() {
-    const defaultDistricts = ["TX-35", "CA-42"];
+    // Seed with every district present in the database (from user profiles)
+    // so districts with no posts/issues still get a card.
+    const defaultDistricts = Array.from(
+      new Set(
+        profiles
+          .map((p) => normalizeDistrict(p.district))
+          .filter((d) => d !== "")
+      )
+    );
     const districtMap = new Map<
       string,
       {
