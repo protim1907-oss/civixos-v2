@@ -275,6 +275,8 @@ export default function Sidebar() {
       !(item.href === "/official-dashboard" && userRole !== "official") &&
       // Trending Posts is a citizen-facing feed; not relevant to moderators.
       !(item.href === "/trending-posts" && userRole === "moderator") &&
+      // My Activity is a citizen view; not relevant to moderators.
+      !(item.href === "/dashboard#activity" && userRole === "moderator") &&
       !(
         (userRole === "admin" || userRole === "moderator" || userRole === "official") &&
         item.href === "/my-representatives"
