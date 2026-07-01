@@ -64,8 +64,7 @@ function normalizeRole(role?: string | null) {
 }
 
 function isOfficialRole(role?: string | null) {
-  const normalized = normalizeRole(role);
-  return normalized === "official" || normalized === "admin" || normalized === "moderator";
+  return normalizeRole(role) === "official";
 }
 
 function normalizeDistrict(value?: string | null) {
@@ -156,6 +155,17 @@ export default function OfficialDashboardPage() {
 
     const officialProfile = (profileData as ProfileRow | null) ?? null;
     const role = officialProfile?.role || metadataRole;
+
+    // Moderators and admins belong in their own consoles, not the
+    // district-scoped official dashboard.
+    if (normalizeRole(officialProfile?.role) === "moderator") {
+      router.replace("/moderator");
+      return;
+    }
+    if (normalizeRole(officialProfile?.role) === "admin") {
+      router.replace("/admin");
+      return;
+    }
 
     if (!isOfficialRole(role)) {
       router.replace("/dashboard");
