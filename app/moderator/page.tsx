@@ -1676,7 +1676,7 @@ export default function ModeratorDashboardPage() {
                     </h2>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">
-                    Launch one survey for TX-35 and CA-42. Citizens see and vote
+                    Launch one survey for all districts. Citizens see and vote
                     only on their district survey; moderators export results by district.
                   </p>
                 </div>
