@@ -273,6 +273,8 @@ export default function Sidebar() {
       // Official Dashboard is only meaningful for actual officials. Hide it
       // for moderators/admins until we have signed officials in the system.
       !(item.href === "/official-dashboard" && userRole !== "official") &&
+      // Trending Posts is a citizen-facing feed; not relevant to moderators.
+      !(item.href === "/trending-posts" && userRole === "moderator") &&
       !(
         (userRole === "admin" || userRole === "moderator" || userRole === "official") &&
         item.href === "/my-representatives"
