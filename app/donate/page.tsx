@@ -15,14 +15,11 @@ const donationAmounts = [10, 25, 50, 100, 250];
 
 const EIN_NUMBER = "39-4801426";
 
-// Hosted donation checkout URL. Set NEXT_PUBLIC_DONATION_URL to your
-// processor's hosted page (Stripe Payment Link, Givebutter, Donorbox, etc.).
-// Falls back to any provider-specific URL already configured.
+// Hosted donation checkout URL — Givebutter. Set NEXT_PUBLIC_GIVEBUTTER_DONATION_URL
+// (or NEXT_PUBLIC_DONATION_URL) to your Givebutter campaign page URL.
 const DONATION_URL =
   process.env.NEXT_PUBLIC_DONATION_URL ||
-  process.env.NEXT_PUBLIC_STRIPE_DONATION_URL ||
   process.env.NEXT_PUBLIC_GIVEBUTTER_DONATION_URL ||
-  process.env.NEXT_PUBLIC_DONORBOX_DONATION_URL ||
   "";
 
 export default function DonatePage() {
@@ -176,8 +173,8 @@ export default function DonatePage() {
               {!donateHref ? (
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   Set{" "}
-                  <span className="font-semibold">NEXT_PUBLIC_DONATION_URL</span>{" "}
-                  to your hosted donation checkout link to activate the Donate now
+                  <span className="font-semibold">NEXT_PUBLIC_GIVEBUTTER_DONATION_URL</span>{" "}
+                  to your Givebutter campaign link to activate the Donate now
                   button.
                 </p>
               ) : null}
