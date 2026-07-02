@@ -48,6 +48,7 @@ export default function HomePage() {
             <a href="#how-it-works" className="hover:text-slate-900 transition">How It Works</a>
             <a href="#for-officials" className="hover:text-slate-900 transition">For Officials</a>
             <a href="#citizens" className="hover:text-slate-900 transition">For Citizens</a>
+            <Link href="/legal" className="hover:text-slate-900 transition">Legal</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login" className="hidden sm:inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
@@ -340,7 +341,6 @@ export default function HomePage() {
               <Link href="/legal#privacy" className="hover:text-slate-400 transition">Privacy</Link>
               <Link href="/legal#terms" className="hover:text-slate-400 transition">Terms</Link>
               <Link href="/legal#accessibility" className="hover:text-slate-400 transition">Accessibility</Link>
-              <Link href="/legal" className="hover:text-slate-400 transition">Legal</Link>
             </div>
           </div>
         </div>
