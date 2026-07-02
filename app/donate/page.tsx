@@ -22,15 +22,15 @@ const donationAmounts = [10, 25, 50, 100, 250];
 // ---------------------------------------------------------------------------
 const ACH_DETAILS = {
   accountHolder: "Vote Beyond Party",
-  bankName: "", // TODO
-  routingNumber: "", // TODO (9-digit ABA)
-  accountNumber: "", // TODO
-  accountType: "", // TODO: Checking or Savings
+  bankName: "Chase",
+  routingNumber: "111000614",
+  accountNumber: "2909929787",
+  accountType: "Checking",
   memo: "Civix250 donation",
   einNumber: "39-4801426",
   // Optional: address for donors who prefer to mail a check.
   checkPayableTo: "Vote Beyond Party",
-  mailingAddress: "", // TODO
+  mailingAddress: "", // TODO: add mailing address if offering check donations
 };
 
 const PENDING_LABEL = "To be added";
