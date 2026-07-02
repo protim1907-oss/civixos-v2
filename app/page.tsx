@@ -337,9 +337,10 @@ export default function HomePage() {
             <p className="mt-2">Vote Beyond Party is a tax-exempt organization under Section 501(c)(3) of the Internal Revenue Code. Donations are tax-deductible to the extent permitted by law. EIN: 39-4801426.</p>
             <p className="mt-2">🔒 Your data is safe with us. We use industry-standard encryption to protect your personal information. Your address is used solely to confirm your congressional district — it is never shared with campaigns, candidates, or third parties.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-slate-400 transition">Privacy</a>
-              <a href="#" className="hover:text-slate-400 transition">Terms</a>
-              <a href="#" className="hover:text-slate-400 transition">Accessibility</a>
+              <Link href="/legal#privacy" className="hover:text-slate-400 transition">Privacy</Link>
+              <Link href="/legal#terms" className="hover:text-slate-400 transition">Terms</Link>
+              <Link href="/legal#accessibility" className="hover:text-slate-400 transition">Accessibility</Link>
+              <Link href="/legal" className="hover:text-slate-400 transition">Legal</Link>
             </div>
           </div>
         </div>
