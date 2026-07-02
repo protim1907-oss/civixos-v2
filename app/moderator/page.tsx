@@ -10,6 +10,7 @@ import {
   toggleSurveyPublished,
   PolicyPulseSurvey,
   publishPolicyPulseSurvey,
+  uploadPolicyPulseFiles,
   voteOptions,
 } from "@/lib/policy-pulse";
 import {
@@ -198,6 +199,8 @@ export default function ModeratorDashboardPage() {
   });
   const [surveyPublishing, setSurveyPublishing] = useState(false);
   const [surveyMessage, setSurveyMessage] = useState("");
+  const [surveyFiles, setSurveyFiles] = useState<File[]>([]);
+  const surveyFileInputRef = useRef<HTMLInputElement | null>(null);
   const [sharingSurveyDistrict, setSharingSurveyDistrict] = useState<string | null>(null);
   const [broadcastingSurveyId, setBroadcastingSurveyId] = useState<string | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -422,6 +425,12 @@ export default function ModeratorDashboardPage() {
       const createdAt = new Date().toISOString();
       const surveyBatchId = `moderator-${Date.now()}`;
 
+      // Upload attachments once and share the metadata across every district row.
+      const uploadedFiles =
+        surveyFiles.length > 0
+          ? await uploadPolicyPulseFiles(supabase, surveyBatchId, surveyFiles)
+          : [];
+
       await Promise.all(
         MODERATOR_SURVEY_DISTRICTS.map((district) =>
           publishPolicyPulseSurvey(supabase, {
@@ -433,7 +442,7 @@ export default function ModeratorDashboardPage() {
             summary,
             primaryQuestion,
             deadline: surveyForm.deadline,
-            uploadedFiles: [],
+            uploadedFiles,
             createdAt,
             votes: { ...initialVotes },
             recentResponses: [],
@@ -450,6 +459,8 @@ export default function ModeratorDashboardPage() {
         primaryQuestion: "Do you support this policy proposal for your district?",
         deadline: "",
       });
+      setSurveyFiles([]);
+      if (surveyFileInputRef.current) surveyFileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to launch district surveys:", error);
       setSurveyMessage("Unable to launch surveys. Confirm Supabase survey permissions.");
@@ -1766,6 +1777,65 @@ export default function ModeratorDashboardPage() {
                       }
                       className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
                     />
+                  </div>
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Attachments <span className="font-normal text-slate-400">(optional)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => surveyFileInputRef.current?.click()}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Add files
+                      </button>
+                    </div>
+                    <input
+                      ref={surveyFileInputRef}
+                      type="file"
+                      multiple
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files ?? []);
+                        if (files.length > 0) {
+                          setSurveyFiles((current) => [...current, ...files]);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <p className="text-xs leading-5 text-slate-500">
+                      Attach briefs, one-pagers, or slide decks for residents to review
+                      before voting. The same files are shared to every district.
+                    </p>
+                    {surveyFiles.length > 0 ? (
+                      <ul className="mt-3 space-y-2">
+                        {surveyFiles.map((file, index) => (
+                          <li
+                            key={`${file.name}-${index}`}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+                          >
+                            <span className="min-w-0 truncate text-sm text-slate-700">
+                              {file.name}{" "}
+                              <span className="text-xs text-slate-400">
+                                ({(file.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSurveyFiles((current) =>
+                                  current.filter((_, i) => i !== index)
+                                )
+                              }
+                              className="shrink-0 text-xs font-semibold text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
 
                   <button
