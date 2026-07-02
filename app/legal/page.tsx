@@ -210,10 +210,10 @@ export default function LegalPage() {
               For privacy requests, legal questions, or general inquiries, contact
               us at{" "}
               <a
-                href="mailto:legal@civix250.org"
+                href="mailto:messages@civix250.ai"
                 className="font-semibold text-blue-600 hover:underline"
               >
-                legal@civix250.org
+                messages@civix250.ai
               </a>
               .
             </p>
