@@ -15,12 +15,13 @@ const donationAmounts = [10, 25, 50, 100, 250];
 
 const EIN_NUMBER = "39-4801426";
 
-// Hosted donation checkout URL — Givebutter. Set NEXT_PUBLIC_GIVEBUTTER_DONATION_URL
-// (or NEXT_PUBLIC_DONATION_URL) to your Givebutter campaign page URL.
+// Hosted donation checkout URL — Givebutter campaign for Vote Beyond Party.
+// Defaults to the live campaign; override with NEXT_PUBLIC_GIVEBUTTER_DONATION_URL
+// (or NEXT_PUBLIC_DONATION_URL) if the campaign link ever changes.
 const DONATION_URL =
   process.env.NEXT_PUBLIC_DONATION_URL ||
   process.env.NEXT_PUBLIC_GIVEBUTTER_DONATION_URL ||
-  "";
+  "https://givebutter.com/civix250-o0rdlz";
 
 export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState(25);
