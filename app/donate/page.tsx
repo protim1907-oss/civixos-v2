@@ -28,9 +28,6 @@ const ACH_DETAILS = {
   accountType: "Checking",
   memo: "Civix250 donation",
   einNumber: "39-4801426",
-  // Optional: address for donors who prefer to mail a check.
-  checkPayableTo: "Vote Beyond Party",
-  mailingAddress: "", // TODO: add mailing address if offering check donations
 };
 
 const PENDING_LABEL = "To be added";
@@ -267,15 +264,6 @@ export default function DonatePage() {
                     to arrange your gift.
                   </p>
                 ) : null}
-
-                {/* Check option */}
-                <div className="mt-5">
-                  <p className="text-sm font-semibold text-slate-700">Prefer to mail a check?</p>
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-2">
-                    <DetailRow label="Make payable to" value={ACH_DETAILS.checkPayableTo} copyable />
-                    <DetailRow label="Mailing address" value={ACH_DETAILS.mailingAddress} copyable />
-                  </div>
-                </div>
 
                 <div className="mt-5 space-y-2 text-xs leading-5 text-slate-500">
                   <p className="flex items-center gap-2">
