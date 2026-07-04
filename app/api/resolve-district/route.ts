@@ -39,16 +39,17 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
   };
 }
 
-// Civix250 is open to Texas and California only. Registration is gated on the
-// address's ACTUAL geocoded state, not on what the user selects — so a fake
-// out-of-state address (or an IL resident picking "Texas") is rejected.
-const ALLOWED_STATES = ["TX", "CA"] as const;
+// Civix250 is open to Texas, California, and Illinois only. Registration is
+// gated on the address's ACTUAL geocoded state, not on what the user selects —
+// so a fake out-of-state address (or an out-of-area resident picking an allowed
+// state) is rejected.
+const ALLOWED_STATES = ["TX", "CA", "IL"] as const;
 
 function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
     Texas: "TX",
-
     California: "CA",
+    Illinois: "IL",
     Florida: "FL",
     "New York": "NY",
   };
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Civix250 is currently open to residents of Texas and California only. This address is outside our service area.",
+            "Civix250 is currently open to residents of Texas, California, and Illinois only. This address is outside our service area.",
           state: effectiveStateAbbr,
         },
         { status: 403 }
@@ -141,6 +142,7 @@ export async function POST(request: Request) {
     const stateNameByAbbr: Record<string, string> = {
       TX: "Texas",
       CA: "California",
+      IL: "Illinois",
     };
     const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
 
