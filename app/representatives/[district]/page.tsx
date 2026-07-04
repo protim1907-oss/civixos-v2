@@ -45,6 +45,8 @@ function normalizeStateName(state?: string | null) {
     tx: "Texas",
     california: "California",
     ca: "California",
+    illinois: "Illinois",
+    il: "Illinois",
   };
   return map[value] || String(state || "").trim();
 }

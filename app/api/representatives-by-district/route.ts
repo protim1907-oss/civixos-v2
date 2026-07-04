@@ -38,8 +38,8 @@ function normalizeDistrictCode(raw?: string | null): string {
 function normalizeStateName(stateCode: string): string {
   const map: Record<string, string> = {
     TX: "Texas",
-
     CA: "California",
+    IL: "Illinois",
     FL: "Florida",
     NY: "New York",
   };

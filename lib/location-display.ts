@@ -8,6 +8,9 @@ export function displayState(value: string | null | undefined) {
     case "CA":
     case "CALIFORNIA":
       return "California";
+    case "IL":
+    case "ILLINOIS":
+      return "Illinois";
     case "FL":
     case "FLORIDA":
       return "Florida";
@@ -45,6 +48,7 @@ export function normalizeStateFromDistrict(
 
   if (normalizedDistrict.startsWith("TX")) return "Texas";
   if (normalizedDistrict.startsWith("CA")) return "California";
+  if (normalizedDistrict.startsWith("IL")) return "Illinois";
   if (normalizedDistrict.startsWith("FL")) return "Florida";
 
   return "Your State";

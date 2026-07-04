@@ -439,6 +439,8 @@ function normalizeStateCode(state?: string | null) {
     tx: "TX",
     california: "CA",
     ca: "CA",
+    illinois: "IL",
+    il: "IL",
   };
 
   return map[value] || String(state || "").trim().toUpperCase();
