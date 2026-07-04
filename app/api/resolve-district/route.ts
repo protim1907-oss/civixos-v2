@@ -39,6 +39,11 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
   };
 }
 
+// Civix250 is open to Texas and California only. Registration is gated on the
+// address's ACTUAL geocoded state, not on what the user selects — so a fake
+// out-of-state address (or an IL resident picking "Texas") is rejected.
+const ALLOWED_STATES = ["TX", "CA"] as const;
+
 function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
     Texas: "TX",
@@ -49,12 +54,6 @@ function getStateAbbr(state: string) {
   };
 
   return stateCodeMap[state] || state.slice(0, 2).toUpperCase();
-}
-
-function buildDistrictId(state: string, districtCode: string) {
-  const stateAbbr = getStateAbbr(state);
-  const normalizedCode = String(Number(districtCode));
-  return `${stateAbbr}-${normalizedCode}`;
 }
 
 function buildDistrictLabel(state: string, districtCode: string, districtId: string) {
@@ -120,9 +119,34 @@ export async function POST(request: Request) {
       );
     }
 
-    const districtId = buildDistrictId(String(state), String(district.value));
+    // Use the state the geocoder actually matched the address to — never the
+    // user-supplied state — so the eligibility check can't be spoofed.
+    const matchedStateAbbr = String(
+      match.addressComponents?.state || ""
+    ).toUpperCase();
+    const effectiveStateAbbr = matchedStateAbbr || getStateAbbr(String(state));
+
+    if (!ALLOWED_STATES.includes(effectiveStateAbbr as (typeof ALLOWED_STATES)[number])) {
+      return NextResponse.json(
+        {
+          error:
+            "Civix250 is currently open to residents of Texas and California only. This address is outside our service area.",
+          state: effectiveStateAbbr,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Map the geocoded abbreviation back to a full state name for labelling.
+    const stateNameByAbbr: Record<string, string> = {
+      TX: "Texas",
+      CA: "California",
+    };
+    const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
+
+    const districtId = `${effectiveStateAbbr}-${Number(district.value)}`;
     const districtLabel = buildDistrictLabel(
-      String(state),
+      resolvedStateName,
       String(district.value),
       districtId
     );
@@ -132,6 +156,7 @@ export async function POST(request: Request) {
         value: districtId,
         label: districtLabel,
       },
+      state: effectiveStateAbbr,
       matchedAddress: match.matchedAddress || null,
       coordinates: match.coordinates || null,
     });
