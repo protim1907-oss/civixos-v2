@@ -124,9 +124,10 @@ function normalizeStateCode(state?: string | null): string {
   const map: Record<string, string> = {
     texas: "TX",
     tx: "TX",
-
     california: "CA",
     ca: "CA",
+    illinois: "IL",
+    il: "IL",
     florida: "FL",
     fl: "FL",
     "new york": "NY",
@@ -142,9 +143,10 @@ function normalizeStateName(state?: string | null): string {
   const map: Record<string, string> = {
     texas: "Texas",
     tx: "Texas",
-
     california: "California",
     ca: "California",
+    illinois: "Illinois",
+    il: "Illinois",
     florida: "Florida",
     fl: "Florida",
     "new york": "New York",
