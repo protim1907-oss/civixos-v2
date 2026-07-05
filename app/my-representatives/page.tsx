@@ -461,7 +461,291 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       },
     },
   ],
+  IL: [
+    {
+      id: "dick-durbin",
+      name: "Dick Durbin",
+      title: "U.S. Senator",
+      officeLabel: "Illinois",
+      level: "federal",
+      state: "Illinois",
+      party: "Democrat",
+      website: "https://www.durbin.senate.gov",
+      contactUrl: "https://www.durbin.senate.gov/contact/email",
+      phone: "(202) 224-2152",
+      imageUrl: "https://bioguide.congress.gov/photo/D000563.jpg",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "tammy-duckworth",
+      name: "Tammy Duckworth",
+      title: "U.S. Senator",
+      officeLabel: "Illinois",
+      level: "federal",
+      state: "Illinois",
+      party: "Democrat",
+      website: "https://www.duckworth.senate.gov",
+      contactUrl: "https://www.duckworth.senate.gov/connect/email-tammy",
+      phone: "(202) 224-2854",
+      imageUrl: "https://bioguide.congress.gov/photo/D000622.jpg",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "jb-pritzker",
+      name: "JB Pritzker",
+      title: "Governor of Illinois",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Illinois",
+      party: "Democrat",
+      website: "https://gov.illinois.gov",
+      contactUrl: "https://gov.illinois.gov/about/contact.html",
+      phone: "(217) 782-0244",
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Governor_Pritzker_%28cropped%29.jpg/640px-Governor_Pritzker_%28cropped%29.jpg",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "kwame-raoul",
+      name: "Kwame Raoul",
+      title: "Attorney General of Illinois",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Illinois",
+      party: "Democrat",
+      website: "https://www.illinoisattorneygeneral.gov",
+      contactUrl: "https://illinoisattorneygeneral.gov/contact-us/",
+      phone: "(312) 814-3000",
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Kwame_Raoul_%28cropped%29.jpg/640px-Kwame_Raoul_%28cropped%29.jpg",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
 };
+
+// Congressional portraits from the official government bioguide, keyed by
+// each member's BioGuide ID.
+function bioguidePhoto(bioguideId: string): string {
+  return `https://bioguide.congress.gov/photo/${bioguideId}.jpg`;
+}
+
+// Fallback U.S. House delegation used when the DB has no district row.
+// Keyed by canonical "<STATE>-<number>" (no leading zero) — use lookupHouseRep.
+const DISTRICT_HOUSE_REPS: Record<string, Official> = {
+  "IL-1": houseRep(
+    "jonathan-jackson",
+    "Jonathan Jackson",
+    1,
+    "Democrat",
+    "jackson",
+    "(202) 225-4372",
+    "J000308"
+  ),
+  "IL-2": houseRep(
+    "robin-kelly",
+    "Robin Kelly",
+    2,
+    "Democrat",
+    "robinkelly",
+    "(202) 225-0773",
+    "K000385"
+  ),
+  "IL-3": houseRep(
+    "delia-ramirez",
+    "Delia Ramirez",
+    3,
+    "Democrat",
+    "ramirez",
+    "(202) 225-5701",
+    "R000617"
+  ),
+  "IL-4": houseRep(
+    "jesus-garcia",
+    'Jesús "Chuy" García',
+    4,
+    "Democrat",
+    "chuygarcia",
+    "(202) 225-8203",
+    "G000586"
+  ),
+  "IL-5": houseRep(
+    "mike-quigley",
+    "Mike Quigley",
+    5,
+    "Democrat",
+    "quigley",
+    "(202) 225-4061",
+    "Q000023"
+  ),
+  "IL-6": houseRep(
+    "sean-casten",
+    "Sean Casten",
+    6,
+    "Democrat",
+    "casten",
+    "(202) 225-4561",
+    "C001117"
+  ),
+  "IL-7": houseRep(
+    "danny-davis",
+    "Danny K. Davis",
+    7,
+    "Democrat",
+    "davis",
+    "(202) 225-5006",
+    "D000096"
+  ),
+  "IL-8": houseRep(
+    "raja-krishnamoorthi",
+    "Raja Krishnamoorthi",
+    8,
+    "Democrat",
+    "krishnamoorthi",
+    "(202) 225-3711",
+    "K000391"
+  ),
+  "IL-9": houseRep(
+    "jan-schakowsky",
+    "Jan Schakowsky",
+    9,
+    "Democrat",
+    "schakowsky",
+    "(202) 225-2111",
+    "S001145"
+  ),
+  "IL-10": houseRep(
+    "brad-schneider",
+    "Brad Schneider",
+    10,
+    "Democrat",
+    "schneider",
+    "(202) 225-4835",
+    "S001190"
+  ),
+  "IL-11": houseRep(
+    "bill-foster",
+    "Bill Foster",
+    11,
+    "Democrat",
+    "foster",
+    "(202) 225-3515",
+    "F000454"
+  ),
+  "IL-12": houseRep(
+    "mike-bost",
+    "Mike Bost",
+    12,
+    "Republican",
+    "bost",
+    "(202) 225-5661",
+    "B001295"
+  ),
+  "IL-13": houseRep(
+    "nikki-budzinski",
+    "Nikki Budzinski",
+    13,
+    "Democrat",
+    "budzinski",
+    "(202) 225-2371",
+    "B001320"
+  ),
+  "IL-14": houseRep(
+    "lauren-underwood",
+    "Lauren Underwood",
+    14,
+    "Democrat",
+    "underwood",
+    "(202) 225-2976",
+    "U000040"
+  ),
+  "IL-15": houseRep(
+    "mary-miller",
+    "Mary Miller",
+    15,
+    "Republican",
+    "marymiller",
+    "(202) 225-5271",
+    "M001211"
+  ),
+  "IL-16": houseRep(
+    "darin-lahood",
+    "Darin LaHood",
+    16,
+    "Republican",
+    "lahood",
+    "(202) 225-6201",
+    "L000585"
+  ),
+  "IL-17": houseRep(
+    "eric-sorensen",
+    "Eric Sorensen",
+    17,
+    "Democrat",
+    "sorensen",
+    "(202) 225-5905",
+    "S001226"
+  ),
+};
+
+function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+function houseRep(
+  id: string,
+  name: string,
+  districtNumber: number,
+  party: string,
+  houseSubdomain: string,
+  phone: string,
+  bioguideId: string
+): Official {
+  const code = `IL-${String(districtNumber).padStart(2, "0")}`;
+  return {
+    id,
+    name,
+    title: "U.S. Representative",
+    officeLabel: `Illinois's ${ordinal(districtNumber)} Congressional District`,
+    level: "federal",
+    district: code,
+    state: "Illinois",
+    party,
+    website: `https://${houseSubdomain}.house.gov`,
+    contactUrl: `https://${houseSubdomain}.house.gov/contact`,
+    phone,
+    imageUrl: bioguidePhoto(bioguideId),
+    badge: { text: "House", tone: "blue" },
+  };
+}
+
+function lookupHouseRep(normalizedDistrict: string): Official | null {
+  const match = normalizedDistrict.match(/^([A-Z]{2})-0*(\d+)$/);
+  if (!match) return null;
+  return DISTRICT_HOUSE_REPS[`${match[1]}-${Number(match[2])}`] || null;
+}
 
 export default function MyRepresentativePage() {
   const router = useRouter();
@@ -615,7 +899,8 @@ export default function MyRepresentativePage() {
         setPrimaryRepresentative(
           districtRepRow
             ? mapDistrictRepRow(districtRepRow as DistrictRepresentativeRow)
-            : fallbackPrimaryFromRepresentatives
+            : fallbackPrimaryFromRepresentatives ||
+                lookupHouseRep(normalizedDistrict)
         );
         setStatewideLeaders(
           mappedStatewideLeaders.length > 0

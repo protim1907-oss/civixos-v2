@@ -186,6 +186,14 @@ function normalizeDistrict(value: string | null | undefined) {
   return raw;
 }
 
+// Names hidden from the admin console (rows still exist in Supabase, they are
+// just filtered out of the UI list and stats). Matched case-insensitively.
+const EXCLUDED_USER_NAMES = ["protim ghosh", "costa brown"];
+
+function isExcludedUserName(fullName: string | null | undefined) {
+  return EXCLUDED_USER_NAMES.includes((fullName ?? "").trim().toLowerCase());
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -982,7 +990,7 @@ export default function AdminDashboardPage() {
   }, [issues, issueSearch, adminPostView]);
 
   const filteredUsers = useMemo(() => {
-    let list = [...profiles];
+    let list = profiles.filter((profile) => !isExcludedUserName(profile.full_name));
 
     if (userSearch.trim()) {
       const q = userSearch.toLowerCase();
@@ -1211,10 +1219,7 @@ export default function AdminDashboardPage() {
   }, [videoMeetingRequests]);
 
   const stats = useMemo(() => {
-    const excludedNames = ["protim ghosh", "costa brown"];
-    const publicUsers = profiles.filter(
-      (p) => !excludedNames.includes((p.full_name ?? "").toLowerCase())
-    );
+    const publicUsers = profiles.filter((p) => !isExcludedUserName(p.full_name));
     const totalUsers = publicUsers.length;
     const totalPosts = issues.length;
     const underReview = issues.filter((i) => i.status === "under_review").length;
