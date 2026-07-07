@@ -967,7 +967,9 @@ export default function MyRepresentativePage() {
   // point of contact for district issues; Congress is federal context.
   const houseMembers = useMemo(() => {
     if (resolvedState !== "IL") return [];
-    return [lookupHouseRep("IL-1")].filter(Boolean) as Official[];
+    return ["IL-1", "IL-10", "IL-17"]
+      .map((code) => lookupHouseRep(code))
+      .filter(Boolean) as Official[];
   }, [resolvedState]);
 
   const firstName = useMemo(() => {
