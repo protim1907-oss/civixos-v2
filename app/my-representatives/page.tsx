@@ -953,9 +953,6 @@ export default function MyRepresentativePage() {
     };
   }, [router, supabase]);
 
-  const visibleRepresentativesCount =
-    (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
-
   const statewideOfficials = statewideLeaders.filter(
     (official) => !official.legislator
   );
@@ -971,6 +968,11 @@ export default function MyRepresentativePage() {
       .map((code) => lookupHouseRep(code))
       .filter(Boolean) as Official[];
   }, [resolvedState]);
+
+  const visibleRepresentativesCount =
+    (primaryRepresentative ? 1 : 0) +
+    statewideLeaders.length +
+    houseMembers.length;
 
   const firstName = useMemo(() => {
     return profile?.full_name?.split(" ")[0] || "Citizen";
