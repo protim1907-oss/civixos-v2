@@ -46,6 +46,7 @@ type Official = {
   phone?: string;
   imageUrl: string;
   email_href?: string | null;
+  legislator?: boolean;
   badge: {
     text: string;
     tone: "red" | "green" | "blue" | "slate";
@@ -101,6 +102,14 @@ type RepresentativeRow = {
 
 function inferOfficialBadge(row: DistrictRepresentativeRow) {
   const value = `${row.title} ${row.office_label}`.toLowerCase();
+
+  if (
+    value.includes("state senator") ||
+    value.includes("state representative") ||
+    value.includes("general assembly")
+  ) {
+    return { text: "State", tone: "green" as const };
+  }
 
   if (value.includes("senator")) {
     return { text: "Senate", tone: "red" as const };
@@ -249,10 +258,12 @@ function mapRepresentativeRow(row: RepresentativeRow): Official {
   const name = row.full_name || row.name || "Official";
   const title = row.office_title || row.office || "Public Office";
   const levelValue = (row.level || "").toLowerCase();
+  const isLegislator =
+    levelValue === "state senate" || levelValue === "state house";
   const badge =
     levelValue === "senate"
       ? { text: "Senate", tone: "red" as const }
-      : levelValue === "state" || levelValue === "state senate"
+      : levelValue === "state" || isLegislator
         ? { text: "State", tone: "green" as const }
         : { text: "House", tone: "blue" as const };
 
@@ -273,6 +284,7 @@ function mapRepresentativeRow(row: RepresentativeRow): Official {
     contactUrl: row.email_href || row.linkedin_url || "#",
     imageUrl: row.photo_url || row.photo || "",
     email_href: row.email_href,
+    legislator: isLegislator,
     badge,
   };
 }
@@ -885,22 +897,42 @@ export default function MyRepresentativePage() {
             .map(mapRepresentativeRow)
         );
 
-        const fallbackPrimaryFromRepresentatives =
-          ((statewideRows as RepresentativeRow[] | null) || [])
+        const districtMatchedRows = (
+          (statewideRows as RepresentativeRow[] | null) || []
+        )
+          .filter((row) => {
+            const rowDistrict = normalizeDistrict(
+              row.district || row.district_id,
+              row.state
+            );
+            return rowDistrict === normalizedDistrict;
+          })
+          .sort(
+            (a, b) => Number(b.is_primary ?? false) - Number(a.is_primary ?? false)
+          );
+
+        // A state legislator marked is_primary owns the district card, ahead
+        // of the U.S. House member from district_representatives.
+        const designatedStateLegislator =
+          districtMatchedRows
             .filter((row) => {
-              const rowDistrict = normalizeDistrict(
-                row.district || row.district_id,
-                row.state
+              const level = String(row.level || "").toLowerCase();
+              return (
+                row.is_primary === true &&
+                (level === "state senate" || level === "state house")
               );
-              return rowDistrict === normalizedDistrict;
             })
             .map(mapRepresentativeRow)[0] || null;
 
+        const fallbackPrimaryFromRepresentatives =
+          districtMatchedRows.map(mapRepresentativeRow)[0] || null;
+
         setPrimaryRepresentative(
-          districtRepRow
-            ? mapDistrictRepRow(districtRepRow as DistrictRepresentativeRow)
-            : fallbackPrimaryFromRepresentatives ||
-                lookupHouseRep(normalizedDistrict)
+          designatedStateLegislator ||
+            (districtRepRow
+              ? mapDistrictRepRow(districtRepRow as DistrictRepresentativeRow)
+              : fallbackPrimaryFromRepresentatives ||
+                lookupHouseRep(normalizedDistrict))
         );
         setStatewideLeaders(
           mappedStatewideLeaders.length > 0
@@ -923,6 +955,20 @@ export default function MyRepresentativePage() {
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) + statewideLeaders.length;
+
+  const statewideOfficials = statewideLeaders.filter(
+    (official) => !official.legislator
+  );
+  const stateLegislators = statewideLeaders.filter(
+    (official) => official.legislator
+  );
+
+  // U.S. House members are shown last — state officials are the primary
+  // point of contact for district issues; Congress is federal context.
+  const houseMembers = useMemo(() => {
+    if (resolvedState !== "IL") return [];
+    return [lookupHouseRep("IL-1")].filter(Boolean) as Official[];
+  }, [resolvedState]);
 
   const firstName = useMemo(() => {
     return profile?.full_name?.split(" ")[0] || "Citizen";
@@ -1273,17 +1319,79 @@ export default function MyRepresentativePage() {
             </h3>
 
             {statewideLeaders.length > 0 ? (
-              <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
-                {statewideLeaders.map((official) => (
-                  <OfficialCard
-                    key={official.id}
-                    official={official}
-                    wide
-                    onChat={startChat}
-                    onMeetingRequest={openMeetingRequest}
-                    onEmail={openEmailCompose}
-                  />
-                ))}
+              <div className="mt-6 space-y-8">
+                {statewideOfficials.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Statewide Officials
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Elected by the whole state — U.S. senators and executive
+                      officers.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                      {statewideOfficials.map((official) => (
+                        <OfficialCard
+                          key={official.id}
+                          official={official}
+                          wide
+                          onChat={startChat}
+                          onMeetingRequest={openMeetingRequest}
+                          onEmail={openEmailCompose}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {stateLegislators.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      State Legislators
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Members of the state legislature — district numbers refer
+                      to the state legislative map, not congressional districts.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                      {stateLegislators.map((official) => (
+                        <OfficialCard
+                          key={official.id}
+                          official={official}
+                          wide
+                          onChat={startChat}
+                          onMeetingRequest={openMeetingRequest}
+                          onEmail={openEmailCompose}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {houseMembers.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      U.S. House Members
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Federal representatives in Washington, D.C. — for federal
+                      matters; district issues are handled by your state
+                      legislators above.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                      {houseMembers.map((official) => (
+                        <OfficialCard
+                          key={official.id}
+                          official={official}
+                          wide
+                          onChat={startChat}
+                          onMeetingRequest={openMeetingRequest}
+                          onEmail={openEmailCompose}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-12 text-center text-slate-600">
