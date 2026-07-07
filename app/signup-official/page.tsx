@@ -42,6 +42,37 @@ const texasZipCityToDistricts: Record<string, DistrictOption[]> = {
   "Fort Worth|76135": [{ value: "TX-12", label: "Texas 12th District (TX-12)" }],
 };
 
+const STATEWIDE_JURISDICTIONS: Record<string, DistrictOption> = {
+  Texas: { value: "TX", label: "State of Texas" },
+  California: { value: "CA", label: "State of California" },
+  Illinois: { value: "IL", label: "State of Illinois" },
+};
+
+function ordinal(n: number) {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+const californiaDistricts: DistrictOption[] = [
+  { value: "CA-42", label: "California 42nd District (CA-42)" },
+];
+
+// All 17 Illinois congressional districts are live — the official picks theirs.
+const illinoisDistricts: DistrictOption[] = Array.from({ length: 17 }, (_, i) => {
+  const n = i + 1;
+  return { value: `IL-${n}`, label: `Illinois ${ordinal(n)} District (IL-${n})` };
+});
+
 
 function toTitleCase(value: string) {
   return value
@@ -60,6 +91,14 @@ function resolveDistrictOptions(state: string, city: string, zipCode: string): D
 
   if (state === "Texas") {
     return texasZipCityToDistricts[key] || [];
+  }
+
+  if (state === "California") {
+    return californiaDistricts;
+  }
+
+  if (state === "Illinois") {
+    return illinoisDistricts;
   }
 
   return [];
@@ -88,8 +127,9 @@ export default function SignupOfficialPage() {
     }
 
     if (officialLevel === "state" || officialLevel === "federal") {
-      if (state === "Texas") {
-        return [{ value: "TX", label: "State of Texas" }];
+      const statewide = STATEWIDE_JURISDICTIONS[state];
+      if (statewide) {
+        return [statewide];
       }
     }
 
@@ -237,13 +277,13 @@ export default function SignupOfficialPage() {
       <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-            CivixOS
+            Civix250
           </p>
           <h1 className="mt-2 text-4xl font-bold tracking-tight text-slate-900">
             Government & Official Registration
           </h1>
           <p className="mt-3 text-lg leading-8 text-slate-600">
-            Create an official CivixOS account to publish updates, engage with constituents,
+            Create an official Civix250 account to publish updates, engage with constituents,
             and monitor district sentiment.
           </p>
         </div>
@@ -356,6 +396,8 @@ export default function SignupOfficialPage() {
             >
               <option value="">Select state</option>
               <option value="Texas">Texas</option>
+              <option value="California">California</option>
+              <option value="Illinois">Illinois</option>
 
             </select>
           </div>

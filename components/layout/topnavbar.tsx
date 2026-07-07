@@ -39,13 +39,13 @@ export function TopNavbar({ title = "Dashboard" }: TopNavbarProps) {
       <Link href="/dashboard" className="flex items-center gap-3">
         <Image
           src="/civixos-logo.png"
-          alt="CivixOS Logo"
+          alt="Civix250 Logo"
           width={32}
           height={32}
           className="rounded-md"
         />
         <span className="text-lg font-semibold text-slate-900">
-          CivixOS
+          Civix250
         </span>
       </Link>
 

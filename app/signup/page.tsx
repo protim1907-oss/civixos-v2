@@ -682,7 +682,7 @@ export default function SignupPage() {
           I certify that I am at least 18 years of age and legally eligible to vote in my
           jurisdiction.{" "}
           <span className="text-slate-500">
-            Providing false certification is a violation of CivixOS Terms of Service and may
+            Providing false certification is a violation of Civix250 Terms of Service and may
             constitute a legal offense under applicable state and federal law.
           </span>
         </span>

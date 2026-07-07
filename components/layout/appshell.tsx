@@ -29,7 +29,7 @@ export function AppShell({ children, title }: AppShellProps) {
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 bg-slate-950 text-white lg:flex lg:flex-col">
           <div className="border-b border-slate-800 px-7 py-8">
-            <h1 className="text-3xl font-bold tracking-tight">CivixOS</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Civix250</h1>
             <p className="mt-2 text-sm text-slate-400">Citizen decision intelligence</p>
           </div>
 
@@ -68,7 +68,7 @@ export function AppShell({ children, title }: AppShellProps) {
           <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
             <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
               <div>
-                <p className="text-sm text-slate-500">CivixOS Platform</p>
+                <p className="text-sm text-slate-500">Civix250 Platform</p>
                 <h2 className="text-lg font-semibold text-slate-900">{currentLabel}</h2>
               </div>
 
