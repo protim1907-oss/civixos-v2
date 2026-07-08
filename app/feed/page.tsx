@@ -323,6 +323,7 @@ export default function FeedPage() {
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [currentDistrict, setCurrentDistrict] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("All");
+  const [allDistricts, setAllDistricts] = useState<string[]>([]);
   const [canViewAllDistricts, setCanViewAllDistricts] = useState(false);
   const [currentRepresentative, setCurrentRepresentative] = useState("Representative");
   const [loading, setLoading] = useState(true);
@@ -356,6 +357,29 @@ export default function FeedPage() {
   });
   const [meetingSubmitting, setMeetingSubmitting] = useState(false);
   const [meetingMessage, setMeetingMessage] = useState("");
+
+  // Load the full district catalog so the filter lists every district in the
+  // database, not just the ones with posts in the current feed.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase
+        .from("district_representatives")
+        .select("district_code");
+      if (!mounted) return;
+      const codes = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => String(row.district_code || "").trim())
+            .filter(Boolean)
+        )
+      );
+      setAllDistricts(codes);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
 
   useEffect(() => {
     async function loadFeed() {
@@ -688,9 +712,26 @@ export default function FeedPage() {
   }, [feedPosts]);
 
   const availableDistricts = useMemo(() => {
-    const districts = Array.from(new Set(feedPosts.map((post) => post.district).filter(Boolean)));
-    return ["All", ...districts.sort()];
-  }, [feedPosts]);
+    // Keep only real district codes (e.g. "IL-10") from feed posts so malformed
+    // legacy values like "District 12" don't clutter the filter.
+    const feedDistricts = feedPosts
+      .map((post) => post.district)
+      .filter((d): d is string => Boolean(d) && /^[A-Za-z]{2}-\d{1,2}$/.test(d));
+    const districts = Array.from(new Set([...allDistricts, ...feedDistricts]));
+
+    // Sort by state prefix, then by district number (so IL-2 precedes IL-10).
+    const parse = (value: string): [string, number] => {
+      const match = value.match(/^([A-Za-z]{2})-?(\d+)?/);
+      return [match?.[1] ?? value, match?.[2] ? Number(match[2]) : 0];
+    };
+    districts.sort((a, b) => {
+      const [sa, na] = parse(a);
+      const [sb, nb] = parse(b);
+      return sa === sb ? na - nb : sa.localeCompare(sb);
+    });
+
+    return ["All", ...districts];
+  }, [feedPosts, allDistricts]);
 
   async function handleShare(post: FeedPost) {
     const issueUrl =
