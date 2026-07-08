@@ -1234,7 +1234,11 @@ export default function AdminDashboardPage() {
 
   const stats = useMemo(() => {
     const publicUsers = profiles.filter((p) => !isHiddenProfile(p));
-    const totalUsers = publicUsers.length;
+    // Total Users counts the constituent base only — moderators are tallied in
+    // their own card, so they're excluded here to avoid double-counting.
+    const totalUsers = publicUsers.filter(
+      (p) => (p.role ?? "").toLowerCase() !== "moderator"
+    ).length;
     const totalPosts = issues.length;
     const underReview = issues.filter((i) => i.status === "under_review").length;
     const removed = issues.filter((i) => i.status === "removed").length;
