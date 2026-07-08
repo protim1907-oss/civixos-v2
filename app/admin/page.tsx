@@ -200,6 +200,14 @@ function isExcludedUserName(fullName: string | null | undefined) {
   return EXCLUDED_USER_NAMES.includes((fullName ?? "").trim().toLowerCase());
 }
 
+// A profile is hidden from the console when its name is excluded — EXCEPT for
+// moderators, who are always shown so the Moderators card and list stay in
+// sync (their accounts are real staff, not junk test rows).
+function isHiddenProfile(profile: { full_name: string | null; role: string | null }) {
+  if ((profile.role ?? "").toLowerCase() === "moderator") return false;
+  return isExcludedUserName(profile.full_name);
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -996,7 +1004,7 @@ export default function AdminDashboardPage() {
   }, [issues, issueSearch, adminPostView]);
 
   const filteredUsers = useMemo(() => {
-    let list = profiles.filter((profile) => !isExcludedUserName(profile.full_name));
+    let list = profiles.filter((profile) => !isHiddenProfile(profile));
 
     if (userSearch.trim()) {
       const q = userSearch.toLowerCase();
@@ -1225,7 +1233,7 @@ export default function AdminDashboardPage() {
   }, [videoMeetingRequests]);
 
   const stats = useMemo(() => {
-    const publicUsers = profiles.filter((p) => !isExcludedUserName(p.full_name));
+    const publicUsers = profiles.filter((p) => !isHiddenProfile(p));
     const totalUsers = publicUsers.length;
     const totalPosts = issues.length;
     const underReview = issues.filter((i) => i.status === "under_review").length;
