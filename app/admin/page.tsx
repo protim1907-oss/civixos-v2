@@ -188,7 +188,13 @@ function normalizeDistrict(value: string | null | undefined) {
 
 // Names hidden from the admin console (rows still exist in Supabase, they are
 // just filtered out of the UI list and stats). Matched case-insensitively.
-const EXCLUDED_USER_NAMES = ["protim ghosh", "costa brown"];
+const EXCLUDED_USER_NAMES = [
+  "protim ghosh",
+  "costa brown",
+  "constantinos brown",
+  "il demo citizen",
+  "protim",
+];
 
 function isExcludedUserName(fullName: string | null | undefined) {
   return EXCLUDED_USER_NAMES.includes((fullName ?? "").trim().toLowerCase());
