@@ -1230,9 +1230,12 @@ export default function AdminDashboardPage() {
     const totalPosts = issues.length;
     const underReview = issues.filter((i) => i.status === "under_review").length;
     const removed = issues.filter((i) => i.status === "removed").length;
-    const moderators = profiles.filter((p) => p.role === "moderator").length;
-    const officials = profiles.filter((p) => p.role === "official").length;
-    const admins = profiles.filter((p) => p.role === "admin").length;
+    // Count roles over publicUsers (not raw profiles) so the KPI cards match
+    // the filtered user list — otherwise hidden accounts inflate the counts
+    // while the list shows none of them.
+    const moderators = publicUsers.filter((p) => p.role === "moderator").length;
+    const officials = publicUsers.filter((p) => p.role === "official").length;
+    const admins = publicUsers.filter((p) => p.role === "admin").length;
     const pendingMeetings = videoMeetingRequests.filter(
       (request) => request.status === "pending"
     ).length;
