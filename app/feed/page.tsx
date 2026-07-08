@@ -358,28 +358,26 @@ export default function FeedPage() {
   const [meetingSubmitting, setMeetingSubmitting] = useState(false);
   const [meetingMessage, setMeetingMessage] = useState("");
 
-  // Load the full district catalog so the filter lists every district in the
-  // database, not just the ones with posts in the current feed.
+  // Load the set of districts that actually have signed-up citizens, so the
+  // filter only lists districts with real constituents (not the full catalog).
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data } = await supabase
-        .from("district_representatives")
-        .select("district_code");
-      if (!mounted) return;
-      const codes = Array.from(
-        new Set(
-          (data ?? [])
-            .map((row) => String(row.district_code || "").trim())
-            .filter(Boolean)
-        )
-      );
-      setAllDistricts(codes);
+      try {
+        const res = await fetch("/api/active-districts");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted && Array.isArray(data.districts)) {
+          setAllDistricts(data.districts as string[]);
+        }
+      } catch {
+        // leave the list empty; feed-derived districts still populate it
+      }
     })();
     return () => {
       mounted = false;
     };
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     async function loadFeed() {
