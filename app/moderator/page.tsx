@@ -204,6 +204,7 @@ export default function ModeratorDashboardPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [meetingRequests, setMeetingRequests] = useState<VideoMeetingRequestRow[]>([]);
   const [policySurveys, setPolicySurveys] = useState<PolicyPulseSurvey[]>([]);
+  const [activeDistricts, setActiveDistricts] = useState<string[]>([]);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -268,6 +269,7 @@ export default function ModeratorDashboardPage() {
           fetchAuditLogs(),
           fetchMeetingRequests(),
           fetchPolicySurveys(),
+          fetchActiveDistricts(),
         ]);
 
         if (mounted) {
@@ -390,6 +392,19 @@ export default function ModeratorDashboardPage() {
     setPolicySurveys(surveys);
   }
 
+  async function fetchActiveDistricts() {
+    try {
+      const res = await fetch("/api/active-districts");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.districts)) {
+        setActiveDistricts(data.districts as string[]);
+      }
+    } catch (error) {
+      console.error("Failed to load active districts:", error);
+    }
+  }
+
   async function handleRefresh() {
     try {
       setRefreshing(true);
@@ -398,6 +413,7 @@ export default function ModeratorDashboardPage() {
         fetchAuditLogs(),
         fetchMeetingRequests(),
         fetchPolicySurveys(),
+        fetchActiveDistricts(),
       ]);
     } finally {
       setRefreshing(false);
@@ -454,7 +470,7 @@ export default function ModeratorDashboardPage() {
           : [];
 
       await Promise.all(
-        MODERATOR_SURVEY_DISTRICTS.map((district) =>
+        broadcastDistricts.map((district) =>
           publishPolicyPulseSurvey(supabase, {
             id: `${surveyBatchId}-${district.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
             title,
@@ -708,7 +724,7 @@ export default function ModeratorDashboardPage() {
   }
 
   async function handleBroadcastSurvey(survey: PolicyPulseSurvey) {
-    const targetDistricts = MODERATOR_SURVEY_DISTRICTS.filter(
+    const targetDistricts = broadcastDistricts.filter(
       (d) => d !== survey.district
     );
     if (targetDistricts.length === 0) return;
@@ -1138,11 +1154,21 @@ export default function ModeratorDashboardPage() {
     });
   }, [auditLogs, auditActorFilter]);
 
+  // Districts we broadcast to: only those with signed-up users. Falls back to
+  // the static roster if the active-districts fetch hasn't resolved yet, so a
+  // slow/failed request never silently produces an empty broadcast target.
+  const broadcastDistricts = useMemo(
+    () =>
+      activeDistricts.length > 0 ? activeDistricts : MODERATOR_SURVEY_DISTRICTS,
+    [activeDistricts]
+  );
+
   const districtSurveyRows = useMemo(() => {
-    // Derive districts dynamically from all surveys in the database
+    // Show a row for every district with users plus any that already have a
+    // survey, so past surveys in now-empty districts remain visible.
     const allDistricts = Array.from(
       new Set([
-        ...MODERATOR_SURVEY_DISTRICTS,
+        ...broadcastDistricts,
         ...policySurveys.map((s) => s.district).filter(Boolean),
       ])
     ).sort();
@@ -1174,7 +1200,7 @@ export default function ModeratorDashboardPage() {
         votingClosed,
       };
     });
-  }, [policySurveys]);
+  }, [policySurveys, broadcastDistricts]);
 
   const stats = useMemo(() => {
     const total = issues.length;
@@ -2080,7 +2106,7 @@ export default function ModeratorDashboardPage() {
                             : "Share with reps"}
                         </button>
                         {row.latestSurvey &&
-                          MODERATOR_SURVEY_DISTRICTS.some(
+                          broadcastDistricts.some(
                             (d) => d !== row.district
                           ) && (
                             <button
@@ -2092,12 +2118,12 @@ export default function ModeratorDashboardPage() {
                               disabled={
                                 broadcastingSurveyId === row.latestSurvey?.id
                               }
-                              title={`Broadcast this survey to ${MODERATOR_SURVEY_DISTRICTS.filter((d) => d !== row.district).join(", ")}`}
+                              title={`Broadcast this survey to ${broadcastDistricts.filter((d) => d !== row.district).join(", ")}`}
                               className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {broadcastingSurveyId === row.latestSurvey?.id
                                 ? "Broadcasting..."
-                                : `Broadcast to ${MODERATOR_SURVEY_DISTRICTS.filter((d) => d !== row.district).join(", ")}`}
+                                : `Broadcast to ${broadcastDistricts.filter((d) => d !== row.district).join(", ")}`}
                             </button>
                           )}
                         {row.latestSurvey && (
