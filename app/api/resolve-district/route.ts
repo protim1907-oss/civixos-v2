@@ -39,7 +39,7 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
   };
 }
 
-// Civix250 is open to Texas, California, and Illinois only. Registration is
+// Civix250 is open to Texas, California, Illinois, and Maryland only. Registration is
 // gated on the address's ACTUAL geocoded state, not on what the user selects —
 // so a fake out-of-state address (or an out-of-area resident picking an allowed
 // state) is rejected.
@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       TX: "Texas",
       CA: "California",
       IL: "Illinois",
+      MD: "Maryland",
     };
     const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
 

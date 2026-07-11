@@ -28,6 +28,10 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Illinois voter registration",
     url: "https://ova.elections.il.gov/RegistrationLookup.aspx",
   },
+  Maryland: {
+    label: "Check Maryland voter registration",
+    url: "https://voterservices.elections.maryland.gov/VoterSearch",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -547,6 +551,7 @@ export default function SignupPage() {
           <option value="Texas">Texas</option>
           <option value="California">California</option>
           <option value="Illinois">Illinois</option>
+          <option value="Maryland">Maryland</option>
         </select>
       </div>
 
