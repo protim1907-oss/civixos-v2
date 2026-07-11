@@ -43,13 +43,14 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
 // gated on the address's ACTUAL geocoded state, not on what the user selects —
 // so a fake out-of-state address (or an out-of-area resident picking an allowed
 // state) is rejected.
-const ALLOWED_STATES = ["TX", "CA", "IL"] as const;
+const ALLOWED_STATES = ["TX", "CA", "IL", "MD"] as const;
 
 function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
     Texas: "TX",
     California: "CA",
     Illinois: "IL",
+    Maryland: "MD",
     Florida: "FL",
     "New York": "NY",
   };
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Civix250 is currently open to residents of Texas, California, and Illinois only. This address is outside our service area.",
+            "Civix250 is currently open to residents of Texas, California, Illinois, and Maryland only. This address is outside our service area.",
           state: effectiveStateAbbr,
         },
         { status: 403 }

@@ -46,6 +46,7 @@ const STATEWIDE_JURISDICTIONS: Record<string, DistrictOption> = {
   Texas: { value: "TX", label: "State of Texas" },
   California: { value: "CA", label: "State of California" },
   Illinois: { value: "IL", label: "State of Illinois" },
+  Maryland: { value: "MD", label: "State of Maryland" },
 };
 
 function ordinal(n: number) {
@@ -71,6 +72,12 @@ const californiaDistricts: DistrictOption[] = [
 const illinoisDistricts: DistrictOption[] = Array.from({ length: 17 }, (_, i) => {
   const n = i + 1;
   return { value: `IL-${n}`, label: `Illinois ${ordinal(n)} District (IL-${n})` };
+});
+
+// All 8 Maryland congressional districts.
+const marylandDistricts: DistrictOption[] = Array.from({ length: 8 }, (_, i) => {
+  const n = i + 1;
+  return { value: `MD-${n}`, label: `Maryland ${ordinal(n)} District (MD-${n})` };
 });
 
 
@@ -99,6 +106,10 @@ function resolveDistrictOptions(state: string, city: string, zipCode: string): D
 
   if (state === "Illinois") {
     return illinoisDistricts;
+  }
+
+  if (state === "Maryland") {
+    return marylandDistricts;
   }
 
   return [];
@@ -398,6 +409,7 @@ export default function SignupOfficialPage() {
               <option value="Texas">Texas</option>
               <option value="California">California</option>
               <option value="Illinois">Illinois</option>
+              <option value="Maryland">Maryland</option>
 
             </select>
           </div>
