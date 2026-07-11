@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { logUserActivity } from "@/lib/user-activity";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   Building2,
@@ -774,6 +775,7 @@ export default function MyRepresentativePage() {
   const [resolvedState, setResolvedState] = useState("");
   const [primaryRepresentative, setPrimaryRepresentative] = useState<Official | null>(null);
   const [statewideLeaders, setStatewideLeaders] = useState<Official[]>([]);
+  const [stateHouseReps, setStateHouseReps] = useState<Official[]>([]);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatOfficial, setChatOfficial] = useState<Official | null>(null);
@@ -890,7 +892,23 @@ export default function MyRepresentativePage() {
           .eq("state", normalizeStateName(finalStateCode))
           .eq("is_active", true);
 
+        // Full U.S. House delegation for the state, shown to every citizen.
+        const { data: houseRows } = await supabase
+          .from("district_representatives")
+          .select(
+            "id, district_code, state, district_number, name, title, office_label, party, website, contact_url, phone, image_url, is_active"
+          )
+          .eq("state", normalizeStateName(finalStateCode))
+          .eq("is_active", true)
+          .order("district_number", { ascending: true });
+
         if (!mounted) return;
+
+        setStateHouseReps(
+          ((houseRows as DistrictRepresentativeRow[] | null) || []).map(
+            mapDistrictRepRow
+          )
+        );
 
         const mappedStatewideLeaders = sortOfficials(
           ((statewideRows as RepresentativeRow[] | null) || [])
@@ -967,11 +985,16 @@ export default function MyRepresentativePage() {
   // U.S. House members are shown last — state officials are the primary
   // point of contact for district issues; Congress is federal context.
   const houseMembers = useMemo(() => {
-    if (resolvedState !== "IL") return [];
-    return ["IL-1", "IL-10", "IL-17"]
-      .map((code) => lookupHouseRep(code))
-      .filter(Boolean) as Official[];
-  }, [resolvedState]);
+    if (resolvedState === "IL") {
+      return ["IL-1", "IL-10", "IL-17"]
+        .map((code) => lookupHouseRep(code))
+        .filter(Boolean) as Official[];
+    }
+    // Maryland shows its full 8-member U.S. House delegation to every citizen.
+    // (TX/CA are left as-is until their full delegations are seeded.)
+    if (resolvedState === "MD") return stateHouseReps;
+    return [];
+  }, [resolvedState, stateHouseReps]);
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) +
@@ -1054,6 +1077,11 @@ export default function MyRepresentativePage() {
       setMeetingMessage(
         "Request submitted. Staff will review it and create a video link after approval."
       );
+      void logUserActivity(supabase, currentUserId, {
+        type: "meeting_request",
+        title: meetingOfficial.name,
+        detail: meetingForm.topic.trim() || meetingOfficial.title,
+      });
       setMeetingForm({
         topic: "",
         preferredTimes: "",
@@ -1122,6 +1150,11 @@ export default function MyRepresentativePage() {
       }
 
       setEmailResult({ type: "success", message: "Your message has been sent successfully via Civix250." });
+      void logUserActivity(supabase, currentUserId, {
+        type: "rep_email",
+        title: emailOfficial.name,
+        detail: emailSubject.trim() || null,
+      });
       setEmailSubject("");
       setEmailBody("");
       setTimeout(() => {

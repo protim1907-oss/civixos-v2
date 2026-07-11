@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
+import { logUserActivity } from "@/lib/user-activity";
 
 type ProfileRow = {
   id: string;
@@ -539,6 +540,15 @@ export default function CreatePostPage() {
       }
 
       setSuccess("Post created successfully.");
+
+      if (!isGuest && user) {
+        void logUserActivity(supabase, user.id, {
+          type: "post_created",
+          title: cleanTitle,
+          detail: normalizedDistrict,
+          link: "/feed",
+        });
+      }
 
       setTimeout(() => {
         router.push("/feed");

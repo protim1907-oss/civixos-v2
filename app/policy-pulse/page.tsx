@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
 import { createClient } from "@/lib/supabase/client";
+import { logUserActivity } from "@/lib/user-activity";
 import {
   initialVotes,
   loadPublishedPolicyPulseSurveys,
@@ -146,6 +147,7 @@ function PolicyPulsePageContent() {
 
   const [surveys, setSurveys] = useState<PolicyPulseSurvey[]>([]);
   const [currentProfile, setCurrentProfile] = useState<ProfileRow | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loadingSurveys, setLoadingSurveys] = useState(true);
 
   const [selectedVote, setSelectedVote] = useState<VoteOption>("Neutral");
@@ -176,6 +178,7 @@ function PolicyPulsePageContent() {
 
         if (mounted) {
           setSurveys(publishedSurveys);
+          setCurrentUserId(user?.id ?? null);
           if (profileResult.error) {
             console.error("Failed to load policy pulse profile:", profileResult.error.message);
           } else {
@@ -437,6 +440,13 @@ function PolicyPulsePageContent() {
     try {
       await updatePublishedPolicyPulseSurvey(supabase, nextSurvey);
       setSurveys(nextSurveys);
+
+      void logUserActivity(supabase, currentUserId, {
+        type: "survey_response",
+        title: activeSurvey.title,
+        detail: `${selectedVote} · ${activeSurvey.district}`,
+        link: `/policy-pulse?survey=${encodeURIComponent(activeSurvey.id)}`,
+      });
 
       setVoteSubmittedMessage(`Your response has been recorded for "${activeSurvey.title}".`);
       setRespondentName("");

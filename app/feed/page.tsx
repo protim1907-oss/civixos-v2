@@ -5,6 +5,7 @@ import Link from "next/link";
 import Sidebar from "../../components/layout/Sidebar";
 import IssueLifecycle from "@/components/issues/IssueLifecycle";
 import { createClient } from "@/lib/supabase/client";
+import { logUserActivity } from "@/lib/user-activity";
 
 type FeedPost = {
   id: string;
@@ -830,6 +831,13 @@ export default function FeedPage() {
           return;
         }
 
+        void logUserActivity(supabase, currentUserId, {
+          type: "issue_upvote",
+          title: targetPost.title,
+          detail: targetPost.district || null,
+          link: `/feed?post=${encodeURIComponent(issueId)}`,
+        });
+
         setFeedPosts((prev) =>
           prev.map((post) =>
             post.id === issueId
@@ -1061,6 +1069,12 @@ export default function FeedPage() {
         setMeetingMessage("Unable to submit this request right now.");
         return;
       }
+
+      void logUserActivity(supabase, currentUserId, {
+        type: "meeting_request",
+        title: meetingRepresentative,
+        detail: meetingForm.topic.trim() || meetingRepresentativeTitle || null,
+      });
 
       setMeetingMessage(
         "Request submitted. Staff will approve it before a video link is created."

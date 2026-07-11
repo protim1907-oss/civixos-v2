@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { logUserActivity } from "@/lib/user-activity";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   ArrowLeft,
@@ -247,6 +248,12 @@ export default function IssueDetailPage() {
         await supabase.from("issue_votes").insert({ issue_id: issueId, user_id: userId });
         setHasVoted(true);
         setVoteCount((n) => n + 1);
+        void logUserActivity(supabase, userId, {
+          type: "issue_upvote",
+          title: issue?.title ?? null,
+          detail: issue?.district ?? null,
+          link: `/issues/${issueId}`,
+        });
       }
     } finally {
       setTogglingVote(false);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import type { UserActivityRow } from "@/lib/user-activity";
 import Sidebar from "@/components/layout/Sidebar";
 import IssueLifecycle from "@/components/issues/IssueLifecycle";
 import {
@@ -29,6 +30,8 @@ import {
   Share2,
   Copy,
   Check,
+  Mail,
+  Video,
 } from "lucide-react";
 import {
   loadPublishedPolicyPulseSurveys,
@@ -168,9 +171,10 @@ export default function DashboardPage() {
 
   const [myComments, setMyComments] = useState<MyCommentRow[]>([]);
   const [myUpvotes, setMyUpvotes] = useState<MyUpvoteRow[]>([]);
+  const [myActivity, setMyActivity] = useState<UserActivityRow[]>([]);
 
   async function loadMyActivity(userId: string) {
-    const [commentsRes, upvotesRes] = await Promise.all([
+    const [commentsRes, upvotesRes, activityRes] = await Promise.all([
       supabase
         .from("news_comments")
         .select("id, comment_text, story_title, created_at")
@@ -185,6 +189,13 @@ export default function DashboardPage() {
         .eq("interaction_type", "upvote")
         .order("created_at", { ascending: false })
         .limit(5),
+
+      supabase
+        .from("user_activity")
+        .select("id, type, title, detail, link, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(12),
     ]);
 
     if (commentsRes.error) {
@@ -195,8 +206,14 @@ export default function DashboardPage() {
       console.error("My upvotes load error:", upvotesRes.error);
     }
 
+    // user_activity may not exist yet (migration not applied) — fail soft.
+    if (activityRes.error) {
+      console.error("My activity load error:", activityRes.error);
+    }
+
     setMyComments((commentsRes.data as MyCommentRow[]) || []);
     setMyUpvotes((upvotesRes.data as MyUpvoteRow[]) || []);
+    setMyActivity((activityRes.data as UserActivityRow[]) || []);
   }
 
   async function syncDistrictFromEmail() {
@@ -290,6 +307,7 @@ export default function DashboardPage() {
           setCurrentDistrict(guestDistrict);
           setMyComments([]);
           setMyUpvotes([]);
+          setMyActivity([]);
 
           if (!guestDistrict) {
             setIssues([]);
@@ -734,6 +752,40 @@ export default function DashboardPage() {
     return new Date(dateString).toLocaleDateString();
   }
 
+  function activityLabel(a: UserActivityRow): string {
+    switch (a.type) {
+      case "rep_email":
+        return `Emailed ${a.title || "a representative"}`;
+      case "survey_response":
+        return `Responded to survey: ${a.title || "a survey"}`;
+      case "post_created":
+        return `Created a post: ${a.title || "Untitled"}`;
+      case "issue_upvote":
+        return `Upvoted issue: ${a.title || "an issue"}`;
+      case "meeting_request":
+        return `Requested a meeting with ${a.title || "a representative"}`;
+      default:
+        return a.title || "Activity";
+    }
+  }
+
+  function activityIcon(type: UserActivityRow["type"]) {
+    switch (type) {
+      case "rep_email":
+        return Mail;
+      case "survey_response":
+        return Vote;
+      case "post_created":
+        return FileText;
+      case "issue_upvote":
+        return ThumbsUp;
+      case "meeting_request":
+        return Video;
+      default:
+        return Activity;
+    }
+  }
+
   function getTopValue(values: string[]) {
     if (!values.length) return "N/A";
 
@@ -1159,6 +1211,55 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Recent Interactions
+                    </h3>
+                  </div>
+
+                  {myActivity.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No interactions yet. Email a representative, respond to a
+                      survey, or upvote an issue and it will show up here.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {myActivity.map((a) => {
+                        const Icon = activityIcon(a.type);
+                        const body = (
+                          <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:bg-slate-100">
+                            <span className="mt-0.5 rounded-lg bg-blue-50 p-1.5 text-blue-600">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-800">
+                                {activityLabel(a)}
+                              </p>
+                              {a.detail ? (
+                                <p className="mt-0.5 truncate text-sm text-slate-600">
+                                  {a.detail}
+                                </p>
+                              ) : null}
+                              <p className="mt-1 text-xs text-slate-400">
+                                {formatActivityDate(a.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                        return a.link ? (
+                          <Link key={a.id} href={a.link} className="block">
+                            {body}
+                          </Link>
+                        ) : (
+                          <div key={a.id}>{body}</div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </section>
 
