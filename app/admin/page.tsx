@@ -193,6 +193,7 @@ const EXCLUDED_USER_NAMES = [
   "costa brown",
   "constantinos brown",
   "il demo citizen",
+  "md demo citizen",
   "protim",
 ];
 
