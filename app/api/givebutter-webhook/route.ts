@@ -16,6 +16,11 @@ type GivebutterTransaction = {
   last_name?: string | null;
   email?: string | null;
   payment_method?: string | null;
+  // Recurring indicators — Givebutter attaches a plan/frequency to recurring gifts.
+  plan?: unknown;
+  plan_id?: string | number | null;
+  recurring?: boolean | null;
+  frequency?: string | null;
   giving_space?: {
     name?: string | null;
     message?: string | null;
@@ -96,6 +101,14 @@ export async function POST(req: NextRequest) {
     .filter(Boolean)
     .join(" — ");
 
+  // Treat the gift as recurring if Givebutter attached a plan/frequency to it.
+  const recurring = Boolean(
+    transaction.plan ||
+      transaction.plan_id ||
+      transaction.recurring === true ||
+      (transaction.frequency && transaction.frequency.toLowerCase() !== "once")
+  );
+
   const { error } = await supabaseAdmin.from("platform_donations").insert([
     {
       donor_name: donorName,
@@ -103,6 +116,7 @@ export async function POST(req: NextRequest) {
       amount,
       currency: (transaction.currency || "USD").toUpperCase(),
       payment_method: "givebutter",
+      recurring,
       notes: notes || null,
     },
   ]);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { getDonorTier, isSustainingDonor } from "@/lib/donor-tiers";
+import { getDonorTier } from "@/lib/donor-tiers";
 
 // Returns the authenticated user's donor tier, computed from their lifetime
 // giving in platform_donations (matched by email). Runs the read with the
@@ -19,7 +19,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from("platform_donations")
-    .select("amount, created_at")
+    .select("amount, recurring")
     .ilike("donor_email", user.email);
 
   if (error) {
@@ -30,7 +30,7 @@ export async function GET() {
   const rows = data ?? [];
   const total = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const tier = getDonorTier(total);
-  const sustaining = isSustainingDonor(rows.map((r) => r.created_at));
+  const sustaining = rows.some((r) => r.recurring === true);
 
   return NextResponse.json({
     hasDonated: rows.length > 0,

@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import {
-  getDonorTier,
-  donorKey,
-  isSustainingDonor,
-  type DonorTier,
-} from "@/lib/donor-tiers";
+import { getDonorTier, donorKey, type DonorTier } from "@/lib/donor-tiers";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   Shield,
@@ -141,6 +136,7 @@ type PlatformDonation = {
   amount: number;
   currency: string;
   payment_method: string | null;
+  recurring: boolean | null;
   notes: string | null;
   created_at: string | null;
 };
@@ -251,6 +247,7 @@ export default function AdminDashboardPage() {
     donor_email: "",
     amount: "",
     payment_method: "givebutter",
+    recurring: false,
     notes: "",
   });
   const donationsRef = useRef<HTMLElement | null>(null);
@@ -464,10 +461,23 @@ export default function AdminDashboardPage() {
   }
 
   async function loadDonations() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("platform_donations")
-      .select("id, donor_name, donor_email, amount, currency, payment_method, notes, created_at")
+      .select("id, donor_name, donor_email, amount, currency, payment_method, recurring, notes, created_at")
       .order("created_at", { ascending: false });
+
+    if (error) {
+      // Fallback if the `recurring` column hasn't been migrated yet — still
+      // load donations (treated as one-time) so the panel never blanks out.
+      const { data: legacy } = await supabase
+        .from("platform_donations")
+        .select("id, donor_name, donor_email, amount, currency, payment_method, notes, created_at")
+        .order("created_at", { ascending: false });
+      setDonations(
+        ((legacy ?? []) as PlatformDonation[]).map((d) => ({ ...d, recurring: false }))
+      );
+      return;
+    }
     setDonations((data ?? []) as PlatformDonation[]);
   }
 
@@ -482,11 +492,12 @@ export default function AdminDashboardPage() {
       amount,
       currency: "USD",
       payment_method: donationForm.payment_method,
+      recurring: donationForm.recurring,
       notes: donationForm.notes || null,
     }]);
     if (!error) {
       setShowDonationForm(false);
-      setDonationForm({ donor_name: "", donor_email: "", amount: "", payment_method: "givebutter", notes: "" });
+      setDonationForm({ donor_name: "", donor_email: "", amount: "", payment_method: "givebutter", recurring: false, notes: "" });
       await loadDonations();
     }
     setDonationFormLoading(false);
@@ -1242,12 +1253,12 @@ export default function AdminDashboardPage() {
   // Per-donor recognition: lifetime cumulative total → tier, plus a
   // "Sustaining Member" overlay for recurring/monthly donors.
   const donorRecognition = useMemo(() => {
-    const groups = new Map<string, { total: number; dates: (string | null)[] }>();
+    const groups = new Map<string, { total: number; recurring: boolean }>();
     for (const d of donations) {
       const key = donorKey(d.donor_email, d.donor_name);
-      const g = groups.get(key) ?? { total: 0, dates: [] };
+      const g = groups.get(key) ?? { total: 0, recurring: false };
       g.total += Number(d.amount) || 0;
-      g.dates.push(d.created_at);
+      g.recurring = g.recurring || d.recurring === true;
       groups.set(key, g);
     }
     const map = new Map<
@@ -1258,7 +1269,8 @@ export default function AdminDashboardPage() {
       map.set(key, {
         tier: getDonorTier(g.total),
         total: g.total,
-        sustaining: isSustainingDonor(g.dates),
+        // Sustaining Member = has at least one recurring/monthly donation.
+        sustaining: g.recurring,
       });
     }
     return map;
@@ -3273,6 +3285,17 @@ export default function AdminDashboardPage() {
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Mode</label>
+                    <select
+                      value={donationForm.recurring ? "recurring" : "one-time"}
+                      onChange={(e) => setDonationForm((f) => ({ ...f, recurring: e.target.value === "recurring" }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                    >
+                      <option value="one-time">One-time</option>
+                      <option value="recurring">Recurring</option>
+                    </select>
+                  </div>
                   <div className="lg:col-span-2">
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
                     <input
@@ -3311,7 +3334,7 @@ export default function AdminDashboardPage() {
                       <th className="px-6 py-3 text-left">Donor</th>
                       <th className="px-6 py-3 text-left">Tier</th>
                       <th className="px-6 py-3 text-left">Email</th>
-                      <th className="px-6 py-3 text-left">Method</th>
+                      <th className="px-6 py-3 text-left">Mode</th>
                       <th className="px-6 py-3 text-right">Amount</th>
                       <th className="px-6 py-3 text-left">Notes</th>
                     </tr>
@@ -3353,8 +3376,14 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="px-6 py-3 text-slate-600">{d.donor_email || "—"}</td>
                         <td className="px-6 py-3">
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 capitalize">
-                            {d.payment_method || "—"}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              d.recurring
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {d.recurring ? "Recurring" : "One-time"}
                           </span>
                         </td>
                         <td className="px-6 py-3 text-right font-bold text-emerald-700">
