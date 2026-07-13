@@ -172,6 +172,30 @@ export default function DashboardPage() {
   const [myComments, setMyComments] = useState<MyCommentRow[]>([]);
   const [myUpvotes, setMyUpvotes] = useState<MyUpvoteRow[]>([]);
   const [myActivity, setMyActivity] = useState<UserActivityRow[]>([]);
+  const [donorTier, setDonorTier] = useState<{
+    hasDonated: boolean;
+    total: number;
+    tier: string;
+    badgeClass: string;
+    sustaining: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/my-donor-tier");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted) setDonorTier(data);
+      } catch {
+        // non-fatal
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function loadMyActivity(userId: string) {
     const [commentsRes, upvotesRes, activityRes] = await Promise.all([
@@ -1304,6 +1328,36 @@ export default function DashboardPage() {
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                         Platform donations support transparency tools, district data, and resident engagement workflows.
                       </p>
+
+                      {donorTier?.hasDonated ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-slate-500">
+                            Your supporter tier:
+                          </span>
+                          <span
+                            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${donorTier.badgeClass}`}
+                            title={`Lifetime giving: $${donorTier.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          >
+                            {donorTier.tier}
+                          </span>
+                          {donorTier.sustaining && (
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              ★ Sustaining Member
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-400">
+                            ${donorTier.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} given
+                          </span>
+                        </div>
+                      ) : donorTier ? (
+                        <p className="mt-3 text-xs font-medium text-slate-500">
+                          Make your first donation to unlock the{" "}
+                          <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
+                            Citizen
+                          </span>{" "}
+                          supporter tier.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
