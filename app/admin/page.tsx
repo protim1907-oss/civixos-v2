@@ -3317,13 +3317,39 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {donations.map((d) => (
+                    {donations.map((d) => {
+                      const recognition = donorRecognition.get(
+                        donorKey(d.donor_email, d.donor_name)
+                      );
+                      return (
                       <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
                         <td className="px-6 py-3 text-slate-600 whitespace-nowrap">
                           {d.created_at ? new Date(d.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                         </td>
                         <td className="px-6 py-3 font-medium text-slate-900">
                           {d.donor_name || <span className="text-slate-400 italic">Anonymous</span>}
+                        </td>
+                        <td className="px-6 py-3">
+                          {recognition ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${recognition.tier.badgeClass}`}
+                                title={`Lifetime giving: $${recognition.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                              >
+                                {recognition.tier.name}
+                              </span>
+                              {recognition.sustaining && (
+                                <span
+                                  className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700"
+                                  title="Sustaining Member — recurring/monthly donor"
+                                >
+                                  ★ Sustaining
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-6 py-3 text-slate-600">{d.donor_email || "—"}</td>
                         <td className="px-6 py-3">
@@ -3336,7 +3362,8 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="px-6 py-3 text-slate-500 max-w-[200px] truncate">{d.notes || "—"}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
