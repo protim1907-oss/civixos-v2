@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getDonorTier,
+  donorKey,
+  isSustainingDonor,
+  type DonorTier,
+} from "@/lib/donor-tiers";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   Shield,
@@ -1232,6 +1238,31 @@ export default function AdminDashboardPage() {
   const pendingMeetingRequests = useMemo(() => {
     return videoMeetingRequests.filter((request) => request.status === "pending");
   }, [videoMeetingRequests]);
+
+  // Per-donor recognition: lifetime cumulative total → tier, plus a
+  // "Sustaining Member" overlay for recurring/monthly donors.
+  const donorRecognition = useMemo(() => {
+    const groups = new Map<string, { total: number; dates: (string | null)[] }>();
+    for (const d of donations) {
+      const key = donorKey(d.donor_email, d.donor_name);
+      const g = groups.get(key) ?? { total: 0, dates: [] };
+      g.total += Number(d.amount) || 0;
+      g.dates.push(d.created_at);
+      groups.set(key, g);
+    }
+    const map = new Map<
+      string,
+      { tier: DonorTier; total: number; sustaining: boolean }
+    >();
+    for (const [key, g] of groups) {
+      map.set(key, {
+        tier: getDonorTier(g.total),
+        total: g.total,
+        sustaining: isSustainingDonor(g.dates),
+      });
+    }
+    return map;
+  }, [donations]);
 
   const stats = useMemo(() => {
     const publicUsers = profiles.filter((p) => !isHiddenProfile(p));
@@ -3278,6 +3309,7 @@ export default function AdminDashboardPage() {
                     <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase tracking-widest text-slate-500">
                       <th className="px-6 py-3 text-left">Date</th>
                       <th className="px-6 py-3 text-left">Donor</th>
+                      <th className="px-6 py-3 text-left">Tier</th>
                       <th className="px-6 py-3 text-left">Email</th>
                       <th className="px-6 py-3 text-left">Method</th>
                       <th className="px-6 py-3 text-right">Amount</th>
