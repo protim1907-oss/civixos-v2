@@ -48,6 +48,7 @@ type Official = {
   imageUrl: string;
   email_href?: string | null;
   legislator?: boolean;
+  chamber?: "senate" | "house";
   badge: {
     text: string;
     tone: "red" | "green" | "blue" | "slate";
@@ -290,6 +291,12 @@ function mapRepresentativeRow(row: RepresentativeRow): Official {
     imageUrl: row.photo_url || row.photo || "",
     email_href: row.email_href,
     legislator: isLegislator,
+    chamber:
+      levelValue === "state house"
+        ? "house"
+        : levelValue === "state senate"
+          ? "senate"
+          : undefined,
     badge,
   };
 }
@@ -914,7 +921,12 @@ export default function MyRepresentativePage() {
           ((statewideRows as RepresentativeRow[] | null) || [])
             .filter((row) => {
               const level = String(row.level || "").toLowerCase();
-              return level === "senate" || level === "state" || level === "state senate";
+              return (
+                level === "senate" ||
+                level === "state" ||
+                level === "state senate" ||
+                level === "state house"
+              );
             })
             .map(mapRepresentativeRow)
         );
@@ -978,9 +990,21 @@ export default function MyRepresentativePage() {
   const statewideOfficials = statewideLeaders.filter(
     (official) => !official.legislator
   );
-  const stateLegislators = statewideLeaders.filter(
-    (official) => official.legislator
+  const stateSenators = statewideLeaders.filter(
+    (official) => official.legislator && official.chamber !== "house"
   );
+  const allStateDelegates = statewideLeaders.filter(
+    (official) => official.legislator && official.chamber === "house"
+  );
+  // If any delegates are tagged to this citizen's district, show only those;
+  // otherwise fall back to the full delegation.
+  const districtDelegates = allStateDelegates.filter(
+    (official) =>
+      official.district &&
+      normalizeDistrict(official.district) === normalizeDistrict(district)
+  );
+  const stateDelegates =
+    districtDelegates.length > 0 ? districtDelegates : allStateDelegates;
 
   // U.S. House members are shown last — state officials are the primary
   // point of contact for district issues; Congress is federal context.
@@ -998,7 +1022,9 @@ export default function MyRepresentativePage() {
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) +
-    statewideLeaders.length +
+    statewideOfficials.length +
+    stateSenators.length +
+    stateDelegates.length +
     houseMembers.length;
 
   const firstName = useMemo(() => {
@@ -1385,17 +1411,42 @@ export default function MyRepresentativePage() {
                   </div>
                 )}
 
-                {stateLegislators.length > 0 && (
+                {stateSenators.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      State Legislators
+                      State Senate
                     </h4>
                     <p className="mt-1 text-sm text-slate-500">
-                      Members of the state legislature — district numbers refer
-                      to the state legislative map, not congressional districts.
+                      Members of the state Senate — district numbers refer to the
+                      state legislative map, not congressional districts.
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
-                      {stateLegislators.map((official) => (
+                      {stateSenators.map((official) => (
+                        <OfficialCard
+                          key={official.id}
+                          official={official}
+                          wide
+                          onChat={startChat}
+                          onMeetingRequest={openMeetingRequest}
+                          onEmail={openEmailCompose}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {stateDelegates.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      House of Delegates
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Members of the state House of Delegates — district numbers
+                      refer to the state legislative map, not congressional
+                      districts.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                      {stateDelegates.map((official) => (
                         <OfficialCard
                           key={official.id}
                           official={official}
