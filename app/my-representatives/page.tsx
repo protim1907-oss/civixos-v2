@@ -18,7 +18,6 @@ import {
   Loader2,
   User2,
   LogOut,
-  HandCoins,
 } from "lucide-react";
 
 type ProfileRow = {
@@ -141,6 +140,8 @@ function normalizeStateCode(state?: string | null): string {
     il: "IL",
     maryland: "MD",
     md: "MD",
+    colorado: "CO",
+    co: "CO",
     florida: "FL",
     fl: "FL",
     "new york": "NY",
@@ -162,6 +163,8 @@ function normalizeStateName(state?: string | null): string {
     il: "Illinois",
     maryland: "Maryland",
     md: "Maryland",
+    colorado: "Colorado",
+    co: "Colorado",
     florida: "Florida",
     fl: "Florida",
     "new york": "New York",
@@ -551,6 +554,110 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       phone: "(312) 814-3000",
       imageUrl:
         "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Kwame_Raoul_%28cropped%29.jpg/640px-Kwame_Raoul_%28cropped%29.jpg",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
+  CO: [
+    {
+      id: "michael-bennet",
+      name: "Michael Bennet",
+      title: "U.S. Senator",
+      officeLabel: "Colorado",
+      level: "federal",
+      state: "Colorado",
+      party: "Democrat",
+      website: "https://www.bennet.senate.gov",
+      contactUrl: "https://www.bennet.senate.gov/public/index.cfm/contact",
+      phone: "(202) 224-5852",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "john-hickenlooper",
+      name: "John Hickenlooper",
+      title: "U.S. Senator",
+      officeLabel: "Colorado",
+      level: "federal",
+      state: "Colorado",
+      party: "Democrat",
+      website: "https://www.hickenlooper.senate.gov",
+      contactUrl: "https://www.hickenlooper.senate.gov/contact",
+      phone: "(202) 224-5941",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "jared-polis",
+      name: "Jared Polis",
+      title: "Governor of Colorado",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Colorado",
+      party: "Democrat",
+      website: "https://www.colorado.gov/governor",
+      contactUrl: "https://www.colorado.gov/governor/contact-governor",
+      phone: "(303) 866-2471",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "phil-weiser",
+      name: "Phil Weiser",
+      title: "Attorney General of Colorado",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Colorado",
+      party: "Democrat",
+      website: "https://coag.gov",
+      contactUrl: "https://coag.gov/contact-us/",
+      phone: "(720) 508-6000",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "jena-griswold",
+      name: "Jena Griswold",
+      title: "Secretary of State of Colorado",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Colorado",
+      party: "Democrat",
+      website: "https://www.coloradosos.gov",
+      contactUrl: "https://www.coloradosos.gov/pubs/contactUs.html",
+      phone: "(303) 894-2200",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "dave-young",
+      name: "Dave Young",
+      title: "Treasurer of Colorado",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Colorado",
+      party: "Democrat",
+      website: "https://treasury.colorado.gov",
+      contactUrl: "https://treasury.colorado.gov/contact-us",
+      phone: "(303) 866-2441",
+      imageUrl: "",
       badge: {
         text: "State",
         tone: "green",
@@ -987,12 +1094,26 @@ export default function MyRepresentativePage() {
     };
   }, [router, supabase]);
 
+  // The MD-01 demo district shows only its own State Senator — statewide
+  // officials, delegates, and the U.S. House delegation are hidden.
+  const canonicalDistrict = (value: string | null | undefined) =>
+    normalizeDistrict(value).replace(/-0*(\d+)$/, "-$1");
+  const isMd01 = canonicalDistrict(district) === "MD-1";
+
   const statewideOfficials = statewideLeaders.filter(
     (official) => !official.legislator
   );
-  const stateSenators = statewideLeaders.filter(
+
+  const allStateSenators = statewideLeaders.filter(
     (official) => official.legislator && official.chamber !== "house"
   );
+  const stateSenators = isMd01
+    ? allStateSenators.filter(
+        (official) =>
+          canonicalDistrict(official.district) === canonicalDistrict(district)
+      )
+    : allStateSenators;
+
   const allStateDelegates = statewideLeaders.filter(
     (official) => official.legislator && official.chamber === "house"
   );
@@ -1009,16 +1130,18 @@ export default function MyRepresentativePage() {
   // U.S. House members are shown last — state officials are the primary
   // point of contact for district issues; Congress is federal context.
   const houseMembers = useMemo(() => {
+    // MD-01 shows only its State Senator — no U.S. House delegation.
+    if (isMd01) return [];
     if (resolvedState === "IL") {
       return ["IL-1", "IL-10", "IL-17"]
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
     }
-    // Maryland shows its full 8-member U.S. House delegation to every citizen.
-    // (TX/CA are left as-is until their full delegations are seeded.)
-    if (resolvedState === "MD") return stateHouseReps;
+    // Maryland and Colorado show their full U.S. House delegation to every
+    // citizen. (TX/CA are left as-is until their full delegations are seeded.)
+    if (resolvedState === "MD" || resolvedState === "CO") return stateHouseReps;
     return [];
-  }, [resolvedState, stateHouseReps]);
+  }, [resolvedState, stateHouseReps, isMd01]);
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) +
@@ -1362,20 +1485,6 @@ export default function MyRepresentativePage() {
               )}
             </section>
           </div>
-
-          <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <h3 className="text-2xl font-bold text-slate-900">Donation Tracker</h3>
-
-              <a
-                href="/donation-tracker"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                <HandCoins className="h-4 w-4" />
-                Donation Tracker
-              </a>
-            </div>
-          </section>
 
           <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
