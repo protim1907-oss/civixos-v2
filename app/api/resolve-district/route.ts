@@ -150,7 +150,13 @@ export async function POST(request: Request) {
     };
     const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
 
-    const districtId = `${effectiveStateAbbr}-${Number(district.value)}`;
+    // Maryland congressional districts are stored zero-padded (MD-1 -> MD-01).
+    const districtNumber = Number(district.value);
+    const districtDigits =
+      effectiveStateAbbr === "MD"
+        ? String(districtNumber).padStart(2, "0")
+        : String(districtNumber);
+    const districtId = `${effectiveStateAbbr}-${districtDigits}`;
     const districtLabel = buildDistrictLabel(
       resolvedStateName,
       String(district.value),

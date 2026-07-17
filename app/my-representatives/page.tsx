@@ -174,6 +174,14 @@ function normalizeStateName(state?: string | null): string {
   return map[value] || String(state || "").trim() || "State";
 }
 
+// Maryland congressional districts are canonicalized to a zero-padded 2-digit
+// code (MD-1 -> MD-01) so profiles, district_representatives rows, and the UI
+// all agree on one form.
+function padMarylandDistrict(code: string): string {
+  const match = code.match(/^MD-(\d{1,2})$/);
+  return match ? `MD-${match[1].padStart(2, "0")}` : code;
+}
+
 function normalizeDistrict(
   rawValue: string | null | undefined,
   state?: string | null
@@ -181,21 +189,24 @@ function normalizeDistrict(
   const raw = String(rawValue || "").trim().toUpperCase();
   const stateCode = normalizeStateCode(state);
 
-  if (!raw) return stateCode || "N/A";
-  if (/^[A-Z]{2}$/.test(raw)) return raw;
-  if (/^[A-Z]{2}-\d{1,2}$/.test(raw)) return raw;
-
-  const prefixedMatch = raw.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
-  if (prefixedMatch?.[1] && prefixedMatch?.[2]) {
-    return `${prefixedMatch[1]}-${Number(prefixedMatch[2])}`;
+  let code: string;
+  if (!raw) {
+    code = stateCode || "N/A";
+  } else if (/^[A-Z]{2}$/.test(raw) || /^[A-Z]{2}-\d{1,2}$/.test(raw)) {
+    code = raw;
+  } else {
+    const prefixedMatch = raw.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
+    const numericMatch = raw.match(/(\d{1,2})/);
+    if (prefixedMatch?.[1] && prefixedMatch?.[2]) {
+      code = `${prefixedMatch[1]}-${Number(prefixedMatch[2])}`;
+    } else if (numericMatch?.[1] && stateCode) {
+      code = `${stateCode}-${Number(numericMatch[1])}`;
+    } else {
+      code = raw;
+    }
   }
 
-  const numericMatch = raw.match(/(\d{1,2})/);
-  if (numericMatch?.[1] && stateCode) {
-    return `${stateCode}-${Number(numericMatch[1])}`;
-  }
-
-  return raw;
+  return padMarylandDistrict(code);
 }
 
 function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {

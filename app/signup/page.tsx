@@ -61,15 +61,21 @@ function normalizeDistrictValue(value: string | null | undefined) {
 
   const compactMatch = upper.match(/^([A-Z]{2})(\d{1,2})$/);
   if (compactMatch) {
-    return `${compactMatch[1]}-${Number(compactMatch[2])}`;
+    return padMarylandDistrict(`${compactMatch[1]}-${Number(compactMatch[2])}`);
   }
 
   const spacedMatch = upper.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
   if (spacedMatch) {
-    return `${spacedMatch[1]}-${Number(spacedMatch[2])}`;
+    return padMarylandDistrict(`${spacedMatch[1]}-${Number(spacedMatch[2])}`);
   }
 
-  return upper;
+  return padMarylandDistrict(upper);
+}
+
+// Maryland congressional districts are stored zero-padded (MD-1 -> MD-01).
+function padMarylandDistrict(code: string) {
+  const match = code.match(/^MD-(\d{1,2})$/);
+  return match ? `MD-${match[1].padStart(2, "0")}` : code;
 }
 
 function isValidResolvedDistrict(value: string | null | undefined) {
