@@ -74,10 +74,11 @@ const illinoisDistricts: DistrictOption[] = Array.from({ length: 17 }, (_, i) =>
   return { value: `IL-${n}`, label: `Illinois ${ordinal(n)} District (IL-${n})` };
 });
 
-// All 8 Maryland congressional districts.
+// All 8 Maryland congressional districts. Codes are zero-padded (MD-01 .. MD-08).
 const marylandDistricts: DistrictOption[] = Array.from({ length: 8 }, (_, i) => {
   const n = i + 1;
-  return { value: `MD-${n}`, label: `Maryland ${ordinal(n)} District (MD-${n})` };
+  const code = `MD-${String(n).padStart(2, "0")}`;
+  return { value: code, label: `Maryland ${ordinal(n)} District (${code})` };
 });
 
 
