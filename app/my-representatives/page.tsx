@@ -332,6 +332,9 @@ function sortOfficials(items: Official[]) {
 
   const stateOfficeRank = (title: string) => {
     const value = title.toLowerCase();
+    // Lieutenant Governor is checked first — it contains "governor" but should
+    // sort to the bottom of the statewide officials, not alongside the Governor.
+    if (value.includes("lieutenant governor")) return 9;
     if (value.includes("governor")) return 0;
     if (value.includes("attorney general")) return 1;
     return 2;
@@ -1507,30 +1510,6 @@ export default function MyRepresentativePage() {
 
             {statewideLeaders.length > 0 ? (
               <div className="mt-6 space-y-8">
-                {statewideOfficials.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Statewide Officials
-                    </h4>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Elected by the whole state — U.S. senators and executive
-                      officers.
-                    </p>
-                    <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
-                      {statewideOfficials.map((official) => (
-                        <OfficialCard
-                          key={official.id}
-                          official={official}
-                          wide
-                          onChat={startChat}
-                          onMeetingRequest={openMeetingRequest}
-                          onEmail={openEmailCompose}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {stateSenators.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -1567,6 +1546,30 @@ export default function MyRepresentativePage() {
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
                       {stateDelegates.map((official) => (
+                        <OfficialCard
+                          key={official.id}
+                          official={official}
+                          wide
+                          onChat={startChat}
+                          onMeetingRequest={openMeetingRequest}
+                          onEmail={openEmailCompose}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {statewideOfficials.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Statewide Officials
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Elected by the whole state — U.S. senators and executive
+                      officers.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                      {statewideOfficials.map((official) => (
                         <OfficialCard
                           key={official.id}
                           official={official}
