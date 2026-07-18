@@ -51,7 +51,6 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const KNOWN_DISTRICT_OPTIONS = ["CA-42", "TX-12", "TX-20", "TX-35"];
 
 function prettifyDistrictLabel(district: string | null, state: string | null) {
   if (!district && !state) return "Your district";
@@ -87,8 +86,6 @@ function buildDistrictOptions(values: Array<string | null | undefined>) {
     const normalized = normalizeDistrictCode(value);
     if (normalized && normalized !== "ALL") options.add(normalized);
   });
-
-  KNOWN_DISTRICT_OPTIONS.forEach((district) => options.add(district));
 
   return Array.from(options).sort((a, b) => a.localeCompare(b));
 }
@@ -295,48 +292,26 @@ export default function CreatePostPage() {
 
         const loadedProfile = (profileData as ProfileRow | null) ?? null;
         const staffCanChoose = isStaffRole(loadedProfile?.role);
-        const districtSources: Array<string | null | undefined> = [
-          loadedProfile?.district,
-          user.user_metadata?.district,
-          user.user_metadata?.district_id,
-          user.user_metadata?.district_name,
-        ];
 
+        let nextDistricts: string[];
         if (staffCanChoose) {
-          const [
-            { data: issueDistricts, error: issuesError },
-            { data: discussionDistricts, error: discussionsError },
-            { data: representativeDistricts, error: representativesError },
-          ] = await Promise.all([
-            supabase.from("issues").select("district").limit(500),
-            supabase.from("discussions").select("district").limit(500),
-            supabase.from("representatives").select("district, district_id").limit(500),
-          ]);
-
-          if (issuesError) console.error("Create Post issue districts error:", issuesError);
-          if (discussionsError) console.error("Create Post discussion districts error:", discussionsError);
-          if (representativesError) {
-            console.error("Create Post representative districts error:", representativesError);
+          // Staff post into any district that has registered citizens. The
+          // /api/active-districts route runs with the service role, so the list
+          // isn't limited by the poster's own profile RLS.
+          let citizenDistricts: string[] = [];
+          try {
+            const res = await fetch("/api/active-districts");
+            const json = await res.json();
+            if (Array.isArray(json?.districts)) {
+              citizenDistricts = json.districts as string[];
+            }
+          } catch (err) {
+            console.error("Create Post active districts error:", err);
           }
-
-          (issueDistricts as Array<{ district?: string | null }> | null)?.forEach((row) => {
-            districtSources.push(row.district);
-          });
-          (discussionDistricts as Array<{ district?: string | null }> | null)?.forEach((row) => {
-            districtSources.push(row.district);
-          });
-          (
-            representativeDistricts as
-              | Array<{ district?: string | null; district_id?: string | null }>
-              | null
-          )?.forEach((row) => {
-            districtSources.push(row.district, row.district_id);
-          });
+          nextDistricts = buildDistrictOptions(citizenDistricts);
+        } else {
+          nextDistricts = buildDistrictOptions([loadedProfile?.district]);
         }
-
-        const nextDistricts = staffCanChoose
-          ? buildDistrictOptions(districtSources)
-          : buildDistrictOptions([loadedProfile?.district]);
 
         setProfile(loadedProfile);
         setCanChooseDistrict(staffCanChoose);
