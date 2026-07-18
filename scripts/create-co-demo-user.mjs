@@ -19,7 +19,7 @@ const DEMO = {
   password: "CO1-Demo-2026!",
   full_name: "CO Demo Citizen",
   role: "citizen",
-  district: "CO-1",
+  district: "CO-01",
   state: "Colorado",
   street_address: "200 E Colfax Ave",
   city: "Denver",

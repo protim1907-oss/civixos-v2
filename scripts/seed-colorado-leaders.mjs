@@ -112,7 +112,7 @@ async function main() {
       const num = Number(t.district);
       const site = t.url || "";
       return {
-        district_code: `CO-${num}`,
+        district_code: `CO-${String(num).padStart(2, "0")}`,
         state: STATE,
         district_number: num,
         name: p.name.official_full,
@@ -205,7 +205,7 @@ async function main() {
         contact: homepage || "",
         party: partyFull(partyEntry?.name),
         photo: doc.image || "",
-        district: `CO-${num}`,
+        district: `CO-${String(num).padStart(2, "0")}`,
       })
     );
   }

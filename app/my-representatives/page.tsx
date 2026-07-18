@@ -174,12 +174,12 @@ function normalizeStateName(state?: string | null): string {
   return map[value] || String(state || "").trim() || "State";
 }
 
-// Maryland congressional districts are canonicalized to a zero-padded 2-digit
-// code (MD-1 -> MD-01) so profiles, district_representatives rows, and the UI
-// all agree on one form.
-function padMarylandDistrict(code: string): string {
-  const match = code.match(/^MD-(\d{1,2})$/);
-  return match ? `MD-${match[1].padStart(2, "0")}` : code;
+// Maryland and Colorado congressional districts are canonicalized to a
+// zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01) so profiles,
+// district_representatives rows, and the UI all agree on one form.
+function padDistrict(code: string): string {
+  const match = code.match(/^(MD|CO)-(\d{1,2})$/);
+  return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
 function normalizeDistrict(
@@ -206,7 +206,7 @@ function normalizeDistrict(
     }
   }
 
-  return padMarylandDistrict(code);
+  return padDistrict(code);
 }
 
 function getBadgeClasses(tone: "red" | "green" | "blue" | "slate") {
@@ -1121,12 +1121,12 @@ export default function MyRepresentativePage() {
   const allStateSenators = statewideLeaders.filter(
     (official) => official.legislator && official.chamber !== "house"
   );
-  const stateSenators = isMd01
-    ? allStateSenators.filter(
-        (official) =>
-          canonicalDistrict(official.district) === canonicalDistrict(district)
-      )
-    : allStateSenators;
+  // Citizens see only the State Senator whose district matches their own — a
+  // CO-1 citizen sees the CO-1 senator, a CO-17 citizen the CO-17 senator.
+  const stateSenators = allStateSenators.filter(
+    (official) =>
+      canonicalDistrict(official.district) === canonicalDistrict(district)
+  );
 
   const allStateDelegates = statewideLeaders.filter(
     (official) => official.legislator && official.chamber === "house"
