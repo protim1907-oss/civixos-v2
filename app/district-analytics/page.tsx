@@ -157,15 +157,21 @@ function normalizeDistrict(value: string | null | undefined) {
 
   const compactMatch = upper.match(/^([A-Z]{2})(\d{1,2})$/);
   if (compactMatch) {
-    return `${compactMatch[1]}-${Number(compactMatch[2])}`;
+    return padMarylandDistrict(`${compactMatch[1]}-${Number(compactMatch[2])}`);
   }
 
   const spacedMatch = upper.match(/^([A-Z]{2})[\s-]?(\d{1,2})$/);
   if (spacedMatch) {
-    return `${spacedMatch[1]}-${Number(spacedMatch[2])}`;
+    return padMarylandDistrict(`${spacedMatch[1]}-${Number(spacedMatch[2])}`);
   }
 
-  return upper;
+  return padMarylandDistrict(upper);
+}
+
+// Maryland congressional districts are canonicalized zero-padded (MD-1 -> MD-01).
+function padMarylandDistrict(code: string) {
+  const match = code.match(/^MD-(\d{1,2})$/);
+  return match ? `MD-${match[1].padStart(2, "0")}` : code;
 }
 
 function scoreSentiment(text: string) {
@@ -398,7 +404,7 @@ export default function DistrictAnalyticsPage() {
       try {
         setLoading(true);
 
-        const [issuesRes, postsRes, discussionsRes, surveysRes, profilesRes] = await Promise.all([
+        const [issuesRes, postsRes, discussionsRes, surveysRes, profilesRes, districtRepsRes] = await Promise.all([
           supabase
             .from("issues")
             .select("id, title, description, district, category, status, created_at")
@@ -424,6 +430,13 @@ export default function DistrictAnalyticsPage() {
             .from("profiles")
             .select("district")
             .not("district", "is", null),
+
+          // Every serviced congressional district — so districts with no citizen
+          // activity yet still show up in analytics.
+          supabase
+            .from("district_representatives")
+            .select("district_code")
+            .eq("is_active", true),
         ]);
 
         if (issuesRes.error) {
@@ -473,11 +486,21 @@ export default function DistrictAnalyticsPage() {
         if (profilesRes.error) {
           console.error("Profiles district load error:", profilesRes.error);
         }
+        if (districtRepsRes.error) {
+          console.error("District representatives load error:", districtRepsRes.error);
+        }
         setAllDistricts(
           Array.from(
             new Set(
-              ((profilesRes.data as Array<{ district: string | null }>) ?? [])
-                .map((row) => normalizeDistrict(row.district))
+              [
+                ...((profilesRes.data as Array<{ district: string | null }>) ?? []).map(
+                  (row) => row.district
+                ),
+                ...((districtRepsRes.data as Array<{ district_code: string | null }>) ?? []).map(
+                  (row) => row.district_code
+                ),
+              ]
+                .map((value) => normalizeDistrict(value))
                 .filter((d) => d !== "")
             )
           )
