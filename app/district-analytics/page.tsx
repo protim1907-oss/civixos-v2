@@ -404,7 +404,7 @@ export default function DistrictAnalyticsPage() {
       try {
         setLoading(true);
 
-        const [issuesRes, postsRes, discussionsRes, surveysRes, profilesRes, districtRepsRes] = await Promise.all([
+        const [issuesRes, postsRes, discussionsRes, surveysRes, activeDistrictsRes] = await Promise.all([
           supabase
             .from("issues")
             .select("id, title, description, district, category, status, created_at")
@@ -426,17 +426,11 @@ export default function DistrictAnalyticsPage() {
             .from("policy_pulse_surveys")
             .select("id, district, recent_responses"),
 
-          supabase
-            .from("profiles")
-            .select("district")
-            .not("district", "is", null),
-
-          // Every serviced congressional district — so districts with no citizen
-          // activity yet still show up in analytics.
-          supabase
-            .from("district_representatives")
-            .select("district_code")
-            .eq("is_active", true),
+          // Districts that actually have registered citizens. Served by the
+          // service role, so it isn't limited by the moderator's profile RLS.
+          fetch("/api/active-districts")
+            .then((res) => res.json())
+            .catch(() => ({ districts: [] as string[] })),
         ]);
 
         if (issuesRes.error) {
@@ -483,25 +477,16 @@ export default function DistrictAnalyticsPage() {
           })
         );
 
-        if (profilesRes.error) {
-          console.error("Profiles district load error:", profilesRes.error);
-        }
-        if (districtRepsRes.error) {
-          console.error("District representatives load error:", districtRepsRes.error);
-        }
+        // Only districts that have registered citizens (from /api/active-districts).
+        const citizenDistricts = Array.isArray(
+          (activeDistrictsRes as { districts?: unknown })?.districts
+        )
+          ? ((activeDistrictsRes as { districts: string[] }).districts as string[])
+          : [];
         setAllDistricts(
           Array.from(
             new Set(
-              [
-                ...((profilesRes.data as Array<{ district: string | null }>) ?? []).map(
-                  (row) => row.district
-                ),
-                ...((districtRepsRes.data as Array<{ district_code: string | null }>) ?? []).map(
-                  (row) => row.district_code
-                ),
-              ]
-                .map((value) => normalizeDistrict(value))
-                .filter((d) => d !== "")
+              citizenDistricts.map((value) => normalizeDistrict(value)).filter((d) => d !== "")
             )
           )
         );
@@ -743,8 +728,11 @@ export default function DistrictAnalyticsPage() {
       }
     }
 
+    // Restrict to districts with registered citizens — activity in a district
+    // that has no citizens (e.g. seeded reps only) is not shown.
+    const citizenDistricts = new Set(allDistricts);
     return Object.values(metrics)
-      .filter((item) => item.district !== "")
+      .filter((item) => item.district !== "" && citizenDistricts.has(item.district))
       .map((item) => {
         const avgSentiment = item.total > 0 ? item.sentimentScore / item.total : 0;
         const topCategoryEntries = Object.entries(districtCategories[item.district] || {}).sort(
