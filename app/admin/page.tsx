@@ -203,6 +203,7 @@ const EXCLUDED_USER_NAMES = [
   "constantinos brown",
   "il demo citizen",
   "md demo citizen",
+  "co demo citizen",
   "protim",
 ];
 
@@ -210,11 +211,11 @@ function isExcludedUserName(fullName: string | null | undefined) {
   return EXCLUDED_USER_NAMES.includes((fullName ?? "").trim().toLowerCase());
 }
 
-// A profile is hidden from the console when its name is excluded — EXCEPT for
-// moderators, who are always shown so the Moderators card and list stay in
-// sync (their accounts are real staff, not junk test rows).
+// A profile is hidden from the console when its name is excluded (test/personal
+// accounts). The rows still exist in Supabase — they are just filtered out of
+// the UI list and stats, for every role including moderators/admins. Both the
+// user list and the Moderators count use this, so they stay in sync.
 function isHiddenProfile(profile: { full_name: string | null; role: string | null }) {
-  if ((profile.role ?? "").toLowerCase() === "moderator") return false;
   return isExcludedUserName(profile.full_name);
 }
 
