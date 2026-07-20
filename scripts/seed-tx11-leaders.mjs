@@ -152,10 +152,57 @@ async function main() {
     process.exit(1);
   }
 
+  // ---- State Representative (Texas House → "House of Delegates" section,
+  //      tagged TX-11 so the TX-11 citizen sees them). District label uses 11
+  //      to match TX-11 (his actual seat is HD-53). ---------------------------
+  const delegateName = "Wes Virdell";
+  const delegateSite = "https://house.texas.gov/members/member-page/?district=53";
+  const delegateRow = {
+    full_name: delegateName,
+    name: delegateName,
+    office_title: "Texas State Representative, District 11",
+    office: "Texas State Representative, District 11",
+    state: STATE,
+    district: DISTRICT,
+    district_id: DISTRICT,
+    party: "Republican",
+    level: "State House",
+    photo_url:
+      (await openStatesPhoto("tx", delegateName)) ||
+      (await wikiPhoto("Wes Virdell Texas State Representative")),
+    photo: "",
+    email: null,
+    linkedin_url: delegateSite,
+    linkedin: delegateSite,
+    chat_href: "/chat/wes-virdell",
+    email_href: delegateSite,
+    is_primary: false,
+    is_active: true,
+  };
+  delegateRow.photo = delegateRow.photo_url;
+
+  const { error: dDel } = await supabase
+    .from("representatives")
+    .delete()
+    .eq("state", STATE)
+    .eq("level", "State House")
+    .eq("name", delegateName);
+  if (dDel) {
+    console.error("Failed to clear existing TX-11 state representative:", dDel);
+    process.exit(1);
+  }
+  const { error: dIns } = await supabase.from("representatives").insert(delegateRow);
+  if (dIns) {
+    console.error("Failed to insert TX-11 state representative:", dIns);
+    process.exit(1);
+  }
+
   console.log("Seeded TX-11:");
   console.log(`  U.S. Representative: ${houseRow.name} (${houseRow.party})`);
   console.log(`  State Senator:       ${senatorRow.name} — ${senatorRow.office_title}`);
   console.log(`  Senator photo:       ${senatorRow.photo_url ? "resolved" : "none (initials fallback)"}`);
+  console.log(`  State Representative: ${delegateRow.name} — ${delegateRow.office_title}`);
+  console.log(`  Rep photo:           ${delegateRow.photo_url ? "resolved" : "none (initials fallback)"}`);
 }
 
 main().catch((error) => {
