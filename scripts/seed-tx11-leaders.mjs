@@ -115,8 +115,8 @@ async function main() {
   const senatorRow = {
     full_name: senatorName,
     name: senatorName,
-    office_title: "Texas State Senator, District 31",
-    office: "Texas State Senator, District 31",
+    office_title: "Texas State Senator, District 11",
+    office: "Texas State Senator, District 11",
     state: STATE,
     district: DISTRICT,
     district_id: DISTRICT,
