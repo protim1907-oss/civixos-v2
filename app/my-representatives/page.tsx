@@ -1151,9 +1151,15 @@ export default function MyRepresentativePage() {
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
     }
-    // Maryland and Colorado show their full U.S. House delegation to every
-    // citizen. (TX/CA are left as-is until their full delegations are seeded.)
-    if (resolvedState === "MD" || resolvedState === "CO") return stateHouseReps;
+    // Maryland, Colorado, and Texas show their seeded U.S. House delegation to
+    // every citizen. (CA is left as-is until its delegation is seeded.)
+    if (
+      resolvedState === "MD" ||
+      resolvedState === "CO" ||
+      resolvedState === "TX"
+    ) {
+      return stateHouseReps;
+    }
     return [];
   }, [resolvedState, stateHouseReps, isMd01]);
 
