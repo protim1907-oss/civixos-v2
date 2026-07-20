@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import yaml from "js-yaml";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -34,6 +35,27 @@ async function wikiPhoto(query) {
     const data = await getJSON(url);
     const first = Object.values(data?.query?.pages || {})[0];
     return first?.thumbnail?.source || "";
+  } catch {
+    return "";
+  }
+}
+
+// Official state-legislator portrait from the OpenStates dataset (reliable for
+// state legislators, who usually aren't on Wikipedia).
+async function openStatesPhoto(stateAbbr, fullName) {
+  try {
+    const slug = fullName.replace(/\s+/g, "-");
+    const list = await getJSON(
+      `https://api.github.com/repos/openstates/people/contents/data/${stateAbbr}/legislature`
+    );
+    const file = (Array.isArray(list) ? list : []).find((f) =>
+      new RegExp(`^${slug}-`, "i").test(f.name || "")
+    );
+    if (!file) return "";
+    const r = await fetch(file.download_url, { headers: UA });
+    if (!r.ok) return "";
+    const doc = yaml.load(await r.text());
+    return doc?.image || "";
   } catch {
     return "";
   }
@@ -100,7 +122,9 @@ async function main() {
     district_id: DISTRICT,
     party: "Republican",
     level: "State Senate",
-    photo_url: await wikiPhoto("Kevin Sparks Texas State Senator"),
+    photo_url:
+      (await openStatesPhoto("tx", senatorName)) ||
+      (await wikiPhoto("Kevin Sparks Texas State Senator")),
     photo: "",
     email: null,
     linkedin_url: senatorSite,

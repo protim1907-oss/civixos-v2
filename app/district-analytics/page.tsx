@@ -175,6 +175,21 @@ function padDistrict(code: string) {
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
+// The 2-letter state code for a viewer, from their district (e.g. "TX-11" ->
+// "TX") or, failing that, their state name. Empty string means "unknown".
+function stateCodeOf(district?: string | null, state?: string | null) {
+  const prefix = String(district || "").trim().toUpperCase().split("-")[0];
+  if (/^[A-Z]{2}$/.test(prefix)) return prefix;
+  const byName: Record<string, string> = {
+    texas: "TX",
+    california: "CA",
+    illinois: "IL",
+    maryland: "MD",
+    colorado: "CO",
+  };
+  return byName[String(state || "").trim().toLowerCase()] || "";
+}
+
 function scoreSentiment(text: string) {
   const value = text.toLowerCase();
 
@@ -478,7 +493,27 @@ export default function DistrictAnalyticsPage() {
           })
         );
 
-        // Only districts that have registered citizens (from /api/active-districts).
+        // Scope analytics to the viewer's own state — a TX citizen sees only TX
+        // districts, etc. Derived from the viewer's profile district/state.
+        let viewerStateCode = "";
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("district, state")
+              .eq("id", user.id)
+              .maybeSingle();
+            viewerStateCode = stateCodeOf(prof?.district, prof?.state);
+          }
+        } catch {
+          // fall back to showing all districts
+        }
+
+        // Only districts that have registered citizens (from /api/active-districts),
+        // restricted to the viewer's state when it is known.
         const citizenDistricts = Array.isArray(
           (activeDistrictsRes as { districts?: unknown })?.districts
         )
@@ -487,7 +522,12 @@ export default function DistrictAnalyticsPage() {
         setAllDistricts(
           Array.from(
             new Set(
-              citizenDistricts.map((value) => normalizeDistrict(value)).filter((d) => d !== "")
+              citizenDistricts
+                .map((value) => normalizeDistrict(value))
+                .filter((d) => d !== "")
+                .filter(
+                  (d) => !viewerStateCode || d.split("-")[0] === viewerStateCode
+                )
             )
           )
         );
