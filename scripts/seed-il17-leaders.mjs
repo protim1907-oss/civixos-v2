@@ -27,19 +27,6 @@ async function getJSON(url) {
 const partyFull = (p) =>
   /^d/i.test(p || "") ? "Democrat" : /^r/i.test(p || "") ? "Republican" : p || "";
 
-async function wikiPhoto(query) {
-  try {
-    const url =
-      "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=pageimages&piprop=thumbnail&pithumbsize=500" +
-      `&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1`;
-    const data = await getJSON(url);
-    const first = Object.values(data?.query?.pages || {})[0];
-    return first?.thumbnail?.source || "";
-  } catch {
-    return "";
-  }
-}
-
 async function main() {
   // ---- U.S. Representative for IL-17 (from congress-legislators) -----------
   // This replaces the mis-seeded state-senator row that was sitting in the
@@ -109,17 +96,20 @@ async function main() {
   //      (HD-67, Rockford) while tagging the congressional district. ----------
   const delegateName = "Maurice A. West II";
   const delegateSite = "https://www.ilhousedems.com/west";
+  // Official House Democrats portrait (Wikipedia has no free image for him).
+  const delegatePhoto =
+    "https://ilhousedems.com/wp-content/uploads/2019/02/West-214x300.jpg";
   const delegateRow = {
     full_name: delegateName,
     name: delegateName,
-    office_title: "Illinois State Representative, District 67",
-    office: "Illinois State Representative, District 67",
+    office_title: "Illinois State Representative",
+    office: "Illinois State Representative",
     state: STATE,
     district: DISTRICT,
     district_id: DISTRICT,
     party: "Democrat",
     level: "State House",
-    photo_url: await wikiPhoto("Maurice West Illinois State Representative"),
+    photo_url: delegatePhoto,
     photo: "",
     email: null,
     linkedin_url: delegateSite,
