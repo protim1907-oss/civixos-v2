@@ -1132,14 +1132,20 @@ export default function MyRepresentativePage() {
     (official) => official.legislator && official.chamber === "house"
   );
   // If any delegates are tagged to this citizen's district, show only those;
-  // otherwise fall back to the full delegation.
+  // otherwise fall back to the statewide delegation — delegates with no
+  // district tag (e.g. Maryland's full House of Delegates). A delegate tagged
+  // to a *different* district (e.g. the TX-11 state rep) must never leak into
+  // another district's view.
   const districtDelegates = allStateDelegates.filter(
     (official) =>
       official.district &&
       normalizeDistrict(official.district) === normalizeDistrict(district)
   );
+  const untaggedDelegates = allStateDelegates.filter(
+    (official) => !official.district
+  );
   const stateDelegates =
-    districtDelegates.length > 0 ? districtDelegates : allStateDelegates;
+    districtDelegates.length > 0 ? districtDelegates : untaggedDelegates;
 
   // U.S. House members are shown last — state officials are the primary
   // point of contact for district issues; Congress is federal context.

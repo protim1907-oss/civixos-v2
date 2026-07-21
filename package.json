@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed:ca42-leaders": "node --env-file=.env.local scripts/seed-ca42-leaders.mjs",
-    "seed:tx35-leaders": "node --env-file=.env.local scripts/seed-tx35-leaders.mjs"
+    "seed:tx35-leaders": "node --env-file=.env.local scripts/seed-tx35-leaders.mjs",
+    "seed:tx3-leaders": "node --env-file=.env.local scripts/seed-tx3-leaders.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
