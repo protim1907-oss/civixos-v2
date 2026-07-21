@@ -1150,24 +1150,35 @@ export default function MyRepresentativePage() {
   // U.S. House members are shown last — state officials are the primary
   // point of contact for district issues; Congress is federal context.
   const houseMembers = useMemo(() => {
+    let members: Official[] = [];
     // MD-01 shows only its State Senator — no U.S. House delegation.
-    if (isMd01) return [];
-    if (resolvedState === "IL") {
-      return ["IL-1", "IL-10", "IL-17"]
+    if (isMd01) {
+      members = [];
+    } else if (resolvedState === "IL") {
+      members = ["IL-1", "IL-10", "IL-17"]
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
-    }
-    // Maryland, Colorado, and Texas show their seeded U.S. House delegation to
-    // every citizen. (CA is left as-is until its delegation is seeded.)
-    if (
+    } else if (
+      // Maryland, Colorado, and Texas show their seeded U.S. House delegation to
+      // every citizen. (CA is left as-is until its delegation is seeded.)
       resolvedState === "MD" ||
       resolvedState === "CO" ||
       resolvedState === "TX"
     ) {
-      return stateHouseReps;
+      members = stateHouseReps;
     }
-    return [];
-  }, [resolvedState, stateHouseReps, isMd01]);
+
+    // The citizen's own U.S. House member is already shown as the assigned
+    // district card at the top, so drop the duplicate from this federal list.
+    if (primaryRepresentative) {
+      const assignedName = primaryRepresentative.name.trim().toLowerCase();
+      members = members.filter(
+        (member) => member.name.trim().toLowerCase() !== assignedName
+      );
+    }
+
+    return members;
+  }, [resolvedState, stateHouseReps, isMd01, primaryRepresentative]);
 
   const visibleRepresentativesCount =
     (primaryRepresentative ? 1 : 0) +
