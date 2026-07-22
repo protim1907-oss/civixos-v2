@@ -142,6 +142,8 @@ function normalizeStateCode(state?: string | null): string {
     md: "MD",
     colorado: "CO",
     co: "CO",
+    nevada: "NV",
+    nv: "NV",
     florida: "FL",
     fl: "FL",
     "new york": "NY",
@@ -165,6 +167,8 @@ function normalizeStateName(state?: string | null): string {
     md: "Maryland",
     colorado: "Colorado",
     co: "Colorado",
+    nevada: "Nevada",
+    nv: "Nevada",
     florida: "Florida",
     fl: "Florida",
     "new york": "New York",
@@ -678,6 +682,76 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       },
     },
   ],
+  NV: [
+    {
+      id: "catherine-cortez-masto",
+      name: "Catherine Cortez Masto",
+      title: "U.S. Senator",
+      officeLabel: "Nevada",
+      level: "federal",
+      state: "Nevada",
+      party: "Democrat",
+      website: "https://www.cortezmasto.senate.gov",
+      contactUrl: "https://www.cortezmasto.senate.gov/contact/",
+      phone: "(202) 224-3542",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "jacky-rosen",
+      name: "Jacky Rosen",
+      title: "U.S. Senator",
+      officeLabel: "Nevada",
+      level: "federal",
+      state: "Nevada",
+      party: "Democrat",
+      website: "https://www.rosen.senate.gov",
+      contactUrl: "https://www.rosen.senate.gov/contact/",
+      phone: "(202) 224-6244",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "joe-lombardo",
+      name: "Joe Lombardo",
+      title: "Governor of Nevada",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Nevada",
+      party: "Republican",
+      website: "https://gov.nv.gov",
+      contactUrl: "https://gov.nv.gov/Contact/Email_the_Governor/",
+      phone: "(775) 684-5670",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "aaron-ford",
+      name: "Aaron D. Ford",
+      title: "Attorney General of Nevada",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Nevada",
+      party: "Democrat",
+      website: "https://ag.nv.gov",
+      contactUrl: "https://ag.nv.gov/About/Contact_the_AG/",
+      phone: "(775) 684-1100",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
 };
 
 // Congressional portraits from the official government bioguide, keyed by
@@ -1159,11 +1233,13 @@ export default function MyRepresentativePage() {
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
     } else if (
-      // Maryland, Colorado, and Texas show their seeded U.S. House delegation to
-      // every citizen. (CA is left as-is until its delegation is seeded.)
+      // Maryland, Colorado, Texas, and Nevada show their seeded U.S. House
+      // delegation to every citizen. (CA is left as-is until its delegation is
+      // seeded.)
       resolvedState === "MD" ||
       resolvedState === "CO" ||
-      resolvedState === "TX"
+      resolvedState === "TX" ||
+      resolvedState === "NV"
     ) {
       members = stateHouseReps;
     }

@@ -568,6 +568,7 @@ export default function SignupPage() {
           <option value="Illinois">Illinois</option>
           <option value="Maryland">Maryland</option>
           <option value="Colorado">Colorado</option>
+          <option value="Nevada">Nevada</option>
         </select>
       </div>
 

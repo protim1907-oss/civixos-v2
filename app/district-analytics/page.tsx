@@ -186,6 +186,7 @@ function stateCodeOf(district?: string | null, state?: string | null) {
     illinois: "IL",
     maryland: "MD",
     colorado: "CO",
+    nevada: "NV",
   };
   return byName[String(state || "").trim().toLowerCase()] || "";
 }
