@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import yaml from "js-yaml";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -23,11 +22,6 @@ async function getJSON(url) {
   const r = await fetch(url, { headers: UA });
   if (!r.ok) throw new Error(`${url} -> ${r.status}`);
   return r.json();
-}
-async function getText(url) {
-  const r = await fetch(url, { headers: UA });
-  if (!r.ok) return null;
-  return r.text();
 }
 const partyFull = (p) =>
   /^d/i.test(p || "") ? "Democrat" : /^r/i.test(p || "") ? "Republican" : p || "";
@@ -77,25 +71,6 @@ async function wikiPhoto(query) {
     const data = await getJSON(url);
     const first = Object.values(data?.query?.pages || {})[0];
     return first?.thumbnail?.source || "";
-  } catch {
-    return "";
-  }
-}
-
-// Official state-legislator portrait from the OpenStates dataset.
-async function openStatesPhoto(stateAbbr, fullName) {
-  try {
-    const slug = fullName.replace(/\s+/g, "-");
-    const list = await getJSON(
-      `https://api.github.com/repos/openstates/people/contents/data/${stateAbbr}/legislature`
-    );
-    const file = (Array.isArray(list) ? list : []).find((f) =>
-      new RegExp(`^${slug}-`, "i").test(f.name || "")
-    );
-    if (!file) return "";
-    const txt = await getText(file.download_url);
-    const doc = txt ? yaml.load(txt) : null;
-    return doc?.image || "";
   } catch {
     return "";
   }
@@ -171,6 +146,9 @@ async function main() {
   // ---- 3. Featured NV-1 (Las Vegas) state legislators, tagged to the
   //         congressional district — the same shape as TX-3. Titles omit the
   //         chamber-district number to avoid confusion with NV-1. -------------
+  // Nevada state legislators aren't on Wikimedia and the official leg.state.nv.us
+  // portrait host blocks hotlinking, so photos are set explicitly: a verified
+  // Commons image where one exists, otherwise "" (the UI shows initials).
   const senatorName = "Dallas Harris";
   const stateSenator = representative({
     name: senatorName,
@@ -179,9 +157,7 @@ async function main() {
     website: "https://www.leg.state.nv.us/App/Legislator/A/Senate/Current",
     contact: "https://www.leg.state.nv.us/App/Legislator/A/Senate/Current",
     party: "Democrat",
-    photo:
-      (await openStatesPhoto("nv", senatorName)) ||
-      (await wikiPhoto("Dallas Harris Nevada State Senator")),
+    photo: "", // No free headshot available — initials fallback.
     district: FEATURED_DISTRICT,
   });
 
@@ -193,9 +169,10 @@ async function main() {
     website: "https://www.leg.state.nv.us/App/Legislator/A/Assembly/Current",
     contact: "https://www.leg.state.nv.us/App/Legislator/A/Assembly/Current",
     party: "Democrat",
+    // Wikimedia Commons portrait of Assembly Speaker Steve Yeager (the NV
+    // politician — the unqualified "Steve Yeager" page is a baseball player).
     photo:
-      (await openStatesPhoto("nv", assemblyName)) ||
-      (await wikiPhoto("Steve Yeager Nevada Assembly")),
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Steve_and_Bita_Yeager_at_Nevada_Legislature_-_Feb_2023_%28cropped%29.jpg/330px-Steve_and_Bita_Yeager_at_Nevada_Legislature_-_Feb_2023_%28cropped%29.jpg",
     district: FEATURED_DISTRICT,
   });
 
