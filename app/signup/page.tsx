@@ -36,6 +36,10 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Colorado voter registration",
     url: "https://www.coloradosos.gov/voter/pages/pub/olvr/findVoterReg.xhtml",
   },
+  Nevada: {
+    label: "Check Nevada voter registration",
+    url: "https://www.nvsos.gov/votersearch/",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
