@@ -178,11 +178,11 @@ function normalizeStateName(state?: string | null): string {
   return map[value] || String(state || "").trim() || "State";
 }
 
-// Maryland and Colorado congressional districts are canonicalized to a
-// zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01) so profiles,
-// district_representatives rows, and the UI all agree on one form.
+// Maryland, Colorado, and Nevada congressional districts are canonicalized to a
+// zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01) so
+// profiles, district_representatives rows, and the UI all agree on one form.
 function padDistrict(code: string): string {
-  const match = code.match(/^(MD|CO)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 

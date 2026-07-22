@@ -188,10 +188,10 @@ function normalizeDistrict(value: string | null | undefined) {
   return padDistrict(raw);
 }
 
-// Maryland and Colorado districts are canonicalized zero-padded (MD-1 -> MD-01,
-// CO-1 -> CO-01).
+// Maryland, Colorado, and Nevada districts are canonicalized zero-padded
+// (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 

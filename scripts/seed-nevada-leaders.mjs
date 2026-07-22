@@ -15,7 +15,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 const STATE = "Nevada";
-const FEATURED_DISTRICT = "NV-1"; // Las Vegas — the demo district (Dina Titus).
+// Nevada districts are stored zero-padded (NV-01 .. NV-04), matching MD and CO.
+const FEATURED_DISTRICT = "NV-01"; // Las Vegas — the demo district (Dina Titus).
 const UA = { "User-Agent": "civix250-seed/1.0 (contact: admin@civix250.com)" };
 
 async function getJSON(url) {
@@ -90,7 +91,7 @@ async function main() {
       const num = Number(t.district);
       const site = t.url || "";
       return {
-        district_code: `NV-${num}`,
+        district_code: `NV-${String(num).padStart(2, "0")}`,
         state: STATE,
         district_number: num,
         name: p.name.official_full,

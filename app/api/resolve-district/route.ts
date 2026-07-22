@@ -152,9 +152,9 @@ export async function POST(request: Request) {
     };
     const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
 
-    // Maryland and Colorado congressional districts are stored zero-padded
-    // (MD-1 -> MD-01, CO-1 -> CO-01).
-    const zeroPaddedStates = ["MD", "CO"];
+    // Maryland, Colorado, and Nevada congressional districts are stored
+    // zero-padded (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
+    const zeroPaddedStates = ["MD", "CO", "NV"];
     const districtNumber = Number(district.value);
     const districtDigits = zeroPaddedStates.includes(effectiveStateAbbr)
       ? String(districtNumber).padStart(2, "0")
