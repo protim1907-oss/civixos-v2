@@ -19,8 +19,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 // district outside the allowed states, so this profile upsert fails until NV
 // is added to that trigger.
 const DEMO = {
-  email: "nv1.demo@civix250.com",
-  password: "NV1-Demo-2026!",
+  email: "vegas.demo@civix250.com",
+  password: "SilverState-Vegas-26!",
   full_name: "NV Demo Citizen",
   role: "citizen",
   district: "NV-01",
