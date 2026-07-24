@@ -24,11 +24,29 @@ type CampaignRow = {
   from_email: string;
   daily_cap: number;
   status: string;
-  audience_filter: { states?: string[]; office_types?: string[]; levels?: string[] };
+  audience_filter: {
+    states?: string[];
+    office_types?: string[];
+    levels?: string[];
+    regions?: string[];
+    industries?: string[];
+  };
   counts: Record<string, number>;
 };
 
-type LeadSummary = { total: number; states: string[]; officeTypes: string[] };
+type LeadSummary = {
+  total: number;
+  states: string[];
+  officeTypes: string[];
+  regions: string[];
+  industries: string[];
+};
+
+const REGION_LABEL: Record<string, string> = {
+  us: "United States",
+  europe: "Europe",
+  uae: "UAE",
+};
 
 type MessageRow = {
   id: string;
@@ -59,22 +77,35 @@ export default function OutreachPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
-  const [leads, setLeads] = useState<LeadSummary>({ total: 0, states: [], officeTypes: [] });
+  const [leads, setLeads] = useState<LeadSummary>({
+    total: 0,
+    states: [],
+    officeTypes: [],
+    regions: [],
+    industries: [],
+  });
 
   const [selected, setSelected] = useState<CampaignRow | null>(null);
   const [messages, setMessages] = useState<MessageRow[]>([]);
+  const [csvText, setCsvText] = useState("");
 
   const [form, setForm] = useState({
-    name: "",
-    goal: "",
-    from_name: "Civix250 Team",
-    from_email: "outreach@civix250.ai",
-    reply_to: "",
-    postal_address: "Civix250, 123 Main St, Austin, TX 78701",
+    name: "MVP prospects — US / Europe / UAE",
+    goal: "Book a short intro call with founders who want to build an MVP.",
+    sender_org: "BidSpro International",
+    offering:
+      "Rapid MVP design & development — we take founders from idea to a working, launch-ready MVP in weeks, not months.",
+    from_name: "Protim Ghosh",
+    from_email: "protimghosh@bidsprointernational.com",
+    reply_to: "protimghosh@bidsprointernational.com",
+    footer_reason:
+      "You received this because you're building or exploring a new product. If it isn't relevant,",
+    postal_address: "BidSpro International — <add your registered postal address>",
     daily_cap: 25,
-    states: [] as string[],
-    office_types: [] as string[],
-    ai_prompt: "",
+    regions: [] as string[],
+    industries: [] as string[],
+    ai_prompt:
+      "Audience: founders and product leaders looking to build an MVP. Emphasize speed to launch, fixed scope, and senior engineering. Keep it short and human.",
   });
 
   const flash = (m: string) => {
@@ -89,7 +120,13 @@ export default function OutreachPage() {
     ]);
     if (c.campaigns) setCampaigns(c.campaigns);
     if (l.total !== undefined)
-      setLeads({ total: l.total, states: l.states || [], officeTypes: l.officeTypes || [] });
+      setLeads({
+        total: l.total,
+        states: l.states || [],
+        officeTypes: l.officeTypes || [],
+        regions: l.regions || [],
+        industries: l.industries || [],
+      });
   }, []);
 
   useEffect(() => {
@@ -120,12 +157,20 @@ export default function OutreachPage() {
     };
   }, [router, supabase, loadData]);
 
-  async function importLeads() {
+  async function importCsv() {
+    if (!csvText.trim()) return flash("Paste CSV text first.");
     setBusy("import");
     try {
-      const res = await fetch("/api/outreach/import-leads", { method: "POST" }).then((r) => r.json());
+      const res = await fetch("/api/outreach/import-csv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv: csvText }),
+      }).then((r) => r.json());
       if (res.error) flash(res.error);
-      else flash(`Imported ${res.imported} leads (${res.skippedNoEmail} had no email).`);
+      else {
+        flash(`Imported ${res.imported} leads (${res.skippedNoEmail} had no email).`);
+        setCsvText("");
+      }
       await loadData();
     } finally {
       setBusy(null);
@@ -142,6 +187,9 @@ export default function OutreachPage() {
         body: JSON.stringify({
           name: form.name,
           goal: form.goal,
+          sender_org: form.sender_org,
+          offering: form.offering,
+          footer_reason: form.footer_reason,
           from_name: form.from_name,
           from_email: form.from_email,
           reply_to: form.reply_to,
@@ -149,8 +197,8 @@ export default function OutreachPage() {
           daily_cap: form.daily_cap,
           ai_prompt: form.ai_prompt,
           audience_filter: {
-            states: form.states,
-            office_types: form.office_types,
+            regions: form.regions,
+            industries: form.industries,
           },
         }),
       }).then((r) => r.json());
@@ -241,7 +289,7 @@ export default function OutreachPage() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Outreach Agent</h1>
               <p className="text-sm text-slate-600">
-                AI-drafted campaigns to government offices — with approval, suppression, and CAN-SPAM footers.
+                AI-drafted cold outreach — with human approval, suppression, daily caps, and CAN-SPAM footers.
               </p>
             </div>
           </div>
@@ -262,18 +310,45 @@ export default function OutreachPage() {
                   <p className="text-2xl font-bold text-slate-900">{leads.total}</p>
                 </div>
               </div>
-              <button
-                onClick={importLeads}
-                disabled={busy === "import"}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-              >
-                {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Import from officials DB
-              </button>
             </div>
-            {leads.states.length > 0 && (
+
+            <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Import leads — paste CSV
+            </p>
+            <p className="mb-2 text-xs text-slate-500">
+              Header row required. Recognised columns:{" "}
+              <code className="rounded bg-slate-100 px-1">email</code> (required),{" "}
+              <code className="rounded bg-slate-100 px-1">company</code>,{" "}
+              <code className="rounded bg-slate-100 px-1">name</code>,{" "}
+              <code className="rounded bg-slate-100 px-1">title</code>,{" "}
+              <code className="rounded bg-slate-100 px-1">website</code>,{" "}
+              <code className="rounded bg-slate-100 px-1">country</code>,{" "}
+              <code className="rounded bg-slate-100 px-1">region</code> (us/europe/uae),{" "}
+              <code className="rounded bg-slate-100 px-1">industry</code>,{" "}
+              <code className="rounded bg-slate-100 px-1">notes</code>. Region is inferred from country when omitted.
+            </p>
+            <textarea
+              className="input font-mono text-xs"
+              rows={4}
+              placeholder={"email,company,name,title,country,industry\njane@acme.io,Acme,Jane Doe,Founder,United States,fintech"}
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+            />
+            <button
+              onClick={importCsv}
+              disabled={busy === "import"}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {busy === "import" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Import CSV
+            </button>
+
+            {(leads.regions.length > 0 || leads.industries.length > 0) && (
               <p className="mt-3 text-xs text-slate-500">
-                States: {leads.states.join(", ")} · Office types: {leads.officeTypes.join(", ")}
+                {leads.regions.length > 0 && (
+                  <>Regions: {leads.regions.map((r) => REGION_LABEL[r] || r).join(", ")}</>
+                )}
+                {leads.industries.length > 0 && <> · Industries: {leads.industries.join(", ")}</>}
               </p>
             )}
           </section>
@@ -288,36 +363,50 @@ export default function OutreachPage() {
                 onChange={(e) => setForm({ ...form, daily_cap: Number(e.target.value) })} />
               <input className="input md:col-span-2" placeholder="Goal (what should this campaign achieve?)"
                 value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} />
+              <input className="input" placeholder="Sender organization (e.g. BidSpro International)"
+                value={form.sender_org} onChange={(e) => setForm({ ...form, sender_org: e.target.value })} />
+              <input className="input" placeholder="Reply-to email" value={form.reply_to}
+                onChange={(e) => setForm({ ...form, reply_to: e.target.value })} />
+              <textarea className="input md:col-span-2" rows={2}
+                placeholder="Offering — what you're pitching (drives the AI)"
+                value={form.offering} onChange={(e) => setForm({ ...form, offering: e.target.value })} />
               <input className="input" placeholder="From name" value={form.from_name}
                 onChange={(e) => setForm({ ...form, from_name: e.target.value })} />
               <input className="input" placeholder="From email" value={form.from_email}
                 onChange={(e) => setForm({ ...form, from_email: e.target.value })} />
               <input className="input md:col-span-2" placeholder="Postal address (required for CAN-SPAM)"
                 value={form.postal_address} onChange={(e) => setForm({ ...form, postal_address: e.target.value })} />
+              <input className="input md:col-span-2" placeholder="Footer reason line (why they're getting this)"
+                value={form.footer_reason} onChange={(e) => setForm({ ...form, footer_reason: e.target.value })} />
               <textarea className="input md:col-span-2" rows={3}
                 placeholder="Talking points / extra guidance for the AI (optional)"
                 value={form.ai_prompt} onChange={(e) => setForm({ ...form, ai_prompt: e.target.value })} />
             </div>
 
             <div className="mt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Audience — states</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Audience — regions</p>
               <div className="flex flex-wrap gap-2">
-                {leads.states.map((s) => (
-                  <button key={s} onClick={() => setForm({ ...form, states: toggle(form.states, s) })}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium ${form.states.includes(s) ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"}`}>
-                    {s}
+                {(leads.regions.length ? leads.regions : ["us", "europe", "uae"]).map((r) => (
+                  <button key={r} onClick={() => setForm({ ...form, regions: toggle(form.regions, r) })}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${form.regions.includes(r) ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"}`}>
+                    {REGION_LABEL[r] || r}
                   </button>
                 ))}
               </div>
-              <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Audience — office types</p>
-              <div className="flex flex-wrap gap-2">
-                {leads.officeTypes.map((o) => (
-                  <button key={o} onClick={() => setForm({ ...form, office_types: toggle(form.office_types, o) })}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium ${form.office_types.includes(o) ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"}`}>
-                    {o}
-                  </button>
-                ))}
-              </div>
+              {leads.industries.length > 0 && (
+                <>
+                  <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Audience — industries</p>
+                  <div className="flex flex-wrap gap-2">
+                    {leads.industries.map((o) => (
+                      <button key={o} onClick={() => setForm({ ...form, industries: toggle(form.industries, o) })}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium ${form.industries.includes(o) ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"}`}>
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <p className="mt-2 text-xs text-slate-400">Leave regions empty to target all imported leads.</p>
             </div>
 
             <button onClick={createCampaign} disabled={busy === "create"}
@@ -344,7 +433,7 @@ export default function OutreachPage() {
                     <p className="mt-1 text-xs text-slate-400">
                       From {c.from_name} &lt;{c.from_email}&gt; · cap {c.daily_cap}/day ·
                       {" "}
-                      {(c.audience_filter.states || []).join(", ") || "all states"}
+                      {(c.audience_filter.regions || []).map((r) => REGION_LABEL[r] || r).join(", ") || "all regions"}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {Object.entries(c.counts).map(([s, n]) => (

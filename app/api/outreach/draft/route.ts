@@ -38,6 +38,9 @@ export async function POST(request: Request) {
   if (filter.states?.length) query = query.in("state", filter.states);
   if (filter.office_types?.length) query = query.in("office_type", filter.office_types);
   if (filter.levels?.length) query = query.in("level", filter.levels);
+  if (filter.regions?.length) query = query.in("region", filter.regions);
+  if (filter.countries?.length) query = query.in("country", filter.countries);
+  if (filter.industries?.length) query = query.in("industry", filter.industries);
 
   const { data: leads } = await query.limit(500);
 

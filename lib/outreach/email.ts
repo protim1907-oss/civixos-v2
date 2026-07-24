@@ -155,32 +155,54 @@ export async function sendCampaignEmail(params: {
 }): Promise<SendResult> {
   const { campaign, to, subject, bodyText } = params;
 
-  if (!resend) {
-    return { ok: false, error: "RESEND_API_KEY is not configured." };
+  const transport = activeTransport();
+  if (transport === "none") {
+    return {
+      ok: false,
+      error:
+        "No email transport configured. Set RESEND_API_KEY (Resend) or SMTP_HOST/SMTP_USER/SMTP_PASS (SMTP).",
+    };
   }
   if (await isSuppressed(to)) {
     return { ok: false, error: "Recipient is on the suppression list.", suppressed: true };
   }
 
   const unsubUrl = unsubscribeUrl(to);
+  const html = buildHtml(bodyText, campaign, unsubUrl);
+  const from = `${campaign.from_name} <${campaign.from_email}>`;
+  const replyTo = campaign.reply_to || campaign.from_email;
+  const headers = {
+    "List-Unsubscribe": `<${unsubUrl}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: `${campaign.from_name} <${campaign.from_email}>`,
+    if (transport === "resend") {
+      if (!resend) return { ok: false, error: "RESEND_API_KEY is not configured." };
+      const { data, error } = await resend.emails.send({
+        from,
+        to,
+        subject,
+        html,
+        replyTo,
+        headers,
+      });
+      if (error) return { ok: false, error: error.message || "Resend send failed." };
+      return { ok: true, providerId: data?.id ?? null };
+    }
+
+    // SMTP (nodemailer)
+    const smtp = getSmtp();
+    if (!smtp) return { ok: false, error: "SMTP is not configured." };
+    const info = await smtp.sendMail({
+      from,
       to,
       subject,
-      html: buildHtml(bodyText, campaign, unsubUrl),
-      replyTo: campaign.reply_to || campaign.from_email,
-      headers: {
-        "List-Unsubscribe": `<${unsubUrl}>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-      },
+      html,
+      replyTo,
+      headers,
     });
-
-    if (error) {
-      return { ok: false, error: error.message || "Resend send failed." };
-    }
-    return { ok: true, providerId: data?.id ?? null };
+    return { ok: true, providerId: info.messageId ?? null };
   } catch (err) {
     return {
       ok: false,

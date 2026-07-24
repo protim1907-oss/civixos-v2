@@ -26,16 +26,20 @@ export async function GET(request: Request) {
   const { data: leads, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Distinct states / office types + total for filter chips.
+  // Distinct filter values + total for filter chips.
   const { data: all } = await supabaseAdmin
     .from("outreach_leads")
-    .select("state, office_type");
+    .select("state, office_type, region, industry");
 
   const states = new Set<string>();
   const officeTypes = new Set<string>();
+  const regions = new Set<string>();
+  const industries = new Set<string>();
   for (const l of all || []) {
     if (l.state) states.add(l.state);
     if (l.office_type) officeTypes.add(l.office_type);
+    if (l.region) regions.add(l.region);
+    if (l.industry) industries.add(l.industry);
   }
 
   return NextResponse.json({
@@ -43,5 +47,7 @@ export async function GET(request: Request) {
     total: (all || []).length,
     states: [...states].sort(),
     officeTypes: [...officeTypes].sort(),
+    regions: [...regions].sort(),
+    industries: [...industries].sort(),
   });
 }
