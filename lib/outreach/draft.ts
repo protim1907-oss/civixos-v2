@@ -1,13 +1,13 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import type { OutreachCampaign, OutreachLead } from "./types";
 
-// Drafting model. Sonnet 5 is a strong, cost-appropriate choice for high-volume
-// personalized copy. Thinking is disabled — email drafting is not a reasoning
-// task and per-lead latency/cost matters at campaign scale.
-const DRAFT_MODEL = "claude-sonnet-5";
+// Drafting model. gpt-4.1-mini is a strong, cost-appropriate choice for
+// high-volume personalized copy — good instruction-following at low per-lead
+// cost, which matters at campaign scale. Override with OUTREACH_DRAFT_MODEL.
+const DRAFT_MODEL = process.env.OUTREACH_DRAFT_MODEL || "gpt-4.1-mini";
 
-const client = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const client = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
 export type DraftResult = { subject: string; body: string };
@@ -15,12 +15,16 @@ export type DraftResult = { subject: string; body: string };
 function leadContext(lead: OutreachLead): string {
   return [
     lead.contact_name && `Contact: ${lead.contact_name}`,
-    lead.title && `Title: ${lead.title}`,
-    lead.org_name && `Organization/Office: ${lead.org_name}`,
-    lead.office_type && `Office type: ${lead.office_type}`,
-    lead.state && `State: ${lead.state}`,
-    lead.district && `District: ${lead.district}`,
+    lead.title && `Title/Role: ${lead.title}`,
+    lead.org_name && `Company: ${lead.org_name}`,
+    lead.industry && `Industry: ${lead.industry}`,
+    lead.country && `Country: ${lead.country}`,
+    lead.region && `Region: ${lead.region}`,
     lead.website && `Website: ${lead.website}`,
+    lead.notes && `Notes: ${lead.notes}`,
+    // Legacy B2G fields — harmless if null.
+    lead.office_type && `Office type: ${lead.office_type}`,
+    lead.state && !lead.country && `State: ${lead.state}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -34,25 +38,31 @@ function stripToJson(text: string): string {
   return (braces?.[0] || text).trim();
 }
 
-// Draft a single personalized outreach email for one lead. The compliant
-// footer (unsubscribe + postal address) is added at send time, not here.
+// Draft a single personalized cold-outreach email for one lead. The persona is
+// driven entirely by the campaign (sender_org / offering / goal / ai_prompt), so
+// the same engine works for any product. The compliant footer (unsubscribe +
+// postal address) is added at SEND time, not here.
 export async function draftEmail(
   campaign: OutreachCampaign,
   lead: OutreachLead
 ): Promise<DraftResult> {
   if (!client) {
-    throw new Error(
-      "ANTHROPIC_API_KEY is not configured — cannot draft emails."
-    );
+    throw new Error("OPENAI_API_KEY is not configured — cannot draft emails.");
   }
 
+  const org = campaign.sender_org || campaign.from_name;
+  const offering = campaign.offering || campaign.goal || "the sender's product/service";
+
   const system = [
-    "You write concise, professional B2G (business-to-government) outreach emails on behalf of Civix250, a civic-engagement platform that connects citizens with their representatives.",
+    `You write concise, professional B2B cold-outreach emails on behalf of ${org}.`,
+    `What ${org} offers: ${offering}.`,
     "Rules:",
-    "- Be genuine and specific to the recipient's office; never sound like mass spam.",
-    "- 90-150 words. Plain, warm, direct. No hype, no emojis, no ALL-CAPS.",
-    "- Honest subject line that reflects the body (CAN-SPAM). No clickbait, no 'RE:' fakery.",
-    "- One clear call to action. Do not fabricate facts, statistics, endorsements, or prior contact.",
+    "- Be genuine and specific to the recipient and their company; never sound like mass spam.",
+    "- 70-130 words. Plain, warm, direct. No hype, no emojis, no ALL-CAPS, no buzzword salad.",
+    "- Honest subject line that reflects the body (CAN-SPAM). No clickbait, no fake 'RE:'/'FWD:'.",
+    "- Lead with a relevant, specific hook, then one clear, low-friction call to action (a short reply or a quick call).",
+    "- Do NOT fabricate facts, statistics, case studies, endorsements, or any prior contact.",
+    "- Write for an international audience (US, Europe, UAE); keep it culturally neutral and jargon-light.",
     "- Do NOT include a signature block, unsubscribe line, or postal address — those are appended automatically.",
     'Return ONLY minified JSON: {"subject": "...", "body": "..."} with no markdown, no commentary.',
   ].join("\n");
@@ -60,26 +70,30 @@ export async function draftEmail(
   const userPrompt = [
     `Campaign goal: ${campaign.goal || campaign.name}`,
     campaign.ai_prompt ? `Additional guidance / talking points:\n${campaign.ai_prompt}` : "",
-    `Sender: ${campaign.from_name}`,
+    `Sender name (signs the email): ${campaign.from_name}`,
+    `Sender organization: ${org}`,
     "",
     "Recipient details:",
-    leadContext(lead) || "(minimal details available — keep it general but relevant to a government office)",
+    leadContext(lead) ||
+      "(minimal details available — keep it general but relevant to a founder/company evaluating building an MVP)",
     "",
-    'Write the email now. Return only the JSON object.',
+    "Write the email now. Return only the JSON object.",
   ]
     .filter(Boolean)
     .join("\n");
 
-  const response = await client.messages.create({
+  const response = await client.chat.completions.create({
     model: DRAFT_MODEL,
-    max_tokens: 2000,
-    thinking: { type: "disabled" },
-    system,
-    messages: [{ role: "user", content: userPrompt }],
+    temperature: 0.7,
+    max_tokens: 700,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  const raw = textBlock && "text" in textBlock ? textBlock.text : "";
+  const raw = response.choices[0]?.message?.content ?? "";
 
   let parsed: DraftResult;
   try {

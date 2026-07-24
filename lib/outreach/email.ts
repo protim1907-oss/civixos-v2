@@ -1,11 +1,50 @@
 import crypto from "crypto";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { OutreachCampaign } from "./types";
+
+// ---------------------------------------------------------------------------
+// Transport-agnostic sending. Two backends are supported; the active one is
+// chosen by OUTREACH_TRANSPORT ("resend" | "smtp"), or auto-detected:
+//   - RESEND_API_KEY present            → Resend
+//   - SMTP_HOST / SMTP_USER present     → SMTP (nodemailer)
+//
+// To send from protimghosh@bidsprointernational.com you must either:
+//   (a) verify bidsprointernational.com as a domain in Resend, then set
+//       RESEND_API_KEY; or
+//   (b) set SMTP creds for that mailbox:
+//       SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS  (e.g. Google Workspace
+//       app password for the bidsprointernational.com account).
+// ---------------------------------------------------------------------------
+type Transport = "resend" | "smtp" | "none";
+
+function activeTransport(): Transport {
+  const forced = process.env.OUTREACH_TRANSPORT?.toLowerCase();
+  if (forced === "resend" || forced === "smtp") return forced;
+  if (process.env.RESEND_API_KEY) return "resend";
+  if (process.env.SMTP_HOST && process.env.SMTP_USER) return "smtp";
+  return "none";
+}
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
+
+let smtpTransport: nodemailer.Transporter | null = null;
+function getSmtp(): nodemailer.Transporter | null {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) return null;
+  if (!smtpTransport) {
+    const port = Number(process.env.SMTP_PORT) || 587;
+    smtpTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: port === 465, // 465 = implicit TLS; 587 = STARTTLS
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  }
+  return smtpTransport;
+}
 
 const UNSUB_SECRET =
   process.env.OUTREACH_UNSUB_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "dev-secret";
@@ -81,15 +120,25 @@ function buildHtml(
     .map((p) => `<p style="margin:0 0 14px;">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
     .join("");
 
-  // CAN-SPAM: honest sender, physical postal address, working opt-out.
+  // Signature: name, plus the org line if the campaign has one.
+  const signature = campaign.sender_org
+    ? `— ${escapeHtml(campaign.from_name)}<br/>${escapeHtml(campaign.sender_org)}`
+    : `— ${escapeHtml(campaign.from_name)}`;
+
+  // CAN-SPAM: honest sender, physical postal address, working opt-out. The
+  // "why you're getting this" line is campaign-driven with a neutral B2B default.
+  const reason =
+    campaign.footer_reason ||
+    "You received this email as a business introduction. If it isn't relevant,";
+
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:600px;">
   ${paragraphs}
-  <p style="margin:18px 0 0;">— ${escapeHtml(campaign.from_name)}</p>
+  <p style="margin:18px 0 0;">${signature}</p>
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px;"/>
   <p style="font-size:12px;color:#6b7280;margin:0;">
     ${escapeHtml(campaign.postal_address)}<br/>
-    You received this because your office is a public government contact.
-    <a href="${unsubUrl}" style="color:#6b7280;">Unsubscribe</a> to stop receiving these emails.
+    ${escapeHtml(reason)}
+    <a href="${unsubUrl}" style="color:#6b7280;">unsubscribe</a> to stop receiving these emails.
   </p>
 </div>`;
 }

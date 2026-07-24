@@ -22,6 +22,10 @@ export type OutreachLead = {
   website: string | null;
   state: string | null;
   district: string | null;
+  // B2B / international attributes (see sql/upgrade-outreach-b2b.sql).
+  region: string | null; // us | europe | uae
+  country: string | null;
+  industry: string | null;
   source: string | null;
   status: LeadStatus;
   tags: string[] | null;
@@ -36,6 +40,10 @@ export type AudienceFilter = {
   states?: string[];
   office_types?: string[];
   levels?: string[];
+  // B2B targeting
+  regions?: string[]; // us | europe | uae
+  countries?: string[];
+  industries?: string[];
 };
 
 export type OutreachCampaign = {
@@ -44,6 +52,11 @@ export type OutreachCampaign = {
   goal: string | null;
   audience_filter: AudienceFilter;
   ai_prompt: string | null;
+  // Persona + offering that drive the AI draft (multi-purpose engine).
+  sender_org: string | null;
+  offering: string | null;
+  // Overrides the default CAN-SPAM "why you're getting this" footer line.
+  footer_reason: string | null;
   from_name: string;
   from_email: string;
   reply_to: string | null;
