@@ -621,6 +621,36 @@ export default function FeedPage() {
           setCommenterNames({});
         }
 
+        // Map each district to its U.S. Representative so every post shows the
+        // representative for ITS OWN district, not a single global one. Keyed by
+        // a canonical code so "TX-03" and "TX-3" (and "NV-01"/"NV-1") both match.
+        const canonRep = (value?: string | null) =>
+          String(value || "").trim().toLowerCase().replace(/-0*(\d+)$/, "-$1");
+        const repByDistrict: Record<string, string> = {};
+
+        const { data: houseRepRows } = await supabase
+          .from("district_representatives")
+          .select("district_code, name")
+          .eq("is_active", true);
+        (houseRepRows || []).forEach((row) => {
+          const key = canonRep(row.district_code);
+          if (key && row.name) repByDistrict[key] = row.name;
+        });
+
+        // Fill districts whose U.S. House member lives in `representatives`
+        // (e.g. TX-20 Joaquín Castro) rather than district_representatives.
+        const { data: congressRows } = await supabase
+          .from("representatives")
+          .select("name, full_name, district, district_id, level")
+          .ilike("level", "%congress%");
+        (congressRows || []).forEach((row) => {
+          const key = canonRep(row.district || row.district_id);
+          if (key && !repByDistrict[key]) repByDistrict[key] = row.name || row.full_name || "";
+        });
+
+        const repForDistrict = (value?: string | null) =>
+          repByDistrict[canonRep(value)] || representativeName;
+
         const mappedIssues: FeedPost[] = issues.map((issue, index) => ({
           id: issue.id ?? String(index),
           kind: "issue",
@@ -632,7 +662,7 @@ export default function FeedPage() {
           status: normalizeIssueStatus(issue.status),
           upvotes: voteCounts[issue.id] || 0,
           comments: groupedComments[issue.id]?.length || 0,
-          representative: representativeName,
+          representative: repForDistrict(issue.district || district),
           hasUpvoted: !!userVoteMap[issue.id],
         }));
 
@@ -654,7 +684,7 @@ export default function FeedPage() {
             status: normalizePostStatus(post.status),
             upvotes: 0,
             comments: 0,
-            representative: representativeName,
+            representative: repForDistrict(discussion?.district || district),
             hasUpvoted: false,
           };
         });
