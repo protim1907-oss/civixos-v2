@@ -90,8 +90,7 @@ export default function HomePage() {
                 </a>
               </div>
               <div className="mt-14 flex flex-wrap gap-10">
-                <div><p className="stat-counter text-3xl font-extrabold text-slate-950">50+</p><p className="text-sm text-slate-500 mt-0.5">Districts Covered</p></div>
-                <div><p className="stat-counter text-3xl font-extrabold text-slate-950">2</p><p className="text-sm text-slate-500 mt-0.5">States Active</p></div>
+                <div><p className="stat-counter text-3xl font-extrabold text-slate-950">50</p><p className="text-sm text-slate-500 mt-0.5">States Covered</p></div>
                 <div><p className="stat-counter text-3xl font-extrabold text-slate-950">AI</p><p className="text-sm text-slate-500 mt-0.5">Powered Insights</p></div>
               </div>
             </div>
@@ -121,16 +120,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* TICKER */}
-      <div className="border-y border-slate-100 bg-slate-50 py-4 overflow-hidden">
-        <div className="flex items-center gap-12 px-8 flex-wrap justify-center text-sm font-semibold text-slate-400 uppercase tracking-widest">
-          <span>Texas</span><span className="text-slate-200">•</span>
-          <span>California</span><span className="text-slate-200">•</span>
-          <span>TX-35 · TX-20 · TX-12</span><span className="text-slate-200">•</span>
-          <span>CA-42</span>
-        </div>
-      </div>
 
       {/* MISSION */}
       <section id="mission" className="py-24 px-5">
@@ -216,7 +205,7 @@ export default function HomePage() {
                 <div className="p-6 bg-slate-50 space-y-4">
                   <div className="bg-white rounded-2xl border border-slate-200 p-5">
                     <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Citizen Dashboard</p>
-                    <h4 className="text-xl font-extrabold text-slate-900">TX-35 · Austin / San Antonio</h4>
+                    <h4 className="text-xl font-extrabold text-slate-900">Your District</h4>
                     <p className="text-sm text-slate-500 mt-1">3 active issues · 2 upcoming votes</p>
                     <div className="mt-4 flex gap-2">
                       <span className="rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1">Infrastructure</span>
@@ -226,8 +215,8 @@ export default function HomePage() {
                   </div>
                   <div className="bg-white rounded-2xl border border-slate-200 p-5">
                     <p className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Top Issue</p>
-                    <p className="font-semibold text-slate-900">Waterlogging on IH-35 affecting commuters</p>
-                    <p className="text-sm text-slate-500 mt-1">47 votes · 12 comments · Rep. Casar notified</p>
+                    <p className="font-semibold text-slate-900">Road flooding affecting local commuters</p>
+                    <p className="text-sm text-slate-500 mt-1">47 votes · 12 comments · Representative notified</p>
                     <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: "72%" }}></div>
                     </div>
@@ -312,15 +301,6 @@ export default function HomePage() {
                 <li><a href="#how-it-works" className="hover:text-white transition">How It Works</a></li>
                 <li><a href="#citizens" className="hover:text-white transition">For Citizens</a></li>
                 <li><a href="#for-officials" className="hover:text-white transition">For Officials</a></li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white uppercase tracking-widest mb-4">Districts</p>
-              <ul className="space-y-2 text-sm">
-                <li>TX-35 · Austin / San Antonio</li>
-                <li>TX-20 · San Antonio area</li>
-                <li>TX-12 · Fort Worth area</li>
-                <li>CA-42 · Riverside</li>
               </ul>
             </div>
             <div>
