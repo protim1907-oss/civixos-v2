@@ -30,6 +30,42 @@ function leadContext(lead: OutreachLead): string {
     .join("\n");
 }
 
+// Models often add a "Best,\nName\nOrg" sign-off despite instructions, and the
+// send step appends its own signature — which would double it up. Strip a
+// trailing sign-off block conservatively (only closing phrases + the sender's
+// own name/org lines at the very end).
+function stripSignoff(body: string, campaign: OutreachCampaign): string {
+  const closing =
+    /^(best|thanks|thank you|regards|kind regards|warm regards|best regards|cheers|sincerely|talk soon|looking forward|yours( truly| sincerely)?)\b[\s,.!—-]*$/i;
+  const names = new Set(
+    [campaign.from_name, campaign.sender_org]
+      .filter(Boolean)
+      .map((s) => (s as string).trim().toLowerCase())
+  );
+
+  const lines = body.replace(/\r/g, "").split("\n");
+  let removed = 0;
+  while (lines.length && removed < 5) {
+    const last = (lines[lines.length - 1] || "").trim();
+    if (!last) {
+      lines.pop(); // drop trailing blank lines
+      continue;
+    }
+    if (names.has(last.toLowerCase())) {
+      lines.pop();
+      removed++;
+      continue;
+    }
+    if (closing.test(last)) {
+      lines.pop();
+      removed++;
+      break; // the closing phrase is the top of the sign-off block
+    }
+    break; // real content — stop
+  }
+  return lines.join("\n").trim();
+}
+
 function stripToJson(text: string): string {
   // Models sometimes wrap JSON in ``` fences; strip them defensively.
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -106,5 +142,10 @@ export async function draftEmail(
     throw new Error("Draft model returned an empty subject or body.");
   }
 
-  return { subject: parsed.subject.trim(), body: parsed.body.trim() };
+  const body = stripSignoff(parsed.body.trim(), campaign);
+  if (!body) {
+    // The whole body looked like a sign-off — fall back to the raw draft.
+    return { subject: parsed.subject.trim(), body: parsed.body.trim() };
+  }
+  return { subject: parsed.subject.trim(), body };
 }
