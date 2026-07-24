@@ -168,7 +168,12 @@ export default function OutreachPage() {
       }).then((r) => r.json());
       if (res.error) flash(res.error);
       else {
-        flash(`Imported ${res.imported} leads (${res.skippedNoEmail} had no email).`);
+        flash(
+          `Imported ${res.imported} leads` +
+            (res.duplicates ? `, ${res.duplicates} already existed` : "") +
+            (res.skippedNoEmail ? `, ${res.skippedNoEmail} had no email` : "") +
+            "."
+        );
         setCsvText("");
       }
       await loadData();

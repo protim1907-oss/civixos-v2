@@ -203,12 +203,25 @@ export async function POST(request: Request) {
     });
   }
 
-  // Upsert on email → idempotent re-imports; existing leads are not clobbered.
-  const { error } = await supabaseAdmin
+  // Dedupe against existing leads in code (case-insensitive). We can't use
+  // upsert onConflict here because the unique index is a partial EXPRESSION
+  // index on lower(email), which onConflict can't target. All emails we build
+  // are already lowercased, and every write path lowercases too, so a plain
+  // `.in()` comparison is reliable.
+  const emails = values.map((v) => v.email as string);
+  const { data: existingRows } = await supabaseAdmin
     .from("outreach_leads")
-    .upsert(values, { onConflict: "email", ignoreDuplicates: true });
+    .select("email")
+    .in("email", emails);
+  const have = new Set((existingRows || []).map((r) => (r.email || "").toLowerCase()));
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const toInsert = values.filter((v) => !have.has(v.email as string));
+  const duplicates = values.length - toInsert.length;
 
-  return NextResponse.json({ imported: values.length, skippedNoEmail });
+  if (toInsert.length > 0) {
+    const { error } = await supabaseAdmin.from("outreach_leads").insert(toInsert);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ imported: toInsert.length, duplicates, skippedNoEmail });
 }
