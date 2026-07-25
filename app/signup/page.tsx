@@ -40,6 +40,10 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Nevada voter registration",
     url: "https://www.nvsos.gov/votersearch/",
   },
+  Ohio: {
+    label: "Check Ohio voter registration",
+    url: "https://voterlookup.ohiosos.gov/voterlookup.aspx",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -569,6 +573,7 @@ export default function SignupPage() {
           <option value="Maryland">Maryland</option>
           <option value="Colorado">Colorado</option>
           <option value="Nevada">Nevada</option>
+          <option value="Ohio">Ohio</option>
         </select>
       </div>
 

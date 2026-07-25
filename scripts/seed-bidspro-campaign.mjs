@@ -26,14 +26,14 @@ const campaign = {
   offering:
     "Rapid MVP design & development — we take founders from idea to a working, launch-ready MVP in weeks, not months.",
   ai_prompt:
-    "Audience: founders and product leaders looking to build an MVP. Emphasize speed to launch, fixed scope, and senior engineering. Keep it short and human. One clear CTA: a quick 15-minute call.",
+    "Audience: founders and product leaders looking to build an MVP. Emphasize speed to launch, fixed scope, and senior engineering. Keep it short and human. Include one recent work sample as a link, written exactly as https://civix250.ai (a civic-engagement platform we built). One clear CTA: a quick 15-minute call.",
   footer_reason:
     "You received this because you're building or exploring a new product. If it isn't relevant,",
   from_name: "Protim Ghosh",
   from_email: "protimghosh@bidsprointernational.com",
   reply_to: "protimghosh@bidsprointernational.com",
-  // CAN-SPAM requires a REAL physical postal address. Replace before sending.
-  postal_address: "BidSpro International — <add your registered postal address>",
+  // CAN-SPAM requires a REAL physical postal address.
+  postal_address: "Bidspro International, Bucharest, Romania; www.bidsprointernational.com",
   daily_cap: 25,
   audience_filter: { regions: ["us", "europe", "uae"] },
   status: "draft",

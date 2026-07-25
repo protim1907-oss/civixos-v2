@@ -13,7 +13,9 @@
     "seed:il17-leaders": "node --env-file=.env.local scripts/seed-il17-leaders.mjs",
     "seed:nevada-leaders": "node --env-file=.env.local scripts/seed-nevada-leaders.mjs",
     "seed:tx23-leaders": "node --env-file=.env.local scripts/seed-tx23-leaders.mjs",
-    "seed:bidspro-campaign": "node --env-file=.env.local scripts/seed-bidspro-campaign.mjs"
+    "seed:ohio-leaders": "node --env-file=.env.local scripts/seed-ohio-leaders.mjs",
+    "seed:bidspro-campaign": "node --env-file=.env.local scripts/seed-bidspro-campaign.mjs",
+    "check:dns": "node scripts/check-dns.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.113.0",

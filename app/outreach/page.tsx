@@ -100,12 +100,12 @@ export default function OutreachPage() {
     reply_to: "protimghosh@bidsprointernational.com",
     footer_reason:
       "You received this because you're building or exploring a new product. If it isn't relevant,",
-    postal_address: "BidSpro International — <add your registered postal address>",
+    postal_address: "Bidspro International, Bucharest, Romania; www.bidsprointernational.com",
     daily_cap: 25,
     regions: [] as string[],
     industries: [] as string[],
     ai_prompt:
-      "Audience: founders and product leaders looking to build an MVP. Emphasize speed to launch, fixed scope, and senior engineering. Keep it short and human.",
+      "Audience: founders and product leaders looking to build an MVP. Emphasize speed to launch, fixed scope, and senior engineering. Keep it short and human. Include one recent work sample as a link, written exactly as https://civix250.ai (a civic-engagement platform we built).",
   });
 
   const flash = (m: string) => {

@@ -144,6 +144,8 @@ function normalizeStateCode(state?: string | null): string {
     co: "CO",
     nevada: "NV",
     nv: "NV",
+    ohio: "OH",
+    oh: "OH",
     florida: "FL",
     fl: "FL",
     "new york": "NY",
@@ -169,6 +171,8 @@ function normalizeStateName(state?: string | null): string {
     co: "Colorado",
     nevada: "Nevada",
     nv: "Nevada",
+    ohio: "Ohio",
+    oh: "Ohio",
     florida: "Florida",
     fl: "Florida",
     "new york": "New York",
@@ -752,6 +756,76 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       },
     },
   ],
+  OH: [
+    {
+      id: "bernie-moreno",
+      name: "Bernie Moreno",
+      title: "U.S. Senator",
+      officeLabel: "Ohio",
+      level: "federal",
+      state: "Ohio",
+      party: "Republican",
+      website: "https://www.moreno.senate.gov",
+      contactUrl: "https://www.moreno.senate.gov/contact/",
+      phone: "(202) 224-2315",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "jon-husted",
+      name: "Jon Husted",
+      title: "U.S. Senator",
+      officeLabel: "Ohio",
+      level: "federal",
+      state: "Ohio",
+      party: "Republican",
+      website: "https://www.husted.senate.gov",
+      contactUrl: "https://www.husted.senate.gov/contact/",
+      phone: "(202) 224-3353",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "mike-dewine",
+      name: "Mike DeWine",
+      title: "Governor of Ohio",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Ohio",
+      party: "Republican",
+      website: "https://governor.ohio.gov",
+      contactUrl: "https://governor.ohio.gov/contact",
+      phone: "(614) 466-3555",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "dave-yost",
+      name: "Dave Yost",
+      title: "Attorney General of Ohio",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Ohio",
+      party: "Republican",
+      website: "https://www.ohioattorneygeneral.gov",
+      contactUrl: "https://www.ohioattorneygeneral.gov/About-AG/Contact",
+      phone: "(614) 466-4986",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
 };
 
 // Congressional portraits from the official government bioguide, keyed by
@@ -1233,13 +1307,14 @@ export default function MyRepresentativePage() {
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
     } else if (
-      // Maryland, Colorado, Texas, and Nevada show their seeded U.S. House
+      // Maryland, Colorado, Texas, Nevada, and Ohio show their seeded U.S. House
       // delegation to every citizen. (CA is left as-is until its delegation is
       // seeded.)
       resolvedState === "MD" ||
       resolvedState === "CO" ||
       resolvedState === "TX" ||
-      resolvedState === "NV"
+      resolvedState === "NV" ||
+      resolvedState === "OH"
     ) {
       members = stateHouseReps;
     }

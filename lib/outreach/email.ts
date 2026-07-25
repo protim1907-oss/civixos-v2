@@ -110,6 +110,18 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// Turn bare URLs (https://... or www....) in already-escaped text into clickable
+// links. Safe to run after escapeHtml because URLs contain no &/</> to escape.
+function linkify(escaped: string): string {
+  return escaped.replace(
+    /\b((?:https?:\/\/|www\.)[^\s<]+[^\s<.,;:!?)])/gi,
+    (url) => {
+      const href = url.startsWith("http") ? url : `https://${url}`;
+      return `<a href="${href}" style="color:#2563eb;">${url}</a>`;
+    }
+  );
+}
+
 function buildHtml(
   bodyText: string,
   campaign: OutreachCampaign,
@@ -117,7 +129,7 @@ function buildHtml(
 ): string {
   const paragraphs = bodyText
     .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 14px;">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .map((p) => `<p style="margin:0 0 14px;">${linkify(escapeHtml(p)).replace(/\n/g, "<br/>")}</p>`)
     .join("");
 
   // Signature: name, plus the org line if the campaign has one.

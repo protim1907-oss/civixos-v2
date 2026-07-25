@@ -187,6 +187,7 @@ function stateCodeOf(district?: string | null, state?: string | null) {
     maryland: "MD",
     colorado: "CO",
     nevada: "NV",
+    ohio: "OH",
   };
   return byName[String(state || "").trim().toLowerCase()] || "";
 }

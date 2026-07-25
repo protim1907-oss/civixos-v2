@@ -197,18 +197,22 @@ function padDistrict(code: string) {
 
 // Names hidden from the admin console (rows still exist in Supabase, they are
 // just filtered out of the UI list and stats). Matched case-insensitively.
+// Demo accounts are hidden by pattern (see isExcludedUserName), so only
+// personal/staff test names need listing here.
 const EXCLUDED_USER_NAMES = [
   "protim ghosh",
   "costa brown",
   "constantinos brown",
-  "il demo citizen",
-  "md demo citizen",
-  "co demo citizen",
   "protim",
 ];
 
 function isExcludedUserName(fullName: string | null | undefined) {
-  return EXCLUDED_USER_NAMES.includes((fullName ?? "").trim().toLowerCase());
+  const name = (fullName ?? "").trim().toLowerCase();
+  if (!name) return false;
+  // Any demo account (e.g. "MD Demo Citizen", "NV Demo Citizen",
+  // "IL Demo Citizen 10") is hidden — they're seed/demo rows, not real users.
+  if (name.includes("demo citizen")) return true;
+  return EXCLUDED_USER_NAMES.includes(name);
 }
 
 // A profile is hidden from the console when its name is excluded (test/personal
