@@ -72,6 +72,7 @@ export default function MeetingRoomPage() {
           apiRef.current.dispose()
           apiRef.current = null
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Jitsi CDN global is untyped
         const api = new (window as any).JitsiMeetExternalAPI("8x8.vc", {
           roomName,
           jwt,
