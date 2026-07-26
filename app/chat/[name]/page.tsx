@@ -23,6 +23,7 @@ export default function ChatPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [myName, setMyName] = useState<string | null>(null)
   const [videoOpen, setVideoOpen] = useState(false)
+  const [videoError, setVideoError] = useState("")
   const jaasContainerRef = useRef<HTMLDivElement>(null)
   const jaasApiRef = useRef<any>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -179,9 +180,36 @@ export default function ChatPage() {
 
     const scriptId = "jaas-external-api"
     const existingScript = document.getElementById(scriptId)
+    let cancelled = false
 
-    function initJaas() {
-      if (!jaasContainerRef.current) return
+    async function initJaas() {
+      if (!jaasContainerRef.current || cancelled) return
+      setVideoError("")
+
+      // Mint a JaaS JWT server-side (required to join the room).
+      let jwt = ""
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const accessToken = sessionData.session?.access_token
+        const res = await fetch("/api/jaas-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+        })
+        const body = await res.json()
+        if (!res.ok || !body.jwt) {
+          setVideoError(body.error || "Could not start the video call.")
+          return
+        }
+        jwt = body.jwt
+      } catch {
+        setVideoError("Could not reach the video service.")
+        return
+      }
+
+      if (cancelled || !jaasContainerRef.current) return
       // Clean up any previous instance
       if (jaasApiRef.current) {
         jaasApiRef.current.dispose()
@@ -189,6 +217,7 @@ export default function ChatPage() {
       }
       const api = new (window as any).JitsiMeetExternalAPI("8x8.vc", {
         roomName: jaasRoomName,
+        jwt,
         parentNode: jaasContainerRef.current,
         userInfo: {
           displayName: myName || "Civix250 User",
@@ -218,6 +247,7 @@ export default function ChatPage() {
     }
 
     return () => {
+      cancelled = true
       if (jaasApiRef.current) {
         jaasApiRef.current.dispose()
         jaasApiRef.current = null
@@ -319,7 +349,19 @@ export default function ChatPage() {
               End Call
             </button>
           </div>
-          <div ref={jaasContainerRef} className="flex-1 w-full" />
+          <div className="relative flex-1 w-full">
+            <div ref={jaasContainerRef} className="h-full w-full" />
+            {videoError && (
+              <div className="absolute inset-0 flex items-center justify-center p-6">
+                <div className="max-w-md rounded-2xl bg-white p-6 text-center shadow-xl">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Unable to start the video call
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">{videoError}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

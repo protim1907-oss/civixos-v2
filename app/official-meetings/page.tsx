@@ -56,7 +56,8 @@ type TownHallRow = {
 
 function buildTownHallUrl(id: string) {
   const token = id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
-  return `https://meet.jit.si/civix250-townhall-${token}`;
+  // JaaS meeting room (embedded, JWT-secured) — see app/meeting/[room].
+  return `/meeting/civix250-townhall-${token}`;
 }
 
 function formatTownHallDate(value: string) {
@@ -102,7 +103,8 @@ function formatDate(value?: string | null) {
 
 function buildMeetingUrl(requestId: string) {
   const token = requestId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
-  return `https://meet.jit.si/civix250-${token}`;
+  // JaaS meeting room (embedded, JWT-secured) — see app/meeting/[room].
+  return `/meeting/civix250-${token}`;
 }
 
 export default function OfficialMeetingsPage() {
