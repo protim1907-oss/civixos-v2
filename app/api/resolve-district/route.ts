@@ -40,10 +40,10 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
 }
 
 // Civix250 is open to Texas, California, Illinois, Maryland, Colorado, Nevada,
-// and Ohio only. Registration is gated on the address's ACTUAL geocoded state,
-// not on what the user selects — so a fake out-of-state address (or an
-// out-of-area resident picking an allowed state) is rejected.
-const ALLOWED_STATES = ["TX", "CA", "IL", "MD", "CO", "NV", "OH"] as const;
+// Ohio, and Georgia only. Registration is gated on the address's ACTUAL
+// geocoded state, not on what the user selects — so a fake out-of-state address
+// (or an out-of-area resident picking an allowed state) is rejected.
+const ALLOWED_STATES = ["TX", "CA", "IL", "MD", "CO", "NV", "OH", "GA"] as const;
 
 function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
@@ -54,6 +54,7 @@ function getStateAbbr(state: string) {
     Colorado: "CO",
     Nevada: "NV",
     Ohio: "OH",
+    Georgia: "GA",
     Florida: "FL",
     "New York": "NY",
   };
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Civix250 is currently open to residents of Texas, California, Illinois, Maryland, Colorado, Nevada, and Ohio only. This address is outside our service area.",
+            "Civix250 is currently open to residents of Texas, California, Illinois, Maryland, Colorado, Nevada, Ohio, and Georgia only. This address is outside our service area.",
           state: effectiveStateAbbr,
         },
         { status: 403 }
@@ -151,12 +152,13 @@ export async function POST(request: Request) {
       CO: "Colorado",
       NV: "Nevada",
       OH: "Ohio",
+      GA: "Georgia",
     };
     const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
 
-    // Maryland, Colorado, and Nevada congressional districts are stored
-    // zero-padded (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
-    const zeroPaddedStates = ["MD", "CO", "NV"];
+    // Maryland, Colorado, Nevada, and Georgia congressional districts are stored
+    // zero-padded (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01, GA-1 -> GA-01).
+    const zeroPaddedStates = ["MD", "CO", "NV", "GA"];
     const districtNumber = Number(district.value);
     const districtDigits = zeroPaddedStates.includes(effectiveStateAbbr)
       ? String(districtNumber).padStart(2, "0")

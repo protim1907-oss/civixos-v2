@@ -146,6 +146,8 @@ function normalizeStateCode(state?: string | null): string {
     nv: "NV",
     ohio: "OH",
     oh: "OH",
+    georgia: "GA",
+    ga: "GA",
     florida: "FL",
     fl: "FL",
     "new york": "NY",
@@ -173,6 +175,8 @@ function normalizeStateName(state?: string | null): string {
     nv: "Nevada",
     ohio: "Ohio",
     oh: "Ohio",
+    georgia: "Georgia",
+    ga: "Georgia",
     florida: "Florida",
     fl: "Florida",
     "new york": "New York",
@@ -186,7 +190,7 @@ function normalizeStateName(state?: string | null): string {
 // zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01) so
 // profiles, district_representatives rows, and the UI all agree on one form.
 function padDistrict(code: string): string {
-  const match = code.match(/^(MD|CO|NV)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -826,6 +830,76 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       },
     },
   ],
+  GA: [
+    {
+      id: "jon-ossoff",
+      name: "Jon Ossoff",
+      title: "U.S. Senator",
+      officeLabel: "Georgia",
+      level: "federal",
+      state: "Georgia",
+      party: "Democrat",
+      website: "https://www.ossoff.senate.gov",
+      contactUrl: "https://www.ossoff.senate.gov/contact/",
+      phone: "(202) 224-3521",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "raphael-warnock",
+      name: "Raphael Warnock",
+      title: "U.S. Senator",
+      officeLabel: "Georgia",
+      level: "federal",
+      state: "Georgia",
+      party: "Democrat",
+      website: "https://www.warnock.senate.gov",
+      contactUrl: "https://www.warnock.senate.gov/contact/",
+      phone: "(202) 224-3643",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "brian-kemp",
+      name: "Brian Kemp",
+      title: "Governor of Georgia",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Georgia",
+      party: "Republican",
+      website: "https://gov.georgia.gov",
+      contactUrl: "https://gov.georgia.gov/contact-us",
+      phone: "(404) 656-1776",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "chris-carr",
+      name: "Chris Carr",
+      title: "Attorney General of Georgia",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Georgia",
+      party: "Republican",
+      website: "https://law.georgia.gov",
+      contactUrl: "https://law.georgia.gov/contact-us",
+      phone: "(404) 458-3600",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
 };
 
 // Congressional portraits from the official government bioguide, keyed by
@@ -1307,14 +1381,15 @@ export default function MyRepresentativePage() {
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
     } else if (
-      // Maryland, Colorado, Texas, Nevada, and Ohio show their seeded U.S. House
-      // delegation to every citizen. (CA is left as-is until its delegation is
-      // seeded.)
+      // Maryland, Colorado, Texas, Nevada, Ohio, and Georgia show their seeded
+      // U.S. House delegation to every citizen. (CA is left as-is until its
+      // delegation is seeded.)
       resolvedState === "MD" ||
       resolvedState === "CO" ||
       resolvedState === "TX" ||
       resolvedState === "NV" ||
-      resolvedState === "OH"
+      resolvedState === "OH" ||
+      resolvedState === "GA"
     ) {
       members = stateHouseReps;
     }

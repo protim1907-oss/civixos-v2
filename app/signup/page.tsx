@@ -44,6 +44,10 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Ohio voter registration",
     url: "https://voterlookup.ohiosos.gov/voterlookup.aspx",
   },
+  Georgia: {
+    label: "Check Georgia voter registration",
+    url: "https://mvp.sos.ga.gov/s/",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -83,7 +87,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -574,6 +578,7 @@ export default function SignupPage() {
           <option value="Colorado">Colorado</option>
           <option value="Nevada">Nevada</option>
           <option value="Ohio">Ohio</option>
+          <option value="Georgia">Georgia</option>
         </select>
       </div>
 
