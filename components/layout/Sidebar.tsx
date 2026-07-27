@@ -173,6 +173,48 @@ export default function Sidebar() {
     };
   }, [loadBadgeCounts, supabase]);
 
+  // Realtime Presence: while the logged-in user has the app open, advertise them
+  // on a shared channel so the Community Chat directory can show who's online.
+  // Keyed by user id; tracks name + district so the directory can match rows.
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    async function trackPresence() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, district")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+
+      channel = supabase.channel("online-citizens", {
+        config: { presence: { key: user.id } },
+      });
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED" && channel) {
+          channel.track({
+            name: (profile?.full_name || "").trim(),
+            district: (profile?.district || "").trim(),
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+    }
+
+    trackPresence();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
   const navItems = [
     {
       href: "/official-dashboard",

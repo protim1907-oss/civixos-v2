@@ -8,6 +8,10 @@ import { Video, Search, MessageSquare } from "lucide-react"
 
 type Citizen = { name: string; district: string }
 
+// Presence key so directory rows can be matched to online users.
+const presenceKey = (name: string, district: string) =>
+  `${name.trim().toLowerCase()}|${district.trim().toLowerCase()}`
+
 export default function ChatIndexPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -17,6 +21,7 @@ export default function ChatIndexPage() {
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [myName, setMyName] = useState<string | null>(null)
+  const [onlineKeys, setOnlineKeys] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     let mounted = true
@@ -48,6 +53,33 @@ export default function ChatIndexPage() {
     }
   }, [supabase])
 
+  // Subscribe to the shared presence channel (the Sidebar tracks the user onto
+  // it) and rebuild the online set whenever presence changes.
+  useEffect(() => {
+    const channel = supabase.channel("online-citizens")
+    const refresh = () => {
+      const state = channel.presenceState() as Record<
+        string,
+        Array<{ name?: string; district?: string }>
+      >
+      const keys = new Set<string>()
+      for (const metas of Object.values(state)) {
+        for (const m of metas) {
+          if (m?.name) keys.add(presenceKey(m.name, m.district || ""))
+        }
+      }
+      setOnlineKeys(keys)
+    }
+    channel
+      .on("presence", { event: "sync" }, refresh)
+      .on("presence", { event: "join" }, refresh)
+      .on("presence", { event: "leave" }, refresh)
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase])
+
   function openChat(target: string) {
     const trimmed = target.trim()
     if (!trimmed) return
@@ -64,7 +96,22 @@ export default function ChatIndexPage() {
           c.name.toLowerCase().includes(q) ||
           c.district.toLowerCase().includes(q)
       )
-  }, [citizens, query, myName])
+      .map((c) => ({ ...c, online: onlineKeys.has(presenceKey(c.name, c.district)) }))
+      // Online citizens first, then alphabetical.
+      .sort((a, b) =>
+        a.online === b.online ? a.name.localeCompare(b.name) : a.online ? -1 : 1
+      )
+  }, [citizens, query, myName, onlineKeys])
+
+  const onlineCount = useMemo(
+    () =>
+      citizens.filter(
+        (c) =>
+          (!myName || c.name.toLowerCase() !== myName.toLowerCase()) &&
+          onlineKeys.has(presenceKey(c.name, c.district))
+      ).length,
+    [citizens, myName, onlineKeys]
+  )
 
   return (
     <div className="min-h-screen bg-slate-100 lg:flex">
@@ -83,9 +130,15 @@ export default function ChatIndexPage() {
 
           {/* Citizen picker */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Find a citizen
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-semibold text-slate-700">
+                Find a citizen
+              </label>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                {onlineCount} online
+              </span>
+            </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -113,11 +166,23 @@ export default function ChatIndexPage() {
                     onClick={() => openChat(c.name)}
                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
-                      {c.district ? (
-                        <p className="text-xs text-slate-400">{c.district}</p>
-                      ) : null}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                          c.online ? "bg-green-500" : "bg-slate-300"
+                        }`}
+                        title={c.online ? "Online" : "Offline"}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">
+                          {c.name}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {[c.district, c.online ? "Online" : "Offline"]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
                     </div>
                     <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">
                       <MessageSquare className="h-3.5 w-3.5" />
