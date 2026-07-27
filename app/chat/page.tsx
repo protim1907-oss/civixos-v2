@@ -3,14 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { startPresence, subscribePresence, presenceKey } from "@/lib/supabase/presence"
 import Sidebar from "@/components/layout/Sidebar"
 import { Video, Search, MessageSquare } from "lucide-react"
 
 type Citizen = { name: string; district: string }
-
-// Presence key so directory rows can be matched to online users.
-const presenceKey = (name: string, district: string) =>
-  `${name.trim().toLowerCase()}|${district.trim().toLowerCase()}`
 
 export default function ChatIndexPage() {
   const router = useRouter()
@@ -53,32 +50,13 @@ export default function ChatIndexPage() {
     }
   }, [supabase])
 
-  // Subscribe to the shared presence channel (the Sidebar tracks the user onto
-  // it) and rebuild the online set whenever presence changes.
+  // Read online status from the shared presence channel. startPresence() also
+  // ensures the current user is tracked (in case the Sidebar hasn't yet).
   useEffect(() => {
-    const channel = supabase.channel("online-citizens")
-    const refresh = () => {
-      const state = channel.presenceState() as Record<
-        string,
-        Array<{ name?: string; district?: string }>
-      >
-      const keys = new Set<string>()
-      for (const metas of Object.values(state)) {
-        for (const m of metas) {
-          if (m?.name) keys.add(presenceKey(m.name, m.district || ""))
-        }
-      }
-      setOnlineKeys(keys)
-    }
-    channel
-      .on("presence", { event: "sync" }, refresh)
-      .on("presence", { event: "join" }, refresh)
-      .on("presence", { event: "leave" }, refresh)
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [supabase])
+    void startPresence()
+    const unsubscribe = subscribePresence(setOnlineKeys)
+    return unsubscribe
+  }, [])
 
   function openChat(target: string) {
     const trimmed = target.trim()
