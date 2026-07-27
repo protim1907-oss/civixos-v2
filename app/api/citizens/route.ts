@@ -18,9 +18,14 @@ const EXCLUDED_NAMES = new Set([
   "rls receiver",
 ]);
 
-function isExcludedName(name: string) {
+// Specific accounts (name + district) shown in the directory despite matching an
+// excluded name — the real TX constituent identities used for test chats.
+const DIRECTORY_EXCEPTIONS = new Set(["protim ghosh|TX-35", "costa brown|TX-23"]);
+
+function isExcluded(name: string, district: string) {
   const n = name.trim().toLowerCase();
   if (!n) return true;
+  if (DIRECTORY_EXCEPTIONS.has(`${n}|${district.trim().toUpperCase()}`)) return false;
   if (/demo citizen/i.test(n)) return true; // seed/demo accounts
   return EXCLUDED_NAMES.has(n);
 }
@@ -43,8 +48,9 @@ export async function GET() {
       name: String(row.full_name || "").trim(),
       district: String(row.district || "").trim(),
     }))
-    // Drop blanks, seed/demo accounts, and staff/personal personas.
-    .filter((c) => !isExcludedName(c.name))
+    // Drop blanks, seed/demo accounts, and staff/personal personas (except the
+    // whitelisted test identities).
+    .filter((c) => !isExcluded(c.name, c.district))
     // De-duplicate by name+district so the picker shows one row per person.
     .filter((c) => {
       const key = `${c.name.toLowerCase()}|${c.district.toLowerCase()}`;
