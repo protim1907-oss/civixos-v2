@@ -45,12 +45,10 @@ function emitUnread() {
 }
 
 async function init() {
-  console.log("[chat-inbox] init start");
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  console.log("[chat-inbox] user?", !!user);
   if (!user) {
     initPromise = null; // not logged in yet — allow retry
     return;
@@ -62,7 +60,6 @@ async function init() {
     .eq("id", user.id)
     .maybeSingle();
   myName = (profile?.full_name || "").trim();
-  console.log("[chat-inbox] myName=", myName);
   if (!myName) {
     initPromise = null;
     return;
@@ -103,7 +100,6 @@ async function init() {
         table: "messages",
       },
       (payload) => {
-        console.log("[chat-inbox] payload received", payload);
         const m = payload.new as MessageRow;
         if (!m || m.sender_id === userId) return; // ignore my own messages
         if ((m.receiver_name || "").trim() !== myName) return; // not for me
@@ -117,9 +113,7 @@ async function init() {
         toastListeners.forEach((l) => l(toast));
       }
     )
-    .subscribe((status, err) => {
-      console.log("[chat-inbox] subscribe status", status, err, "myName=", myName);
-    });
+    .subscribe();
 }
 
 // Start the inbox subscription. Safe to call from many components — runs once.
