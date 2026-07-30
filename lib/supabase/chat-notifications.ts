@@ -45,10 +45,12 @@ function emitUnread() {
 }
 
 async function init() {
+  console.log("[chat-inbox] init start");
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  console.log("[chat-inbox] user?", !!user);
   if (!user) {
     initPromise = null; // not logged in yet — allow retry
     return;
@@ -60,6 +62,7 @@ async function init() {
     .eq("id", user.id)
     .maybeSingle();
   myName = (profile?.full_name || "").trim();
+  console.log("[chat-inbox] myName=", myName);
   if (!myName) {
     initPromise = null;
     return;
@@ -91,16 +94,19 @@ async function init() {
     .channel("chat-inbox")
     .on(
       "postgres_changes",
+      // No server-side filter on receiver_name: names contain spaces, which
+      // realtime's filter grammar mishandles. RLS already limits delivered
+      // rows to those addressed to me, and we double-check client-side.
       {
         event: "INSERT",
         schema: "public",
         table: "messages",
-        filter: `receiver_name=eq.${myName}`,
       },
       (payload) => {
         console.log("[chat-inbox] payload received", payload);
         const m = payload.new as MessageRow;
         if (!m || m.sender_id === userId) return; // ignore my own messages
+        if ((m.receiver_name || "").trim() !== myName) return; // not for me
         unreadCount += 1;
         emitUnread();
         const toast: ChatToast = {
