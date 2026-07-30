@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { markChatRead } from "@/lib/supabase/chat-notifications"
 import Sidebar from "@/components/layout/Sidebar"
 import { Video, PhoneOff } from "lucide-react"
 
@@ -122,6 +123,11 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Opening a conversation clears the unread badge.
+  useEffect(() => {
+    markChatRead()
+  }, [])
 
   async function sendMessage() {
     if (!newMessage.trim()) return

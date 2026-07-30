@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { startPresence, subscribePresence, presenceKey } from "@/lib/supabase/presence"
+import { markChatRead } from "@/lib/supabase/chat-notifications"
 import Sidebar from "@/components/layout/Sidebar"
 import { Video, Search, MessageSquare } from "lucide-react"
 
@@ -56,6 +57,11 @@ export default function ChatIndexPage() {
     void startPresence()
     const unsubscribe = subscribePresence(setOnlineKeys)
     return unsubscribe
+  }, [])
+
+  // Opening the chat area clears the unread badge.
+  useEffect(() => {
+    markChatRead()
   }, [])
 
   function openChat(target: string) {

@@ -6,6 +6,12 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { startPresence } from "@/lib/supabase/presence";
 import {
+  startChatNotifications,
+  subscribeUnread,
+  subscribeChatToast,
+  type ChatToast,
+} from "@/lib/supabase/chat-notifications";
+import {
   LayoutDashboard,
   Newspaper,
   Megaphone,
@@ -60,6 +66,8 @@ export default function Sidebar() {
   const [myActivityCount, setMyActivityCount] = useState<number>(0);
   const [officialUpdatesCount, setOfficialUpdatesCount] = useState<number>(0);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [chatUnread, setChatUnread] = useState<number>(0);
+  const [chatToast, setChatToast] = useState<ChatToast | null>(null);
 
   const loadBadgeCounts = useCallback(async () => {
     try {
@@ -181,6 +189,25 @@ export default function Sidebar() {
     void startPresence();
   }, []);
 
+  // In-app chat notifications: subscribe to the unread badge count and pop a
+  // toast when a new message arrives. Started once per session.
+  useEffect(() => {
+    void startChatNotifications();
+    const unsubUnread = subscribeUnread(setChatUnread);
+    const unsubToast = subscribeChatToast((toast) => setChatToast(toast));
+    return () => {
+      unsubUnread();
+      unsubToast();
+    };
+  }, []);
+
+  // Auto-dismiss the toast after a few seconds.
+  useEffect(() => {
+    if (!chatToast) return;
+    const t = setTimeout(() => setChatToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [chatToast]);
+
   const navItems = [
     {
       href: "/official-dashboard",
@@ -248,6 +275,8 @@ export default function Sidebar() {
       href: "/chat",
       label: "Community Chat",
       icon: Video,
+      badge: chatUnread > 0 ? chatUnread : null,
+      badgeColor: "red" as const,
     },
     {
       href: "/trending-posts",
@@ -293,6 +322,7 @@ export default function Sidebar() {
   );
 
   return (
+    <>
     <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white lg:block">
       <div className="sticky top-0 flex h-screen flex-col">
         <div className="border-b border-slate-200 px-6 py-6">
@@ -361,5 +391,41 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+
+    {/* In-app chat notification toast (app-wide, incl. mobile) */}
+    {chatToast ? (
+      <div className="fixed right-4 top-4 z-[60] w-[calc(100%-2rem)] max-w-sm sm:right-6 sm:top-6">
+        <Link
+          href="/chat"
+          onClick={() => setChatToast(null)}
+          className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl transition hover:bg-slate-50"
+        >
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <MessageCircle className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">
+              New message from {chatToast.senderName}
+            </p>
+            <p className="mt-0.5 truncate text-sm text-slate-500">
+              {chatToast.message || "Open chat to view"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setChatToast(null);
+            }}
+            className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Dismiss"
+          >
+            <span className="text-lg leading-none">&times;</span>
+          </button>
+        </Link>
+      </div>
+    ) : null}
+    </>
   );
 }

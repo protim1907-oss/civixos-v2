@@ -148,6 +148,8 @@ function normalizeStateCode(state?: string | null): string {
     oh: "OH",
     georgia: "GA",
     ga: "GA",
+    michigan: "MI",
+    mi: "MI",
     florida: "FL",
     fl: "FL",
     "new york": "NY",
@@ -177,6 +179,8 @@ function normalizeStateName(state?: string | null): string {
     oh: "Ohio",
     georgia: "Georgia",
     ga: "Georgia",
+    michigan: "Michigan",
+    mi: "Michigan",
     florida: "Florida",
     fl: "Florida",
     "new york": "New York",
@@ -190,7 +194,7 @@ function normalizeStateName(state?: string | null): string {
 // zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01) so
 // profiles, district_representatives rows, and the UI all agree on one form.
 function padDistrict(code: string): string {
-  const match = code.match(/^(MD|CO|NV|GA)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -900,6 +904,146 @@ const STATEWIDE_LEADERS: Record<string, Official[]> = {
       },
     },
   ],
+  MI: [
+    {
+      id: "gary-peters",
+      name: "Gary Peters",
+      title: "U.S. Senator",
+      officeLabel: "Michigan",
+      level: "federal",
+      state: "Michigan",
+      party: "Democrat",
+      website: "https://www.peters.senate.gov",
+      contactUrl: "https://www.peters.senate.gov/contact/email-gary",
+      phone: "(202) 224-6221",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "elissa-slotkin",
+      name: "Elissa Slotkin",
+      title: "U.S. Senator",
+      officeLabel: "Michigan",
+      level: "federal",
+      state: "Michigan",
+      party: "Democrat",
+      website: "https://www.slotkin.senate.gov",
+      contactUrl: "https://www.slotkin.senate.gov/contact",
+      phone: "(202) 224-4822",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "gretchen-whitmer",
+      name: "Gretchen Whitmer",
+      title: "Governor of Michigan",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Michigan",
+      party: "Democrat",
+      website: "https://www.michigan.gov/whitmer",
+      contactUrl: "https://www.michigan.gov/whitmer/contact",
+      phone: "(517) 335-7858",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "dana-nessel",
+      name: "Dana Nessel",
+      title: "Attorney General of Michigan",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "Michigan",
+      party: "Democrat",
+      website: "https://www.michigan.gov/ag",
+      contactUrl: "https://www.michigan.gov/ag/contact",
+      phone: "(517) 335-7622",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
+  NY: [
+    {
+      id: "chuck-schumer",
+      name: "Chuck Schumer",
+      title: "U.S. Senator",
+      officeLabel: "New York",
+      level: "federal",
+      state: "New York",
+      party: "Democrat",
+      website: "https://www.schumer.senate.gov",
+      contactUrl: "https://www.schumer.senate.gov/contact/email-chuck",
+      phone: "(202) 224-6542",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "kirsten-gillibrand",
+      name: "Kirsten Gillibrand",
+      title: "U.S. Senator",
+      officeLabel: "New York",
+      level: "federal",
+      state: "New York",
+      party: "Democrat",
+      website: "https://www.gillibrand.senate.gov",
+      contactUrl: "https://www.gillibrand.senate.gov/contact/",
+      phone: "(202) 224-4451",
+      imageUrl: "",
+      badge: {
+        text: "Senate",
+        tone: "red",
+      },
+    },
+    {
+      id: "kathy-hochul",
+      name: "Kathy Hochul",
+      title: "Governor of New York",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "New York",
+      party: "Democrat",
+      website: "https://www.governor.ny.gov",
+      contactUrl: "https://www.governor.ny.gov/content/governor-contact-form",
+      phone: "(518) 474-8390",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+    {
+      id: "letitia-james",
+      name: "Letitia James",
+      title: "Attorney General of New York",
+      officeLabel: "Statewide Office",
+      level: "state",
+      state: "New York",
+      party: "Democrat",
+      website: "https://ag.ny.gov",
+      contactUrl: "https://ag.ny.gov/contact-attorney-generals-office",
+      phone: "(212) 416-8000",
+      imageUrl: "",
+      badge: {
+        text: "State",
+        tone: "green",
+      },
+    },
+  ],
 };
 
 // Congressional portraits from the official government bioguide, keyed by
@@ -1381,15 +1525,16 @@ export default function MyRepresentativePage() {
         .map((code) => lookupHouseRep(code))
         .filter(Boolean) as Official[];
     } else if (
-      // Maryland, Colorado, Texas, Nevada, Ohio, and Georgia show their seeded
-      // U.S. House delegation to every citizen. (CA is left as-is until its
-      // delegation is seeded.)
+      // These states show their seeded U.S. House delegation to every citizen.
+      // (CA is left as-is until its delegation is seeded.)
       resolvedState === "MD" ||
       resolvedState === "CO" ||
       resolvedState === "TX" ||
       resolvedState === "NV" ||
       resolvedState === "OH" ||
-      resolvedState === "GA"
+      resolvedState === "GA" ||
+      resolvedState === "MI" ||
+      resolvedState === "NY"
     ) {
       members = stateHouseReps;
     }
