@@ -75,6 +75,16 @@ async function init() {
   unreadCount = count || 0;
   emitUnread();
 
+  // RLS-gated postgres_changes need the realtime socket authenticated so the
+  // recipient policy (which depends on auth.uid()) evaluates — otherwise the
+  // INSERT events are silently dropped.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    supabase.realtime.setAuth(session.access_token);
+  }
+
   // Realtime: new incoming messages (RLS lets recipients read their own rows).
   // The client retains the channel, so no local reference is needed.
   supabase
