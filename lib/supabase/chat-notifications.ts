@@ -98,6 +98,7 @@ async function init() {
         filter: `receiver_name=eq.${myName}`,
       },
       (payload) => {
+        console.log("[chat-inbox] payload received", payload);
         const m = payload.new as MessageRow;
         if (!m || m.sender_id === userId) return; // ignore my own messages
         unreadCount += 1;
@@ -110,7 +111,9 @@ async function init() {
         toastListeners.forEach((l) => l(toast));
       }
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      console.log("[chat-inbox] subscribe status", status, err, "myName=", myName);
+    });
 }
 
 // Start the inbox subscription. Safe to call from many components — runs once.
