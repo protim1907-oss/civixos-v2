@@ -75,10 +75,10 @@ function unlockAudioOnFirstGesture() {
   window.addEventListener("keydown", unlock, { once: true });
 }
 
-function playBlip() {
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+// Emit the actual tone. Must run only when the context is "running" — a
+// suspended context has a frozen currentTime, so scheduling against it makes
+// no sound.
+function emitBlip(ctx: AudioContext) {
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -93,6 +93,19 @@ function playBlip() {
   osc.connect(gain).connect(ctx.destination);
   osc.start(now);
   osc.stop(now + 0.2);
+}
+
+function playBlip() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  // Browsers auto-suspend the AudioContext when the tab is backgrounded or
+  // idle. resume() is async, so we must wait for it before emitting — playing
+  // immediately against a still-suspended context is silent.
+  if (ctx.state === "suspended") {
+    ctx.resume().then(() => emitBlip(ctx)).catch(() => {});
+  } else {
+    emitBlip(ctx);
+  }
 }
 
 async function init() {
