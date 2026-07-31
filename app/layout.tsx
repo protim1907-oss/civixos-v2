@@ -2,6 +2,7 @@ import "./globals.css";
 import { APP_NAME } from "@/lib/config";
 
 export const metadata = {
+  metadataBase: new URL("https://www.civix250.ai"),
   title: APP_NAME,
   description: `${APP_NAME} — AI-powered civic engagement platform`,
 };
