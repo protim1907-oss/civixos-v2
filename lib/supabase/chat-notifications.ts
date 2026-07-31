@@ -44,7 +44,59 @@ function emitUnread() {
   unreadListeners.forEach((l) => l(unreadCount));
 }
 
+// --- "Blip" sound on incoming message -------------------------------------
+// Synthesized with the Web Audio API so there's no audio asset to ship and it
+// works offline. Browsers block audio until the user has interacted with the
+// page, so we resume the context on the first gesture.
+let audioCtx: AudioContext | null = null;
+let audioUnlocked = false;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctx) return null;
+  if (!audioCtx) audioCtx = new Ctx();
+  return audioCtx;
+}
+
+function unlockAudioOnFirstGesture() {
+  if (typeof window === "undefined" || audioUnlocked) return;
+  const unlock = () => {
+    audioUnlocked = true;
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+  };
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+}
+
+function playBlip() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  // A quick two-tone chirp — a friendly "blip".
+  osc.frequency.setValueAtTime(880, now);
+  osc.frequency.exponentialRampToValueAtTime(1320, now + 0.06);
+  // Fast attack, short decay, so it doesn't click or linger.
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
 async function init() {
+  unlockAudioOnFirstGesture();
   const supabase = createClient();
   const {
     data: { user },
@@ -105,6 +157,7 @@ async function init() {
         if ((m.receiver_name || "").trim() !== myName) return; // not for me
         unreadCount += 1;
         emitUnread();
+        playBlip();
         const toast: ChatToast = {
           id: String(m.id),
           senderName: (m.sender_name || "Someone").trim(),
