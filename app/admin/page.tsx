@@ -204,6 +204,7 @@ const EXCLUDED_USER_NAMES = [
   "costa brown",
   "constantinos brown",
   "protim",
+  "rls receiver",
 ];
 
 function isExcludedUserName(fullName: string | null | undefined) {
