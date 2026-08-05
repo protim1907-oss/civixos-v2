@@ -1,5 +1,6 @@
 import "./globals.css";
 import { APP_NAME } from "@/lib/config";
+import AskCivixWidget from "@/components/AskCivixWidget";
 
 const HOME_TITLE = `${APP_NAME} — Your Voice in Democracy`;
 const HOME_DESCRIPTION = `${APP_NAME} — connect with your representatives, track local issues, and help shape policy in your district.`;
@@ -36,6 +37,7 @@ export default function RootLayout({
         </div>
 
         {children}
+        <AskCivixWidget />
       </body>
     </html>
   );
