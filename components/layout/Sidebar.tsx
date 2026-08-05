@@ -22,7 +22,6 @@ import {
   BarChart3,
   ShieldCheck,
   CalendarClock,
-  HandCoins,
   HeartHandshake,
   MessageCircle,
   Video,
@@ -289,11 +288,6 @@ export default function Sidebar() {
       icon: Activity,
       badge: myActivityCount > 0 ? myActivityCount : null,
       badgeColor: "red" as const,
-    },
-    {
-      href: "/donation-tracker",
-      label: "Donation Tracker",
-      icon: HandCoins,
     },
     {
       href: "/donate",
