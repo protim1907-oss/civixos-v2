@@ -61,10 +61,23 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ reply });
   } catch (error) {
-    console.error("Assistant error:", error);
-    return NextResponse.json(
-      { error: "The assistant is temporarily unavailable. Please try again." },
-      { status: 502 }
-    );
+    const err = error as { status?: number; code?: string; message?: string };
+    console.error("Assistant error:", err?.status, err?.code, err?.message);
+
+    let hint = "The assistant is temporarily unavailable. Please try again.";
+    if (err?.status === 401) {
+      hint =
+        "The AI key was rejected (401). Check the OPENAI_API_KEY value in your Vercel environment — it may be wrong or truncated.";
+    } else if (err?.status === 429) {
+      hint =
+        err?.code === "insufficient_quota"
+          ? "The OpenAI account has no available quota/credit (429). Add billing or credit to that OpenAI account."
+          : "Too many requests right now (429). Please try again in a moment.";
+    } else if (err?.status === 404) {
+      hint =
+        "The configured model isn't available to this OpenAI key (404). Set ASSISTANT_MODEL to a model your key can use.";
+    }
+
+    return NextResponse.json({ error: hint }, { status: 502 });
   }
 }
