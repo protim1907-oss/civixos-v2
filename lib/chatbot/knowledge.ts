@@ -89,11 +89,16 @@ Rules:
 KNOWLEDGE BASE:
 ${CIVIX_KNOWLEDGE}`;
 
-// Suggested starter questions shown in the widget before the user types.
+// Suggested questions shown in the widget. They stay available after each
+// answer (minus the ones already asked) so users can keep exploring without
+// leaving the chat.
 export const CIVIX_SUGGESTED_QUESTIONS = [
   "What is Civix250?",
   "Which states can sign up?",
+  "How do I sign up?",
   "What is Policy Pulse?",
   "How do I contact my representative?",
   "How do chat and video calls work?",
+  "How do I register as an official?",
+  "What is District Analytics?",
 ];

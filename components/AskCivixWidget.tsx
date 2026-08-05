@@ -59,7 +59,16 @@ export default function AskCivixWidget() {
     }
   }
 
-  const showSuggestions = messages.length <= 1 && !loading;
+  // Keep suggestions available throughout the conversation — show the ones the
+  // user hasn't asked yet, so they can keep clicking through without refreshing.
+  const askedSet = new Set(
+    messages.filter((m) => m.role === "user").map((m) => m.content.trim().toLowerCase())
+  );
+  const remainingSuggestions = CIVIX_SUGGESTED_QUESTIONS.filter(
+    (q) => !askedSet.has(q.toLowerCase())
+  );
+  const showSuggestions = !loading && remainingSuggestions.length > 0;
+  const isFirstTurn = messages.length <= 1;
 
   return (
     <>
@@ -130,9 +139,9 @@ export default function AskCivixWidget() {
             {showSuggestions && (
               <div className="space-y-2 pt-1">
                 <p className="px-1 text-xs font-medium text-slate-400">
-                  Try asking:
+                  {isFirstTurn ? "Try asking:" : "Ask another:"}
                 </p>
-                {CIVIX_SUGGESTED_QUESTIONS.map((q) => (
+                {remainingSuggestions.map((q) => (
                   <button
                     key={q}
                     onClick={() => send(q)}
