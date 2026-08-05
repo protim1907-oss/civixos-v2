@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Send } from "lucide-react";
+import { Sparkles, X, Send, RotateCcw } from "lucide-react";
 import { CIVIX_SUGGESTED_QUESTIONS } from "@/lib/chatbot/knowledge";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -22,6 +22,11 @@ export default function AskCivixWidget() {
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open, loading]);
+
+  function resetChat() {
+    setMessages([GREETING]);
+    setInput("");
+  }
 
   async function send(text: string) {
     const content = text.trim();
@@ -98,13 +103,25 @@ export default function AskCivixWidget() {
                 <p className="text-xs text-slate-400">Your guide to the app</p>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="rounded-full p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {messages.length > 1 && (
+                <button
+                  onClick={resetChat}
+                  aria-label="Reset chat"
+                  title="Reset chat"
+                  className="rounded-full p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  <RotateCcw className="h-[18px] w-[18px]" />
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="rounded-full p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
