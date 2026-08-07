@@ -64,6 +64,14 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check North Carolina voter registration",
     url: "https://vt.ncsbe.gov/RegLkup/",
   },
+  Pennsylvania: {
+    label: "Check Pennsylvania voter registration",
+    url: "https://www.pavoterservices.pa.gov/pages/voterregistrationstatus.aspx",
+  },
+  Florida: {
+    label: "Check Florida voter registration",
+    url: "https://registration.elections.myflorida.com/CheckVoterStatus",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -103,7 +111,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -599,6 +607,8 @@ export default function SignupPage() {
           <option value="New York">New York</option>
           <option value="Virginia">Virginia</option>
           <option value="North Carolina">North Carolina</option>
+          <option value="Pennsylvania">Pennsylvania</option>
+          <option value="Florida">Florida</option>
         </select>
       </div>
 
