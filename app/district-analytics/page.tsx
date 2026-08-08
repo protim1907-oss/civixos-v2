@@ -171,7 +171,7 @@ function normalizeDistrict(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are canonicalized zero-padded
 // (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -195,6 +195,7 @@ function stateCodeOf(district?: string | null, state?: string | null) {
     "north carolina": "NC",
     pennsylvania: "PA",
     florida: "FL",
+    "district of columbia": "DC",
   };
   return byName[String(state || "").trim().toLowerCase()] || "";
 }

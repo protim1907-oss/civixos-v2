@@ -72,6 +72,10 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Florida voter registration",
     url: "https://registration.elections.myflorida.com/CheckVoterStatus",
   },
+  "District of Columbia": {
+    label: "Check District of Columbia voter registration",
+    url: "https://www.dcboe.org/voters/register-to-vote/am-i-registered-to-vote",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -111,7 +115,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -609,6 +613,7 @@ export default function SignupPage() {
           <option value="North Carolina">North Carolina</option>
           <option value="Pennsylvania">Pennsylvania</option>
           <option value="Florida">Florida</option>
+          <option value="District of Columbia">District of Columbia</option>
         </select>
       </div>
 

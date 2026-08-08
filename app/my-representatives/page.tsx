@@ -160,6 +160,10 @@ function normalizeStateCode(state?: string | null): string {
     nc: "NC",
     pennsylvania: "PA",
     pa: "PA",
+    "district of columbia": "DC",
+    "washington dc": "DC",
+    "washington, d.c.": "DC",
+    dc: "DC",
   };
 
   return map[value] || String(state || "").trim().toUpperCase();
@@ -197,6 +201,10 @@ function normalizeStateName(state?: string | null): string {
     nc: "North Carolina",
     pennsylvania: "Pennsylvania",
     pa: "Pennsylvania",
+    "district of columbia": "District of Columbia",
+    "washington dc": "District of Columbia",
+    "washington, d.c.": "District of Columbia",
+    dc: "District of Columbia",
   };
 
   return map[value] || String(state || "").trim() || "State";
@@ -206,7 +214,7 @@ function normalizeStateName(state?: string | null): string {
 // zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01) so
 // profiles, district_representatives rows, and the UI all agree on one form.
 function padDistrict(code: string): string {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -1923,11 +1931,12 @@ export default function MyRepresentativePage() {
                 {stateSenators.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      State Senate
+                      {resolvedState === "DC" ? "Council of the District of Columbia" : "State Senate"}
                     </h4>
                     <p className="mt-1 text-sm text-slate-500">
-                      Members of the state Senate — district numbers refer to the
-                      state legislative map, not congressional districts.
+                      {resolvedState === "DC"
+                        ? "Members of the Council of the District of Columbia — the at-large members and your ward representatives."
+                        : "Members of the state Senate — district numbers refer to the state legislative map, not congressional districts."}
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
                       {stateSenators.map((official) => (
