@@ -1981,11 +1981,12 @@ export default function MyRepresentativePage() {
                 {statewideOfficials.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Statewide Officials
+                      {resolvedState === "DC" ? "Citywide Officials" : "Statewide Officials"}
                     </h4>
                     <p className="mt-1 text-sm text-slate-500">
-                      Elected by the whole state — U.S. senators and executive
-                      officers.
+                      {resolvedState === "DC"
+                        ? "The District's citywide elected leadership — the Mayor and Attorney General."
+                        : "Elected by the whole state — U.S. senators and executive officers."}
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
                       {statewideOfficials.map((official) => (

@@ -207,6 +207,31 @@ async function main() {
         : `2-${String(current.district).replace(/\D/g, "").padStart(2, "0")}`,
     });
   }
+  // Recent winners OpenStates hasn't published yet. Deduped by name so they
+  // drop out automatically once OpenStates catches up. Verified 2026-08-05:
+  // Elissa Silverman (I) won the 2026-06-16 at-large special election (McDuffie's
+  // seat, term through Jan 2027).
+  const manualExtras = [
+    { name: "Elissa Silverman", district: "At-Large", party: "Independent", website: "https://dccouncil.gov", q: "Elissa Silverman DC Council" },
+  ];
+  for (const ex of manualExtras) {
+    if (council.some((c) => c.row.name.toLowerCase() === ex.name.toLowerCase())) continue;
+    const photo = await wikiPhoto(ex.q);
+    council.push({
+      row: representative({
+        name: ex.name,
+        office: councilOffice(ex.district),
+        level: "State Senate",
+        website: ex.website,
+        contact: ex.website,
+        party: ex.party,
+        photo,
+        district: DISTRICT_CODE,
+      }),
+      sortKey: "1",
+    });
+  }
+
   council.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   const councilRows = council.map((c) => c.row);
 
