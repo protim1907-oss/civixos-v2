@@ -31,6 +31,12 @@ function getSpeechCtor(): SpeechCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
+// The browser allows only one active speech recognition (one microphone) at a
+// time. This module-level handle lets a starting dictation stop any other one
+// first, so multiple DictationButtons on a page (e.g. Title + Description) don't
+// fight over the mic.
+let activeStop: (() => void) | null = null;
+
 // A mic toggle that dictates speech into a text field via the browser's built-in
 // speech recognition. Renders nothing on browsers without support. `onAppend`
 // receives finalized transcript chunks as the user speaks.
@@ -53,16 +59,19 @@ export default function DictationButton({
     setSupported(Boolean(getSpeechCtor()));
   }, []);
 
+  const stopRef = useRef<() => void>(() => {});
+
   const stop = useCallback(() => {
     shouldListenRef.current = false;
     setListening(false);
     recognitionRef.current?.stop();
+    if (activeStop === stopRef.current) activeStop = null;
   }, []);
+  stopRef.current = stop;
 
-  const start = useCallback(() => {
+  const beginRecognition = useCallback(() => {
     const Ctor = getSpeechCtor();
     if (!Ctor) return;
-    setError("");
     const rec = new Ctor();
     rec.continuous = true;
     rec.interimResults = true;
@@ -83,6 +92,7 @@ export default function DictationButton({
         setError("Microphone access is blocked. Allow it in your browser to dictate.");
         shouldListenRef.current = false;
         setListening(false);
+        if (activeStop === stopRef.current) activeStop = null;
       }
       // Transient errors (no-speech, aborted, network) fall through to onend,
       // which restarts while the user still wants to dictate.
@@ -102,6 +112,7 @@ export default function DictationButton({
 
     recognitionRef.current = rec;
     shouldListenRef.current = true;
+    activeStop = stopRef.current; // claim the mic
     try {
       rec.start();
       setListening(true);
@@ -110,11 +121,26 @@ export default function DictationButton({
     }
   }, []);
 
+  const start = useCallback(() => {
+    if (!getSpeechCtor()) return;
+    setError("");
+    // If another dictation (e.g. the other field's mic) is active, stop it
+    // first, then start after a short delay so the mic can be released.
+    if (activeStop && activeStop !== stopRef.current) {
+      activeStop();
+      setListening(true); // optimistic — the start is pending
+      setTimeout(() => beginRecognition(), 200);
+    } else {
+      beginRecognition();
+    }
+  }, [beginRecognition]);
+
   // Clean up on unmount.
   useEffect(() => {
     return () => {
       shouldListenRef.current = false;
       recognitionRef.current?.abort();
+      if (activeStop === stopRef.current) activeStop = null;
     };
   }, []);
 
