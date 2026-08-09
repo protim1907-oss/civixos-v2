@@ -625,9 +625,18 @@ export default function CreatePostPage() {
 
                   <div className="mt-8 space-y-8">
                     <div>
-                      <label htmlFor="title" className="mb-3 block text-lg font-medium text-slate-800">
-                        Title
-                      </label>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <label htmlFor="title" className="block text-lg font-medium text-slate-800">
+                          Title
+                        </label>
+                        <DictationButton
+                          onAppend={(text) =>
+                            setTitle((prev) =>
+                              (prev ? `${prev.trimEnd()} ${text}` : text).slice(0, 120)
+                            )
+                          }
+                        />
+                      </div>
                       <input
                         id="title"
                         type="text"
