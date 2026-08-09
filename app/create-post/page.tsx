@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
+import DictationButton from "@/components/DictationButton";
 import { createClient } from "@/lib/supabase/client";
 import { logUserActivity } from "@/lib/user-activity";
 
@@ -666,9 +667,18 @@ export default function CreatePostPage() {
                     </div>
 
                     <div>
-                      <label htmlFor="description" className="mb-3 block text-lg font-medium text-slate-800">
-                        Description
-                      </label>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <label htmlFor="description" className="block text-lg font-medium text-slate-800">
+                          Description
+                        </label>
+                        <DictationButton
+                          onAppend={(text) =>
+                            setDescription((prev) =>
+                              (prev ? `${prev.trimEnd()} ${text}` : text).slice(0, 1500)
+                            )
+                          }
+                        />
+                      </div>
                       <textarea
                         id="description"
                         value={description}
