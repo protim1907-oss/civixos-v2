@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mic } from "lucide-react";
 
 // Minimal typings for the Web Speech API (not in the standard TS lib).
 type SpeechResultAlt = { transcript: string };
@@ -31,15 +31,98 @@ function getSpeechCtor(): SpeechCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
-// The browser allows only one active speech recognition (one microphone) at a
-// time. This module-level handle lets a starting dictation stop any other one
-// first, so multiple DictationButtons on a page (e.g. Title + Description) don't
-// fight over the mic.
-let activeStop: (() => void) | null = null;
+// ---------------------------------------------------------------------------
+// Shared dictation manager. The browser allows only ONE active microphone /
+// speech recognition at a time, so a single recognition instance is shared by
+// every DictationButton on the page. Starting a button just makes it the
+// current target; results route to whichever field is active. Switching fields
+// never restarts the mic, so buttons can't fight over it.
+// ---------------------------------------------------------------------------
+type Target = {
+  onAppend: (text: string) => void;
+  setListening: (v: boolean) => void;
+  setError: (v: string) => void;
+};
 
-// A mic toggle that dictates speech into a text field via the browser's built-in
-// speech recognition. Renders nothing on browsers without support. `onAppend`
-// receives finalized transcript chunks as the user speaks.
+let recognition: SpeechRecognitionLike | null = null;
+let currentTarget: Target | null = null;
+let shouldListen = false;
+
+function ensureRecognition(): SpeechRecognitionLike | null {
+  if (recognition) return recognition;
+  const Ctor = getSpeechCtor();
+  if (!Ctor) return null;
+  const rec = new Ctor();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = "en-US";
+
+  rec.onresult = (e) => {
+    let finalText = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const result = e.results[i];
+      if (result.isFinal) finalText += result[0].transcript;
+    }
+    const trimmed = finalText.trim();
+    if (trimmed && currentTarget) currentTarget.onAppend(trimmed);
+  };
+
+  rec.onerror = (e) => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      shouldListen = false;
+      currentTarget?.setError(
+        "Microphone access is blocked. Click the mic/lock icon in your browser's address bar, allow the microphone, then reload."
+      );
+      currentTarget?.setListening(false);
+    }
+    // Transient errors (no-speech, aborted, network) fall through to onend.
+  };
+
+  rec.onend = () => {
+    if (shouldListen) {
+      try {
+        rec.start();
+      } catch {
+        /* already started — ignore */
+      }
+    } else {
+      currentTarget?.setListening(false);
+    }
+  };
+
+  recognition = rec;
+  return rec;
+}
+
+function startDictation(target: Target) {
+  const rec = ensureRecognition();
+  if (!rec) return;
+  // Hand the mic to this field; the previously active field stops listening.
+  if (currentTarget && currentTarget !== target) currentTarget.setListening(false);
+  currentTarget = target;
+  target.setError("");
+  shouldListen = true;
+  target.setListening(true);
+  try {
+    rec.start();
+  } catch {
+    // Already running — that's fine: results now route to the new target.
+  }
+}
+
+function stopDictation(target: Target) {
+  shouldListen = false;
+  if (currentTarget === target) currentTarget = null;
+  target.setListening(false);
+  try {
+    recognition?.stop();
+  } catch {
+    /* ignore */
+  }
+}
+
+// A mic toggle that dictates speech into a text field. Renders nothing on
+// browsers without support. `onAppend` receives finalized transcript chunks.
 export default function DictationButton({
   onAppend,
   className = "",
@@ -50,8 +133,6 @@ export default function DictationButton({
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const shouldListenRef = useRef(false);
   const onAppendRef = useRef(onAppend);
   onAppendRef.current = onAppend;
 
@@ -59,98 +140,37 @@ export default function DictationButton({
     setSupported(Boolean(getSpeechCtor()));
   }, []);
 
-  const stopRef = useRef<() => void>(() => {});
-
-  const stop = useCallback(() => {
-    shouldListenRef.current = false;
-    setListening(false);
-    recognitionRef.current?.stop();
-    if (activeStop === stopRef.current) activeStop = null;
-  }, []);
-  stopRef.current = stop;
-
-  const beginRecognition = useCallback(() => {
-    const Ctor = getSpeechCtor();
-    if (!Ctor) return;
-    const rec = new Ctor();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = "en-US";
-
-    rec.onresult = (e) => {
-      let finalText = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const result = e.results[i];
-        if (result.isFinal) finalText += result[0].transcript;
-      }
-      const trimmed = finalText.trim();
-      if (trimmed) onAppendRef.current(trimmed);
+  // A stable target object for this instance (identity used by the manager).
+  const targetRef = useRef<Target | null>(null);
+  if (!targetRef.current) {
+    targetRef.current = {
+      onAppend: (t) => onAppendRef.current(t),
+      setListening,
+      setError,
     };
+  }
 
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        setError("Microphone access is blocked. Allow it in your browser to dictate.");
-        shouldListenRef.current = false;
-        setListening(false);
-        if (activeStop === stopRef.current) activeStop = null;
-      }
-      // Transient errors (no-speech, aborted, network) fall through to onend,
-      // which restarts while the user still wants to dictate.
-    };
-
-    rec.onend = () => {
-      if (shouldListenRef.current) {
-        try {
-          rec.start();
-        } catch {
-          /* already started — ignore */
-        }
-      } else {
-        setListening(false);
-      }
-    };
-
-    recognitionRef.current = rec;
-    shouldListenRef.current = true;
-    activeStop = stopRef.current; // claim the mic
-    try {
-      rec.start();
-      setListening(true);
-    } catch {
-      /* start can throw if called twice quickly — ignore */
-    }
-  }, []);
-
-  const start = useCallback(() => {
-    if (!getSpeechCtor()) return;
-    setError("");
-    // If another dictation (e.g. the other field's mic) is active, stop it
-    // first, then start after a short delay so the mic can be released.
-    if (activeStop && activeStop !== stopRef.current) {
-      activeStop();
-      setListening(true); // optimistic — the start is pending
-      setTimeout(() => beginRecognition(), 200);
-    } else {
-      beginRecognition();
-    }
-  }, [beginRecognition]);
-
-  // Clean up on unmount.
   useEffect(() => {
+    const target = targetRef.current;
     return () => {
-      shouldListenRef.current = false;
-      recognitionRef.current?.abort();
-      if (activeStop === stopRef.current) activeStop = null;
+      if (target && currentTarget === target) stopDictation(target);
     };
   }, []);
 
   if (!supported) return null;
 
+  const target = targetRef.current;
+  const toggle = () => {
+    if (!target) return;
+    if (listening) stopDictation(target);
+    else startDictation(target);
+  };
+
   return (
     <div className={className}>
       <button
         type="button"
-        onClick={() => (listening ? stop() : start())}
+        onClick={toggle}
         aria-pressed={listening}
         className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
           listening
@@ -173,7 +193,7 @@ export default function DictationButton({
           </>
         )}
       </button>
-      {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="mt-1 max-w-xs text-xs text-red-600">{error}</p> : null}
     </div>
   );
 }
