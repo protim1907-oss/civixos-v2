@@ -5,6 +5,9 @@ import { useEffect } from "react";
 
 export default function HomePage() {
   useEffect(() => {
+    // Enable scroll-reveal styling only once JS is running; without this class
+    // every .fade-in section stays visible (no-JS / slow-hydration safe).
+    document.documentElement.classList.add("js");
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -34,8 +37,14 @@ export default function HomePage() {
           70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(34,197,94,0); }
           100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
-        .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
-        .fade-in.visible { opacity: 1; transform: translateY(0); }
+        /* Visible by default so ad visitors never see a blank hero if JS is slow or disabled. */
+        .fade-in { opacity: 1; transform: none; transition: opacity 0.6s ease, transform 0.6s ease; }
+        .js .fade-in { opacity: 0; transform: translateY(24px); }
+        .js .fade-in.visible { opacity: 1; transform: translateY(0); }
+        /* Hero reveals via pure CSS on load — no IntersectionObserver dependency. */
+        @keyframes heroIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+        .hero-in { animation: heroIn 0.7s cubic-bezier(0.215,0.61,0.355,1) both; }
+        .hero-in.delay { animation-delay: 0.12s; }
         .stat-counter { font-variant-numeric: tabular-nums; }
       `}</style>
 
@@ -65,7 +74,7 @@ export default function HomePage() {
       <section className="gradient-hero pt-28 pb-20 px-5 overflow-hidden">
         <div className="mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-14 items-center">
-            <div className="fade-in">
+            <div className="hero-in">
               <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-green-700 mb-6">
                 <span className="inline-block h-2 w-2 rounded-full bg-green-500 pulse-ring"></span>
                 Now Live · America&apos;s Civic Platform
@@ -95,7 +104,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="fade-in relative">
+            <div className="hero-in delay relative">
               <div className="rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 bg-white">
                 <img src="/hero-image.png" alt="American flag and civic platform" className="w-full aspect-[4/3] object-cover" />
                 <div className="px-6 py-4 bg-white border-t border-slate-100 flex items-center justify-between">
