@@ -1,0 +1,3 @@
+# Generated render intermediates — the .jpg deliverables are kept.
+out/*.html
+out/*@2x.png
