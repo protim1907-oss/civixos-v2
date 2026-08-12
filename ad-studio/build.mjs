@@ -40,6 +40,9 @@ for (const s of sizes) {
     EYEBROW: esc(ad.eyebrow), HEADLINE: esc(ad.headline), DESC: esc(ad.desc),
     CTA: esc(ad.cta), URL: esc(ad.url), ...p,
   };
+  // Optional per-ad layout tweaks for text-heavy ads:
+  // "overrides": { "all": {"H1FS":52}, "1200x628": {"H1FS":46} }
+  Object.assign(tokens, ad.overrides?.all ?? {}, ad.overrides?.[s] ?? {});
   const html = template.replace(/__([A-Z0-9]+)__/g, (_, k) =>
     (k in tokens) ? tokens[k] : `__${k}__`);
   const outFile = join(ROOT, 'out', `${ad.name}-${s}.html`);

@@ -75,14 +75,36 @@ function representative({ name, office, level, website, contact, party, photo, d
   };
 }
 
-async function wikiPhoto(query) {
+// Reject non-portrait images — office pages often return a seal/flag/logo.
+function looksLikePortrait(url) {
+  const f = decodeURIComponent(url || "").toLowerCase();
+  return !!f && !/(seal|flag|coat[_ ]of[_ ]arms|logo|emblem|\.svg)/.test(f);
+}
+
+async function wikiThumb(paramStr) {
+  const url =
+    "https://en.wikipedia.org/w/api.php?action=query&format=json&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=500&" +
+    paramStr;
+  const data = await getJSON(url);
+  const pages = Object.values(data?.query?.pages || {});
+  return pages[0]?.thumbnail?.source || "";
+}
+
+// Resolve a Wikipedia headshot. Prefers the exact page title (so it can't match
+// a spouse or the office page's seal); falls back to search. Non-portrait images
+// (seals/flags/logos/SVGs) are rejected. Back-compatible: called with a single
+// descriptive string it does search-only (still guarded).
+async function wikiPhoto(title, query) {
+  const search = query || title;
   try {
-    const url =
-      "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=pageimages&piprop=thumbnail&pithumbsize=500" +
-      `&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1`;
-    const data = await getJSON(url);
-    const first = Object.values(data?.query?.pages || {})[0];
-    return first?.thumbnail?.source || "";
+    if (query) {
+      const exact = await wikiThumb(`titles=${encodeURIComponent(title)}`);
+      if (looksLikePortrait(exact)) return exact;
+    }
+    const found = await wikiThumb(
+      `generator=search&gsrsearch=${encodeURIComponent(search)}&gsrlimit=1`
+    );
+    return looksLikePortrait(found) ? found : "";
   } catch {
     return "";
   }
@@ -157,7 +179,7 @@ async function main() {
       website: d.website,
       contact: d.contact,
       party: d.party,
-      photo: await wikiPhoto(d.q),
+      photo: await wikiPhoto(d.name, d.q),
     })
   );
 

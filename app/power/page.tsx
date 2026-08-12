@@ -77,7 +77,7 @@ export default function PowerLanding() {
                 Log In
               </Link>
               <Link href="/signup" className="inline-flex items-center gap-2 rounded-full bg-red-700 px-5 py-2 text-sm font-bold text-white hover:bg-red-800 transition shadow-lg shadow-red-700/30">
-                Sign Up Free <Arrow />
+                Add Your Voice <Arrow />
               </Link>
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function PowerLanding() {
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link href="/signup" className="inline-flex items-center gap-2 rounded-full bg-red-700 px-8 py-4 text-base font-bold text-white hover:bg-red-800 transition shadow-lg shadow-red-700/40">
-                Sign Up Free <Arrow />
+                Add Your Voice <Arrow />
               </Link>
               <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/5 px-8 py-4 text-base font-bold text-white hover:bg-white/10 transition">
                 Log In
@@ -148,7 +148,7 @@ export default function PowerLanding() {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-red-700 px-8 py-4 text-base font-bold text-white hover:bg-red-800 transition shadow-lg shadow-red-700/40">
-                Sign Up Free <Arrow />
+                Add Your Voice <Arrow />
               </Link>
               <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-transparent px-8 py-4 text-base font-bold text-white hover:bg-white/10 transition">
                 Log In

@@ -1,0 +1,12 @@
+{
+  "name": "ad-05-machine",
+  "eyebrow": "Donors · Party Bosses · Reform",
+  "headline": "Citizens are done letting donors and party bosses run the show",
+  "desc": "For generations, we've counted bodies for seats while money and party machines called the shots.",
+  "cta": "Add Your Voice",
+  "url": "www.civix250.ai",
+  "overrides": {
+    "1200x628": { "H1FS": 48, "DESCFS": 24 },
+    "1200x1200": { "H1FS": 70, "DESCFS": 34 }
+  }
+}

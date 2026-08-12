@@ -1,18 +1,18 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-const title = "Pass State and Federal Bills — Civix250";
+const title = "Citizens Are Done Letting Donors Run the Show — Civix250";
 const description =
-  "Speak to state and federal lawmakers. Write, call, and influence your representative. Free for verified voters in your congressional district.";
+  "For generations, we've counted bodies for seats while money and party machines called the shots. It's time to restore citizen power. Free for verified voters.";
 
 export const metadata: Metadata = {
   title,
   description,
-  alternates: { canonical: "https://www.civix250.ai/bills" },
+  alternates: { canonical: "https://www.civix250.ai/reform" },
   openGraph: {
     title,
     description,
-    url: "https://www.civix250.ai/bills",
+    url: "https://www.civix250.ai/reform",
     siteName: "Civix250",
     type: "website",
   },
@@ -48,7 +48,7 @@ const Arrow = () => (
   </svg>
 );
 
-export default function BillsLanding() {
+export default function ReformLanding() {
   return (
     <>
       <style>{`
@@ -66,7 +66,7 @@ export default function BillsLanding() {
       `}</style>
 
       <div className="lobby min-h-screen bg-white text-slate-900">
-        {/* NAV — white band + wordmark, mirrors the ad creative */}
+        {/* NAV */}
         <nav className="border-b border-slate-200 bg-white">
           <div className="mx-auto max-w-6xl px-5 h-16 flex items-center justify-between">
             <Link href="/" className="text-2xl font-black tracking-tight">
@@ -83,17 +83,17 @@ export default function BillsLanding() {
           </div>
         </nav>
 
-        {/* HERO — matches Ad 2 headline + palette for tight ad↔page message match */}
+        {/* HERO — matches Ad 5 */}
         <section className="lobby-hero text-white">
           <div className="mx-auto max-w-6xl px-5 py-20 md:py-28">
             <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-red-400">
-              State · Federal · Lawmakers
+              Donors · Party Bosses · Reform
             </p>
-            <h1 className="mt-4 text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.03] tracking-tight max-w-3xl">
-              Pass State and Federal Bills
+            <h1 className="mt-4 text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.03] tracking-tight max-w-4xl">
+              Citizens are done letting donors and party bosses run the show
             </h1>
             <p className="mt-6 text-xl md:text-2xl text-slate-300 leading-relaxed max-w-2xl">
-              Speak to state and federal lawmakers. Write, call, and influence your representative.
+              For generations, we&apos;ve counted bodies for seats while money and party machines called the shots.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link href="/signup" className="inline-flex items-center gap-2 rounded-full bg-red-700 px-8 py-4 text-base font-bold text-white hover:bg-red-800 transition shadow-lg shadow-red-700/40">
@@ -110,17 +110,38 @@ export default function BillsLanding() {
           <div className="lobby-stripe" />
         </section>
 
-        {/* NARRATIVE — the four things every visitor should read before signing up */}
+        {/* THE AMENDMENT — the constitutional-amendment narrative */}
+        <section className="py-20 md:py-24 px-5 bg-slate-50 border-b border-slate-200">
+          <div className="mx-auto max-w-4xl">
+            <p className="text-sm font-bold uppercase tracking-widest text-blue-700 mb-3">The proposed amendment</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-950 max-w-3xl">
+              Representation by citizens — not by money or machines
+            </h2>
+            <blockquote className="mt-8 rounded-3xl border border-slate-200 bg-white p-8 md:p-10 shadow-sm border-l-4 border-l-red-700">
+              <p className="text-lg md:text-xl leading-8 text-slate-700">
+                The Constitution could be amended so that congressional and state legislative districts
+                shall be drawn so that, as nearly as practicable, each district contains an equal number
+                of citizens of voting age, consistent with this portion of the amendment and other
+                provisions of this Constitution. No state shall draw districts with the predominant
+                purpose or effect of materially diluting the voting power of a class of citizens, relative
+                to other citizens, solely by reason of their residence in areas with high numbers of
+                non-citizens or non-voting persons.
+              </p>
+            </blockquote>
+          </div>
+        </section>
+
+        {/* HOW IT WORKS — the four pillars */}
         <section className="py-20 md:py-24 px-5">
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl">
               <p className="text-sm font-bold uppercase tracking-widest text-blue-700 mb-3">How it works</p>
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-950">
-                Move legislation, verified and district-based
+                Take the power back — together
               </h2>
               <p className="mt-4 text-lg text-slate-600 leading-relaxed">
-                Civix250 turns your voter registration into direct, coordinated pressure on the
-                lawmakers who write state and federal bills.
+                Civix250 turns your voter registration into direct, coordinated pressure that money and
+                party machines can&apos;t buy — in your district and across the country.
               </p>
             </div>
 
@@ -141,10 +162,10 @@ export default function BillsLanding() {
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-bold uppercase tracking-widest text-red-400 mb-4">Restore citizen power</p>
             <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">
-              Ready to move real legislation?
+              Done letting them run the show?
             </h2>
             <p className="mt-5 text-xl text-slate-400 leading-relaxed">
-              Register in minutes, verify your district, and start writing, calling, and organizing today.
+              Register in minutes, verify your district, and start organizing for real reform today.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-red-700 px-8 py-4 text-base font-bold text-white hover:bg-red-800 transition shadow-lg shadow-red-700/40">

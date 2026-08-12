@@ -1,0 +1,12 @@
+{
+  "name": "ad-04-equality",
+  "eyebrow": "Citizen Political Equality",
+  "headline": "Citizens, not \"bodies,\" should decide seats",
+  "desc": "A Citizen Political Equality Amendment aligns representation with citizens only — so every citizen's voice counts equally.",
+  "cta": "Add Your Voice",
+  "url": "www.civix250.ai",
+  "overrides": {
+    "1200x628": { "H1FS": 50, "DESCFS": 24 },
+    "1200x1200": { "H1FS": 74, "DESCFS": 34 }
+  }
+}
