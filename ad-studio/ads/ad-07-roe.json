@@ -1,0 +1,12 @@
+{
+  "name": "ad-07-roe",
+  "eyebrow": "Women's Rights",
+  "headline": "Women's rights continue to be threatened",
+  "desc": "Women's rights diminished by the overturn of Roe v. Wade.",
+  "cta": "Add Your Voice",
+  "url": "www.civix250.ai",
+  "overrides": {
+    "1200x628": { "H1FS": 52, "DESCFS": 26 },
+    "1200x1200": { "H1FS": 76, "DESCFS": 34 }
+  }
+}

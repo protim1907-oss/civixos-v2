@@ -1,0 +1,12 @@
+{
+  "name": "ad-06-bigmoney",
+  "eyebrow": "Citizens United · Dark Money",
+  "headline": "Corporations and big money manage the political scene",
+  "desc": "The Supreme Court grants corporations and big-money donors financing freedom that individual citizens don't have.",
+  "cta": "Add Your Voice",
+  "url": "www.civix250.ai",
+  "overrides": {
+    "1200x628": { "H1FS": 44, "DESCFS": 23 },
+    "1200x1200": { "H1FS": 64, "DESCFS": 33 }
+  }
+}
