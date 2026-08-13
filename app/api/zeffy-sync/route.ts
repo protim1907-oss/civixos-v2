@@ -6,13 +6,15 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 // payments are recorded into platform_donations. Use this instead of a webhook
 // (this org's Zeffy account exposes an API key but not the webhook UI).
 //
-// Trigger periodically, e.g. a Vercel Cron or any scheduler hitting:
-//   GET https://civix250.ai/api/zeffy-sync?token=<ZEFFY_SYNC_SECRET>
-// It is idempotent: gifts already recorded (matched by Zeffy payment id in the
-// notes column) are skipped, so it is safe to run as often as you like.
+// Runs hourly via Vercel Cron (see vercel.json). Vercel automatically sends
+// `Authorization: Bearer <CRON_SECRET>` on cron calls, which this endpoint
+// accepts. It can also be triggered manually with a ?token=<ZEFFY_SYNC_SECRET>
+// query param. It is idempotent: gifts already recorded (matched by Zeffy
+// payment id in the notes column) are skipped, so it is safe to run repeatedly.
 //
-// Env: ZEFFY_API_KEY  (Bearer token from Zeffy → Settings → Integrations)
-//      ZEFFY_SYNC_SECRET (shared secret guarding this endpoint)
+// Env: ZEFFY_API_KEY    (Bearer token from Zeffy → Settings → Integrations)
+//      CRON_SECRET       (set in Vercel; sent by Vercel Cron as a Bearer token)
+//      ZEFFY_SYNC_SECRET (optional shared secret for manual ?token= triggers)
 
 const ZEFFY_API = "https://api.zeffy.com/api/v1/payments";
 const PAGE_LIMIT = 100;
@@ -158,13 +160,27 @@ async function runSync() {
   });
 }
 
+function isAuthorized(req: NextRequest): boolean {
+  // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const auth = req.headers.get("authorization");
+    if (auth && isValidToken(auth.replace(/^Bearer\s+/i, ""), cronSecret)) return true;
+  }
+  // Manual/other triggers: ?token=<ZEFFY_SYNC_SECRET>.
+  const syncSecret = process.env.ZEFFY_SYNC_SECRET;
+  if (syncSecret && isValidToken(req.nextUrl.searchParams.get("token"), syncSecret)) {
+    return true;
+  }
+  return false;
+}
+
 export async function GET(req: NextRequest) {
-  const secret = process.env.ZEFFY_SYNC_SECRET;
-  if (!secret) {
+  if (!process.env.CRON_SECRET && !process.env.ZEFFY_SYNC_SECRET) {
     return NextResponse.json({ error: "Zeffy sync is not configured." }, { status: 503 });
   }
-  if (!isValidToken(req.nextUrl.searchParams.get("token"), secret)) {
-    return NextResponse.json({ error: "Invalid token." }, { status: 401 });
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   return runSync();
 }
