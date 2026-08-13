@@ -259,7 +259,7 @@ export default function AdminDashboardPage() {
     donor_name: "",
     donor_email: "",
     amount: "",
-    payment_method: "givebutter",
+    payment_method: "zeffy",
     recurring: false,
     notes: "",
   });
@@ -510,7 +510,7 @@ export default function AdminDashboardPage() {
     }]);
     if (!error) {
       setShowDonationForm(false);
-      setDonationForm({ donor_name: "", donor_email: "", amount: "", payment_method: "givebutter", recurring: false, notes: "" });
+      setDonationForm({ donor_name: "", donor_email: "", amount: "", payment_method: "zeffy", recurring: false, notes: "" });
       await loadDonations();
     }
     setDonationFormLoading(false);
@@ -3291,7 +3291,7 @@ export default function AdminDashboardPage() {
                       onChange={(e) => setDonationForm((f) => ({ ...f, payment_method: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400"
                     >
-                      <option value="givebutter">Givebutter</option>
+                      <option value="zeffy">Zeffy</option>
                       <option value="check">Check</option>
                       <option value="cash">Cash</option>
                       <option value="bank_transfer">Bank Transfer</option>

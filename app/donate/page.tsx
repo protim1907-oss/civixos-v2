@@ -11,6 +11,10 @@ import {
 
 const EIN_NUMBER = "39-4801426";
 
+// Zeffy embed URL from the form's Share page → "Embed your form on your site".
+// e.g. https://www.zeffy.com/embed/donation-form/<form-id>
+const ZEFFY_DONATION_URL = process.env.NEXT_PUBLIC_ZEFFY_DONATION_URL;
+
 export default function DonatePage() {
   return (
     <main className="min-h-screen bg-slate-100">
@@ -55,46 +59,71 @@ export default function DonatePage() {
               </div>
             </section>
 
-            {/* Online giving is paused while the donation platform is being updated. */}
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm md:p-10">
-              <div className="mx-auto max-w-2xl text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-                  <Clock className="h-7 w-7" />
-                </div>
-                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.16em] text-amber-600">
-                  Coming back soon
-                </p>
-                <h2 className="mt-2 text-2xl font-bold text-slate-950 md:text-3xl">
-                  Online donations are temporarily unavailable
-                </h2>
-                <p className="mt-4 text-base leading-7 text-slate-600">
-                  We&apos;re updating our donation platform, so online giving is paused right now.
-                  Thank you for your support — please check back shortly. In the meantime, you can
-                  still explore how contributions are used.
-                </p>
-
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                  <Link
-                    href="/donation-tracker"
-                    className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+            {ZEFFY_DONATION_URL ? (
+              /* Live Zeffy donation form, embedded from the form's Share page. */
+              <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                <div className="mx-auto max-w-2xl">
+                  <div
+                    className="relative w-full overflow-hidden rounded-2xl"
+                    style={{ paddingTop: "115%" }}
                   >
-                    View Donation Tracker
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Back to dashboard
-                  </Link>
+                    <iframe
+                      title="Donate to Civix250"
+                      src={ZEFFY_DONATION_URL}
+                      className="absolute inset-0 h-full w-full border-0"
+                      allow="payment"
+                      allowTransparency
+                    />
+                  </div>
+                  <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs leading-5 text-slate-500">
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                    Vote Beyond Party is a 501(c)(3) nonprofit. EIN {EIN_NUMBER}. Donations are
+                    tax-deductible to the extent permitted by law.
+                  </p>
                 </div>
+              </section>
+            ) : (
+              /* Fallback shown until NEXT_PUBLIC_ZEFFY_DONATION_URL is configured. */
+              <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm md:p-10">
+                <div className="mx-auto max-w-2xl text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                    <Clock className="h-7 w-7" />
+                  </div>
+                  <p className="mt-5 text-sm font-semibold uppercase tracking-[0.16em] text-amber-600">
+                    Coming back soon
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-950 md:text-3xl">
+                    Online donations are temporarily unavailable
+                  </h2>
+                  <p className="mt-4 text-base leading-7 text-slate-600">
+                    We&apos;re updating our donation platform, so online giving is paused right now.
+                    Thank you for your support — please check back shortly. In the meantime, you can
+                    still explore how contributions are used.
+                  </p>
 
-                <p className="mt-8 flex items-center justify-center gap-2 text-xs leading-5 text-slate-500">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                  Vote Beyond Party is a 501(c)(3) nonprofit. EIN {EIN_NUMBER}. Donations are
-                  tax-deductible to the extent permitted by law.
-                </p>
-              </div>
-            </section>
+                  <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                    <Link
+                      href="/donation-tracker"
+                      className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                    >
+                      View Donation Tracker
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Back to dashboard
+                    </Link>
+                  </div>
+
+                  <p className="mt-8 flex items-center justify-center gap-2 text-xs leading-5 text-slate-500">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    Vote Beyond Party is a 501(c)(3) nonprofit. EIN {EIN_NUMBER}. Donations are
+                    tax-deductible to the extent permitted by law.
+                  </p>
+                </div>
+              </section>
+            )}
 
             <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
               Looking for campaign-finance information?{" "}
