@@ -37,31 +37,40 @@ function leadContext(lead: OutreachLead): string {
 function stripSignoff(body: string, campaign: OutreachCampaign): string {
   const closing =
     /^(best|thanks|thank you|regards|kind regards|warm regards|best regards|cheers|sincerely|talk soon|looking forward|yours( truly| sincerely)?)\b[\s,.!—-]*$/i;
-  const names = new Set(
-    [campaign.from_name, campaign.sender_org]
-      .filter(Boolean)
-      .map((s) => (s as string).trim().toLowerCase())
-  );
+  // Full name, org, AND individual name tokens (e.g. a bare first name
+  // "Protim") — a model sometimes signs off with just the first name, which
+  // would otherwise survive and double up with the appended signature.
+  const names = new Set<string>();
+  for (const src of [campaign.from_name, campaign.sender_org]) {
+    if (!src) continue;
+    const v = src.trim().toLowerCase();
+    names.add(v);
+    for (const tok of v.split(/\s+/)) if (tok.length > 1) names.add(tok);
+  }
 
-  const lines = body.replace(/\r/g, "").split("\n");
-  let removed = 0;
-  while (lines.length && removed < 5) {
+  let lines = body.replace(/\r/g, "").split("\n");
+  // Drop trailing blank lines.
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+
+  // If a bare closing phrase ("Best,", "Regards," …) appears in the last few
+  // lines, cut it and everything after it — this catches sign-offs that use
+  // only a first name (e.g. "Best,\nProtim"), which the send step would
+  // otherwise double up against the appended signature.
+  const window = Math.min(5, lines.length);
+  for (let k = lines.length - window; k < lines.length; k++) {
+    if (k >= 0 && closing.test((lines[k] || "").trim())) {
+      lines = lines.slice(0, k);
+      break;
+    }
+  }
+
+  // Also drop any remaining trailing lines that are exactly the sender's
+  // name/org (a sign-off with no closing phrase).
+  while (lines.length) {
     const last = (lines[lines.length - 1] || "").trim();
-    if (!last) {
-      lines.pop(); // drop trailing blank lines
-      continue;
-    }
-    if (names.has(last.toLowerCase())) {
-      lines.pop();
-      removed++;
-      continue;
-    }
-    if (closing.test(last)) {
-      lines.pop();
-      removed++;
-      break; // the closing phrase is the top of the sign-off block
-    }
-    break; // real content — stop
+    if (!last) { lines.pop(); continue; }
+    if (names.has(last.toLowerCase())) { lines.pop(); continue; }
+    break;
   }
   return lines.join("\n").trim();
 }
