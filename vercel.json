@@ -3,6 +3,10 @@
     {
       "path": "/api/zeffy-sync",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/outreach/cron-send",
+      "schedule": "0 13-20 * * *"
     }
   ]
 }
