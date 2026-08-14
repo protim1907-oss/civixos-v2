@@ -15,6 +15,7 @@
     "seed:tx23-leaders": "node --env-file=.env.local scripts/seed-tx23-leaders.mjs",
     "seed:ohio-leaders": "node --env-file=.env.local scripts/seed-ohio-leaders.mjs",
     "seed:bidspro-campaign": "node --env-file=.env.local scripts/seed-bidspro-campaign.mjs",
+    "import:apollo": "node --env-file=.env.local scripts/import-apollo-csv.mjs",
     "check:dns": "node scripts/check-dns.mjs"
   },
   "dependencies": {
