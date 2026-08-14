@@ -16,11 +16,20 @@ async function unsubscribe(email: string, token: string) {
   return true;
 }
 
-function page(message: string) {
+// The unsubscribe endpoint is shared across campaigns/brands. Brand the page by
+// the host the recipient arrived on, which matches the sender's link domain
+// (BidSpro emails link to go.bidsprointernational.com; Civix250 to civix250.ai).
+function brandForHost(host: string): string {
+  const h = host.toLowerCase();
+  if (h.includes("bidspro")) return "BidSpro International";
+  return "Civix250";
+}
+
+function page(message: string, brand: string) {
   return new NextResponse(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribe</title></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:80px auto;padding:0 20px;color:#1f2937;text-align:center;">
-<h1 style="font-size:20px;">Civix250</h1><p style="font-size:15px;color:#374151;">${message}</p></body></html>`,
+<h1 style="font-size:20px;">${brand}</h1><p style="font-size:15px;color:#374151;">${message}</p></body></html>`,
     { headers: { "content-type": "text/html; charset=utf-8" } }
   );
 }
@@ -29,10 +38,12 @@ function page(message: string) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const ok = await unsubscribe(url.searchParams.get("e") || "", url.searchParams.get("t") || "");
+  const brand = brandForHost(request.headers.get("host") || url.host);
   return page(
     ok
       ? "You've been unsubscribed and won't receive further emails from this campaign."
-      : "This unsubscribe link is invalid or has expired."
+      : "This unsubscribe link is invalid or has expired.",
+    brand
   );
 }
 
