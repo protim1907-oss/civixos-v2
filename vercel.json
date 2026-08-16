@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/outreach/cron-send",
-      "schedule": "0 13-20 * * *"
+      "schedule": "0 13-20 * * 1-6"
     }
   ]
 }
