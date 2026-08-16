@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Civix250 — Google Ads Setup Guide</title>
+<style>
+  @page { size: Letter; margin: 0.45in 0.5in; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#0f172a; font-size:9.4px; line-height:1.42; }
+  .wm { font-weight:900; font-size:19px; letter-spacing:-.02em; }
+  .wm .r{ color:#b91c1c; }
+  header { display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:3px solid #0f172a; padding-bottom:7px; }
+  header .sub { font-size:11px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:.06em; }
+  .stripe { height:4px; background:linear-gradient(90deg,#b91c1c 0 34%,#e2e8f0 34% 42%,#1d4ed8 42% 100%); margin-bottom:9px; }
+  h2 { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#b91c1c;
+    margin:9px 0 4px; font-weight:800; border-bottom:1px solid #e2e8f0; padding-bottom:2px; }
+  p { margin-bottom:3px; }
+  .lead { font-size:9.8px; color:#334155; }
+  ol, ul { margin-left:14px; }
+  ol li, ul li { margin-bottom:2px; }
+  .cols { display:flex; gap:16px; }
+  .col { flex:1; }
+  .warn { background:#fef2f2; border-left:3px solid #b91c1c; padding:5px 8px; border-radius:3px; margin:4px 0; }
+  table { width:100%; border-collapse:collapse; margin-top:3px; font-size:8.7px; }
+  th, td { text-align:left; padding:3px 5px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+  th { background:#0f172a; color:#fff; font-size:8px; text-transform:uppercase; letter-spacing:.04em; }
+  td.ad { font-weight:700; white-space:nowrap; }
+  td.url { color:#1d4ed8; }
+  code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:8.4px; color:#334155; }
+  .foot { margin-top:9px; border-top:1px solid #e2e8f0; padding-top:5px; font-size:8px; color:#64748b;
+    display:flex; justify-content:space-between; }
+  b, strong { color:#0f172a; }
+</style>
+</head>
+<body>
+  <header>
+    <span class="wm">Civix<span class="r">250</span></span>
+    <span class="sub">Google Ads — Setup Guide</span>
+  </header>
+  <div class="stripe"></div>
+
+  <p class="lead"><b>What these ads are:</b> each ad is a finished image (headline, description &amp; button already on it)
+  in two sizes — <b>1200&times;628</b> (rectangle) and <b>1200&times;1200</b> (square) — that links to a matching landing page.
+  Run them as <b>Responsive Display Ads</b> in a Google <b>Display</b> campaign.</p>
+
+  <div class="warn">
+    <b>⚠ Before you start:</b> These are political / issue ads. Google requires <b>advertiser identity verification</b>
+    (can take a few days), and the Women's Rights ad may need extra certification and can be limited by region.
+    Also set up <b>billing</b> and, ideally, <b>conversion tracking</b> (a Google tag on civix250.ai firing on sign-up).
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <h2>Step-by-step</h2>
+      <ol>
+        <li><b>New campaign:</b> Google Ads → Campaigns → ＋ New campaign.</li>
+        <li><b>Objective:</b> choose <b>Leads</b>.</li>
+        <li><b>Campaign type:</b> select <b>Display</b> → Continue.</li>
+        <li><b>Settings:</b> name it; set <b>Locations</b> to only the states where sign-up is allowed
+          (TX, CA, IL, MD, CO, NV, OH, GA, MI, NY — confirm current list); set a <b>daily budget</b>;
+          bidding = <b>Maximize clicks</b> to start.</li>
+        <li><b>Ad group:</b> create one <b>ad group per ad</b> (cleaner reporting).</li>
+        <li><b>Build the ad</b> (Responsive display ad): paste the <b>Final URL</b>; upload the
+          <b>1200&times;628</b> + <b>1200&times;1200</b> images; add the <b>Civix250 logo</b> and
+          business name; fill short <b>headlines/descriptions</b>; CTA = <b>Sign up</b>.</li>
+        <li><b>Repeat</b> steps 5–6 for each ad with its own images + URL.</li>
+        <li><b>Review → Publish.</b> Ads go "Under review" (~1 day; longer for political).</li>
+      </ol>
+    </div>
+    <div class="col">
+      <h2>Good to know</h2>
+      <ul>
+        <li>The message is <b>already on the image</b>, so keep the text fields short and non-redundant
+          (headlines ≤30 chars, descriptions ≤90).</li>
+        <li>Want the image shown <b>exactly as-is</b> with no Google-added layout? Use
+          <b>"Upload display ads"</b> instead — but that needs standard banner sizes
+          (300&times;250, 728&times;90, 160&times;600, 300&times;600, 970&times;250), which can be generated on request.</li>
+        <li><b>Performance Max</b> is an easier alternative (auto-runs everywhere with the same two image sizes)
+          but gives less control.</li>
+        <li>The <b>same images + URLs</b> also work on <b>Meta (Facebook/Instagram) Ads</b> — square is ideal;
+          vertical 4:5 / 9:16 versions recommended for mobile.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Which image + URL goes with each ad</h2>
+  <table>
+    <thead><tr><th>Ad</th><th>Creative files (upload both sizes)</th><th>Final URL</th></tr></thead>
+    <tbody>
+      <tr><td class="ad">1 · Lobby Your Reps</td><td><code>ad-01-lobby-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/lobby</td></tr>
+      <tr><td class="ad">2 · Pass Bills</td><td><code>ad-02-bills-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/bills</td></tr>
+      <tr><td class="ad">3 · Restore Power</td><td><code>ad-03-power-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/power</td></tr>
+      <tr><td class="ad">4 · Equal Citizens</td><td><code>ad-04-equality-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/equal-citizens</td></tr>
+      <tr><td class="ad">5 · Reform</td><td><code>ad-05-machine-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/reform</td></tr>
+      <tr><td class="ad">6 · Big Money</td><td><code>ad-06-bigmoney-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/big-money</td></tr>
+      <tr><td class="ad">7 · Women's Rights</td><td><code>ad-07-roe-1200x628.jpg</code> + <code>-1200x1200.jpg</code></td><td class="url">civix250.ai/womens-rights</td></tr>
+    </tbody>
+  </table>
+
+  <div class="foot">
+    <span>Prepared for Mr. Brown — Civix250 ad campaign</span>
+    <span>www.civix250.ai</span>
+  </div>
+</body>
+</html>
