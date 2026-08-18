@@ -1,0 +1,293 @@
+import { createClient } from "@supabase/supabase-js";
+import yaml from "js-yaml";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Run with your Supabase env loaded."
+  );
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+const STATE = "Massachusetts";
+const STATE_ABBR = "MA";
+// Massachusetts districts are stored zero-padded (MA-01 ..).
+const TODAY = new Date().toISOString().slice(0, 10);
+const UA = { "User-Agent": "civix250-seed/1.0 (contact: admin@civix250.com)" };
+
+async function getJSON(url) {
+  const r = await fetch(url, { headers: UA });
+  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
+  return r.json();
+}
+async function getText(url) {
+  const r = await fetch(url, { headers: UA });
+  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
+  return r.text();
+}
+
+function partyFull(p) {
+  const v = String(p || "").toLowerCase();
+  if (v.startsWith("d")) return "Democrat";
+  if (v.startsWith("r")) return "Republican";
+  return p || "";
+}
+function ordinal(n) {
+  const r100 = n % 100;
+  if (r100 >= 11 && r100 <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] || "th"}`;
+}
+function slugify(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function congressPhoto(bioguide) {
+  return `https://unitedstates.github.io/images/congress/450x550/${bioguide}.jpg`;
+}
+
+function representative({ name, office, level, website, contact, party, photo, district = null }) {
+  const slug = slugify(name);
+  return {
+    full_name: name,
+    name,
+    office_title: office,
+    office,
+    state: STATE,
+    district,
+    district_id: district,
+    party,
+    level,
+    photo_url: photo || "",
+    photo: photo || "",
+    email: null,
+    linkedin_url: website || "",
+    linkedin: website || "",
+    chat_href: `/chat/${slug}`,
+    email_href: contact || website || "",
+    is_primary: false,
+    is_active: true,
+  };
+}
+
+// Reject non-portrait images — office pages often return a seal/flag/logo.
+function looksLikePortrait(url) {
+  const f = decodeURIComponent(url || "").toLowerCase();
+  return !!f && !/(seal|flag|coat[_ ]of[_ ]arms|logo|emblem|\.svg)/.test(f);
+}
+
+async function wikiThumb(paramStr) {
+  const url =
+    "https://en.wikipedia.org/w/api.php?action=query&format=json&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=500&" +
+    paramStr;
+  const data = await getJSON(url);
+  const pages = Object.values(data?.query?.pages || {});
+  return pages[0]?.thumbnail?.source || "";
+}
+
+// Resolve a Wikipedia headshot. Prefers the exact page title (so it can't match
+// a spouse or the office page's seal); falls back to search. Non-portrait images
+// (seals/flags/logos/SVGs) are rejected. Back-compatible: called with a single
+// descriptive string it does search-only (still guarded).
+async function wikiPhoto(title, query) {
+  const search = query || title;
+  try {
+    if (query) {
+      const exact = await wikiThumb(`titles=${encodeURIComponent(title)}`);
+      if (looksLikePortrait(exact)) return exact;
+    }
+    const found = await wikiThumb(
+      `generator=search&gsrsearch=${encodeURIComponent(search)}&gsrlimit=1`
+    );
+    return looksLikePortrait(found) ? found : "";
+  } catch {
+    return "";
+  }
+}
+
+async function mapLimit(items, limit, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    out.push(...(await Promise.all(batch.map(fn))));
+  }
+  return out;
+}
+
+async function main() {
+  // ---- 1. Federal delegation from congress-legislators -------------------
+  const legislators = await getJSON(
+    "https://unitedstates.github.io/congress-legislators/legislators-current.json"
+  );
+  const stFederal = legislators.filter((p) => p.terms.at(-1).state === STATE_ABBR);
+
+  const houseDelegation = stFederal
+    .filter((p) => p.terms.at(-1).type === "rep")
+    .map((p) => {
+      const t = p.terms.at(-1);
+      const num = Number(t.district);
+      const site = t.url || "";
+      return {
+        district_code: `${STATE_ABBR}-${String(num).padStart(2, "0")}`,
+        state: STATE,
+        district_number: num,
+        name: p.name.official_full,
+        title: "U.S. Representative",
+        office_label: `Massachusetts ${ordinal(num)} Congressional District`,
+        party: partyFull(t.party),
+        website: site,
+        contact_url: t.contact_form || (site ? `${site.replace(/\/$/, "")}/contact` : ""),
+        phone: t.phone || null,
+        image_url: congressPhoto(p.id.bioguide),
+        is_active: true,
+      };
+    })
+    .sort((a, b) => a.district_number - b.district_number);
+
+  const usSenators = stFederal
+    .filter((p) => p.terms.at(-1).type === "sen")
+    .map((p) => {
+      const t = p.terms.at(-1);
+      return representative({
+        name: p.name.official_full,
+        office: "U.S. Senator, Massachusetts",
+        level: "senate",
+        website: t.url,
+        contact: t.contact_form || t.url,
+        party: partyFull(t.party),
+        photo: congressPhoto(p.id.bioguide),
+      });
+    });
+
+  // ---- 2. Statewide executives (Wikipedia headshots) ---------------------
+  // Statewide executives (Wikipedia headshots). Verified current 2026-08-05:
+  // Gov Maura Healey, Lt. Gov Kim Driscoll, AG Andrea Campbell (all D, since 2023).
+  const execDefs = [
+    { name: "Maura Healey", office: "Governor of Massachusetts", party: "Democrat", website: "https://www.mass.gov/orgs/governor-maura-healey-and-lt-governor-kim-driscoll", contact: "https://www.mass.gov/forms/email-the-governors-office", q: "Maura Healey Governor Massachusetts" },
+    { name: "Kim Driscoll", office: "Lieutenant Governor of Massachusetts", party: "Democrat", website: "https://www.mass.gov/orgs/governor-maura-healey-and-lt-governor-kim-driscoll", contact: "https://www.mass.gov/forms/email-the-governors-office", q: "Kim Driscoll Lieutenant Governor Massachusetts" },
+    { name: "Andrea Campbell", office: "Attorney General of Massachusetts", party: "Democrat", website: "https://www.mass.gov/orgs/office-of-attorney-general-andrea-joy-campbell", contact: "https://www.mass.gov/how-to/contact-the-attorney-generals-office", q: "Andrea Campbell Massachusetts Attorney General" },
+  ];
+  const execs = await mapLimit(execDefs, 3, async (d) =>
+    representative({
+      name: d.name,
+      office: d.office,
+      level: "State",
+      website: d.website,
+      contact: d.contact,
+      party: d.party,
+      photo: await wikiPhoto(d.name, d.q),
+    })
+  );
+
+  // ---- 3. Current State Senators from OpenStates -------------------------
+  const files = (
+    await getJSON(
+      "https://api.github.com/repos/openstates/people/contents/data/ma/legislature"
+    )
+  ).filter((f) => f.name.endsWith(".yml"));
+
+  const docs = await mapLimit(files, 10, async (f) => {
+    try {
+      return yaml.load(await getText(f.download_url));
+    } catch {
+      return null;
+    }
+  });
+
+  const stateSenators = [];
+  for (const doc of docs) {
+    if (!doc) continue;
+    const upperRoles = (doc.roles || []).filter((r) => r.type === "upper");
+    const asDateStr = (v) =>
+      v instanceof Date ? v.toISOString().slice(0, 10) : v ? String(v) : "";
+    const current = upperRoles.find((r) => {
+      const start = asDateStr(r.start_date);
+      const end = asDateStr(r.end_date);
+      return (!start || start <= TODAY) && (!end || end >= TODAY);
+    });
+    if (!current) continue;
+    // Massachusetts senate districts are NAMED ("First Middlesex", "Hampden"…),
+    // not numbered, so they can't be matched to a congressional district by
+    // number. Keep the name in the office label and leave district un-scoped
+    // (null) — the per-district State Senate section then hides for MA.
+    const num = Number(current.district);
+    const isNumeric = Number.isFinite(num);
+    const partyEntry =
+      (doc.party || []).find((p) => !p.end_date) || (doc.party || []).at(-1);
+    const homepage = (doc.links || []).find((l) => l.note === "homepage")?.url;
+    stateSenators.push(
+      representative({
+        name: doc.name,
+        office: isNumeric
+          ? `Massachusetts State Senator, District ${num}`
+          : `Massachusetts State Senator, ${current.district} District`,
+        level: "State Senate",
+        website: homepage || "",
+        contact: homepage || "",
+        party: partyFull(partyEntry?.name),
+        photo: doc.image || "",
+        district: isNumeric ? `${STATE_ABBR}-${String(num).padStart(2, "0")}` : null,
+      })
+    );
+  }
+  stateSenators.sort((a, b) => {
+    const an = a.district ? Number(a.district.split("-")[1]) : Infinity;
+    const bn = b.district ? Number(b.district.split("-")[1]) : Infinity;
+    if (an !== bn) return an - bn;
+    return String(a.name).localeCompare(String(b.name));
+  });
+
+  // ---- Write to Supabase (idempotent: clear MA rows, then insert) --------
+  const representativesRows = [...usSenators, ...execs, ...stateSenators];
+
+  const { error: repDeleteError } = await supabase
+    .from("representatives")
+    .delete()
+    .eq("state", STATE);
+  if (repDeleteError) {
+    console.error("Failed to clear MA representatives:", repDeleteError);
+    process.exit(1);
+  }
+  const { error: repInsertError } = await supabase
+    .from("representatives")
+    .insert(representativesRows);
+  if (repInsertError) {
+    console.error("Failed to insert MA representatives:", repInsertError);
+    process.exit(1);
+  }
+
+  const { error: houseDeleteError } = await supabase
+    .from("district_representatives")
+    .delete()
+    .eq("state", STATE);
+  if (houseDeleteError) {
+    console.error("Failed to clear MA district representatives:", houseDeleteError);
+    process.exit(1);
+  }
+  const { error: houseInsertError } = await supabase
+    .from("district_representatives")
+    .insert(houseDelegation);
+  if (houseInsertError) {
+    console.error("Failed to insert MA district representatives:", houseInsertError);
+    process.exit(1);
+  }
+
+  const missingPhotos = representativesRows.filter((r) => !r.photo).map((r) => r.name);
+  console.log(
+    `Seeded Massachusetts: ${usSenators.length} U.S. senators, ${execs.length} statewide execs, ` +
+      `${stateSenators.length} state senators, ${houseDelegation.length} U.S. House members.`
+  );
+  console.log(`  U.S. House: ${houseDelegation.map((h) => `${h.district_code} ${h.name}`).join(", ")}`);
+  if (missingPhotos.length) {
+    console.log(`  No photo resolved for: ${missingPhotos.length} row(s): ${missingPhotos.join(", ")}`);
+  }
+}
+
+main().catch((error) => {
+  console.error("Unexpected seed error:", error);
+  process.exit(1);
+});

@@ -84,6 +84,18 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Arizona voter registration",
     url: "https://my.arizona.vote/WhereToVote.aspx?s=individual",
   },
+  Washington: {
+    label: "Check Washington voter registration",
+    url: "https://voter.votewa.gov/WhereToVote.aspx",
+  },
+  Wisconsin: {
+    label: "Check Wisconsin voter registration",
+    url: "https://myvote.wi.gov/en-us/Voter-Registration-Status",
+  },
+  Massachusetts: {
+    label: "Check Massachusetts voter registration",
+    url: "https://www.sec.state.ma.us/VoterRegistrationSearch/MyVoterRegStatus.aspx",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -123,7 +135,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -624,6 +636,9 @@ export default function SignupPage() {
           <option value="District of Columbia">District of Columbia</option>
           <option value="New Jersey">New Jersey</option>
           <option value="Arizona">Arizona</option>
+          <option value="Washington">Washington</option>
+          <option value="Wisconsin">Wisconsin</option>
+          <option value="Massachusetts">Massachusetts</option>
         </select>
       </div>
 

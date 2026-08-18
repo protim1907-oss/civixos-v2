@@ -44,7 +44,7 @@ function extractDistrictFromGeographies(geographies: Record<string, unknown>) {
 // address's ACTUAL geocoded state, not on what the user selects — so a fake
 // out-of-state address (or an out-of-area resident picking an allowed state)
 // is rejected.
-const ALLOWED_STATES = ["TX", "CA", "IL", "MD", "CO", "NV", "OH", "GA", "MI", "NY", "VA", "NC", "PA", "FL", "DC", "NJ", "AZ"] as const;
+const ALLOWED_STATES = ["TX", "CA", "IL", "MD", "CO", "NV", "OH", "GA", "MI", "NY", "VA", "NC", "PA", "FL", "DC", "NJ", "AZ", "WA", "WI", "MA"] as const;
 
 function getStateAbbr(state: string) {
   const stateCodeMap: Record<string, string> = {
@@ -66,6 +66,9 @@ function getStateAbbr(state: string) {
     "Washington DC": "DC",
     "New Jersey": "NJ",
     Arizona: "AZ",
+    Washington: "WA",
+    Wisconsin: "WI",
+    Massachusetts: "MA",
   };
 
   return stateCodeMap[state] || state.slice(0, 2).toUpperCase();
@@ -145,7 +148,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Civix250 is currently open to residents of Texas, California, Illinois, Maryland, Colorado, Nevada, Ohio, Georgia, Michigan, New York, Virginia, North Carolina, Pennsylvania, Florida, Washington, D.C., New Jersey, and Arizona only. This address is outside our service area.",
+            "Civix250 is currently open to residents of Texas, California, Illinois, Maryland, Colorado, Nevada, Ohio, Georgia, Michigan, New York, Virginia, North Carolina, Pennsylvania, Florida, Washington, D.C., New Jersey, Arizona, Washington, Wisconsin, and Massachusetts only. This address is outside our service area.",
           state: effectiveStateAbbr,
         },
         { status: 403 }
@@ -171,12 +174,15 @@ export async function POST(request: Request) {
       DC: "District of Columbia",
       NJ: "New Jersey",
       AZ: "Arizona",
+      WA: "Washington",
+      WI: "Wisconsin",
+      MA: "Massachusetts",
     };
     const resolvedStateName = stateNameByAbbr[effectiveStateAbbr] || String(state);
 
     // Maryland, Colorado, Nevada, Georgia, Michigan, and New York congressional
     // districts are stored zero-padded (MD-1 -> MD-01, … NY-1 -> NY-01).
-    const zeroPaddedStates = ["MD", "CO", "NV", "GA", "MI", "NY", "VA", "NC", "PA", "FL", "DC", "NJ", "AZ"];
+    const zeroPaddedStates = ["MD", "CO", "NV", "GA", "MI", "NY", "VA", "NC", "PA", "FL", "DC", "NJ", "AZ", "WA", "WI", "MA"];
     const districtNumber = Number(district.value);
     const districtDigits = zeroPaddedStates.includes(effectiveStateAbbr)
       ? String(districtNumber).padStart(2, "0")
