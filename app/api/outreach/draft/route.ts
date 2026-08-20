@@ -41,6 +41,7 @@ export async function POST(request: Request) {
   if (filter.regions?.length) query = query.in("region", filter.regions);
   if (filter.countries?.length) query = query.in("country", filter.countries);
   if (filter.industries?.length) query = query.in("industry", filter.industries);
+  if (filter.tags?.length) query = query.overlaps("tags", filter.tags);
 
   const { data: leads } = await query.limit(500);
 

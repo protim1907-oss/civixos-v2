@@ -44,6 +44,9 @@ export type AudienceFilter = {
   regions?: string[]; // us | europe | uae
   countries?: string[];
   industries?: string[];
+  // Tag-scoped targeting — lets separate campaigns share the leads pool without
+  // colliding (e.g. a "bump" campaign that only drafts leads tagged "bump").
+  tags?: string[];
 };
 
 export type OutreachCampaign = {
