@@ -11,14 +11,12 @@ import type { OutreachCampaign, OutreachMessage } from "@/lib/outreach/types";
 // sends a draft. A campaign sends only while its status is 'running', so a
 // paused/draft campaign is a hard off switch.
 //
-// Volume ramp (protects the sending domain's reputation): the daily cap grows
-// with the age of the campaign, measured from its first sent message —
-//   week 1 (days 0-6):   25/day
-//   week 2 (days 7-13):  35/day
-//   week 3+ (day 14+):   50/day
-// bounded by the campaign's daily_cap ceiling. The cron runs hourly during
-// business hours (see vercel.json) and sends at most RUN_BATCH per run, so the
-// day's quota is dripped out rather than sent in one burst.
+// Daily volume: each campaign sets its own daily_cap, which is the authority.
+// A hard ceiling (DAILY_HARD_MAX) protects the sending domain's reputation so a
+// misconfigured cap can never blast it. The cron runs hourly during business
+// hours (see vercel.json) and sends at most RUN_BATCH per run, so the day's
+// quota is dripped out rather than sent in one burst. New/cold campaigns should
+// set a low daily_cap and raise it over the first couple of weeks by hand.
 //
 // Auth mirrors /api/zeffy-sync: Vercel Cron sends `Authorization: Bearer
 // <CRON_SECRET>`; manual triggers may pass `?token=<CRON_SECRET>`.
@@ -29,12 +27,10 @@ import type { OutreachCampaign, OutreachMessage } from "@/lib/outreach/types";
 export const maxDuration = 60;
 
 const RUN_BATCH = 8; // max sends per cron invocation (drip)
+const DAILY_HARD_MAX = 50; // absolute per-campaign/day ceiling (domain safety)
 
-function rampCap(daysSinceStart: number, ceiling: number): number {
-  let cap = 50;
-  if (daysSinceStart < 7) cap = 25;
-  else if (daysSinceStart < 14) cap = 35;
-  return Math.min(cap, ceiling);
+function rampCap(ceiling: number): number {
+  return Math.min(DAILY_HARD_MAX, ceiling || DAILY_HARD_MAX);
 }
 
 function isValidToken(received: string | null, secret: string): boolean {
@@ -66,25 +62,8 @@ async function sentTodayCount(campaignId: string): Promise<number> {
   return count || 0;
 }
 
-// Ramp anchor: the date of the campaign's first sent message. Before any send,
-// today is day 0.
-async function daysSinceFirstSend(campaignId: string): Promise<number> {
-  const { data } = await supabaseAdmin
-    .from("outreach_messages")
-    .select("sent_at")
-    .eq("campaign_id", campaignId)
-    .eq("status", "sent")
-    .order("sent_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (!data?.sent_at) return 0;
-  const first = new Date(data.sent_at).getTime();
-  return Math.max(0, Math.floor((Date.now() - first) / 86_400_000));
-}
-
 async function runCampaign(campaign: OutreachCampaign) {
-  const ceiling = campaign.daily_cap || 50;
-  const dayCap = rampCap(await daysSinceFirstSend(campaign.id), ceiling);
+  const dayCap = rampCap(campaign.daily_cap || DAILY_HARD_MAX);
   const already = await sentTodayCount(campaign.id);
   const remainingToday = Math.max(0, dayCap - already);
   const batch = Math.min(RUN_BATCH, remainingToday);
