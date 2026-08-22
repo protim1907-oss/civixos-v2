@@ -96,6 +96,26 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Massachusetts voter registration",
     url: "https://www.sec.state.ma.us/VoterRegistrationSearch/MyVoterRegStatus.aspx",
   },
+  Tennessee: {
+    label: "Check Tennessee voter registration",
+    url: "https://tnmap.tn.gov/voterlookup/",
+  },
+  Indiana: {
+    label: "Check Indiana voter registration",
+    url: "https://indianavoters.in.gov/",
+  },
+  Minnesota: {
+    label: "Check Minnesota voter registration",
+    url: "https://mnvotes.sos.state.mn.us/VoterStatus.aspx",
+  },
+  Missouri: {
+    label: "Check Missouri voter registration",
+    url: "https://voteroutreach.sos.mo.gov/portal/voterlookup.aspx",
+  },
+  "South Carolina": {
+    label: "Check South Carolina voter registration",
+    url: "https://info.scvotes.sc.gov/eng/voterinquiry/VoterInformationRequest.aspx",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -135,7 +155,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -639,6 +659,11 @@ export default function SignupPage() {
           <option value="Washington">Washington</option>
           <option value="Wisconsin">Wisconsin</option>
           <option value="Massachusetts">Massachusetts</option>
+          <option value="Tennessee">Tennessee</option>
+          <option value="Indiana">Indiana</option>
+          <option value="Minnesota">Minnesota</option>
+          <option value="Missouri">Missouri</option>
+          <option value="South Carolina">South Carolina</option>
         </select>
       </div>
 
