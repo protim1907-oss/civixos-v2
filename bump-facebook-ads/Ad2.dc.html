@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap');
+    body { margin: 0; }
+    a { color: #37E1A0; } a:hover { color: #2bc389; }
+    .disp { font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; }
+    .body { font-family: 'Instrument Sans', system-ui, sans-serif; }
+  </style>
+</helmet>
+
+<div class="disp" style="width: 1080px; height: 1350px; box-sizing: border-box; background: radial-gradient(120% 80% at 50% -12%, rgba(55,225,160,0.14), rgba(22,19,15,0) 55%), #16130F; color: #F7F4EF; padding: 84px 80px; display: flex; flex-direction: column;">
+
+  <!-- header -->
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <svg width="46" height="46" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#37E1A0"/>
+        <path d="M12 24.5l8-8 8 8" stroke="#16130F" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 16.5v10" stroke="#16130F" stroke-width="3.6" stroke-linecap="round"/>
+      </svg>
+      <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.01em;">Bump</span>
+    </div>
+    <span class="body" style="font-size: 19px; font-weight: 500; color: #B8B2A8; border: 1px solid rgba(247,244,239,0.16); padding: 9px 18px; border-radius: 999px;">AI invoice chasing</span>
+  </div>
+
+  <!-- hero -->
+  <div style="margin-top: 72px;">
+    <div class="body" style="font-size: 21px; font-weight: 600; letter-spacing: 0.14em; color: #37E1A0; text-transform: uppercase;">Invoice chasing, on autopilot</div>
+    <h1 style="margin: 22px 0 0; font-size: 86px; line-height: 0.98; font-weight: 700; letter-spacing: -0.025em; text-wrap: balance;">Stop chasing invoices. <span style="color: #37E1A0;">Let AI do it.</span></h1>
+  </div>
+
+  <!-- automation panel -->
+  <div style="margin-top: 58px; border: 1px solid rgba(247,244,239,0.12); background: rgba(247,244,239,0.03); border-radius: 24px; padding: 34px 34px 30px;">
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 26px; border-bottom: 1px solid rgba(247,244,239,0.1);">
+      <span class="body" style="font-size: 24px; font-weight: 600; color: #EDE7DE;">Auto-nudge</span>
+      <span style="display: inline-flex; align-items: center; gap: 12px;">
+        <span class="body" style="font-size: 20px; font-weight: 600; color: #37E1A0; letter-spacing: 0.08em;">ON</span>
+        <span style="width: 66px; height: 38px; border-radius: 999px; background: #37E1A0; position: relative; display: inline-block;">
+          <span style="position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; background: #16130F;"></span>
+        </span>
+      </span>
+    </div>
+
+    <div class="body" style="display: flex; flex-direction: column; gap: 22px; padding-top: 28px;">
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="flex: none; width: 46px; height: 46px; border-radius: 50%; background: rgba(55,225,160,0.14); border: 1.5px solid #37E1A0; display: inline-flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="#37E1A0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span style="flex: 1; font-size: 25px; color: #EDE7DE;"><b style="color:#8F8A80; font-weight:600;">Day 1</b> &nbsp;&middot;&nbsp; Friendly reminder sent</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="flex: none; width: 46px; height: 46px; border-radius: 50%; background: rgba(55,225,160,0.14); border: 1.5px solid #37E1A0; display: inline-flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="#37E1A0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span style="flex: 1; font-size: 25px; color: #EDE7DE;"><b style="color:#8F8A80; font-weight:600;">Day 7</b> &nbsp;&middot;&nbsp; Second nudge sent</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="flex: none; width: 46px; height: 46px; border-radius: 50%; background: rgba(55,225,160,0.14); border: 1.5px solid #37E1A0; display: inline-flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4 10-10" stroke="#37E1A0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span style="flex: 1; font-size: 25px; color: #EDE7DE;"><b style="color:#8F8A80; font-weight:600;">Day 14</b> &nbsp;&middot;&nbsp; Firm follow-up sent</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px; background: #37E1A0; border-radius: 16px; padding: 22px 28px; display: flex; align-items: center; justify-content: space-between;">
+      <span class="body" style="font-size: 25px; font-weight: 600; color: #16130F;">Invoice&nbsp;#1042</span>
+      <span class="body" style="font-size: 25px; font-weight: 700; color: #16130F; letter-spacing: 0.02em;">PAID &#10003;</span>
+    </div>
+
+  </div>
+
+  <!-- footer CTA -->
+  <div style="margin-top: auto; display: flex; align-items: center; justify-content: space-between;">
+    <div class="body" style="background: #37E1A0; color: #16130F; font-weight: 600; font-size: 26px; padding: 20px 40px; border-radius: 999px;">Try Bump free &rarr;</div>
+    <div class="body" style="font-size: 24px; font-weight: 600; color: #EDE7DE;">bumppaid.com</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap');
+    body { margin: 0; }
+    a { color: #37E1A0; } a:hover { color: #2bc389; }
+    .disp { font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; }
+    .body { font-family: 'Instrument Sans', system-ui, sans-serif; }
+  </style>
+</helmet>
+
+<div class="disp" style="width: 1080px; height: 1350px; box-sizing: border-box; background: radial-gradient(120% 80% at 50% 118%, rgba(55,225,160,0.16), rgba(22,19,15,0) 60%), #16130F; color: #F7F4EF; padding: 84px 80px; display: flex; flex-direction: column;">
+
+  <!-- header -->
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <svg width="46" height="46" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#37E1A0"/>
+        <path d="M12 24.5l8-8 8 8" stroke="#16130F" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 16.5v10" stroke="#16130F" stroke-width="3.6" stroke-linecap="round"/>
+      </svg>
+      <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.01em;">Bump</span>
+    </div>
+    <span class="body" style="font-size: 19px; font-weight: 500; color: #B8B2A8; border: 1px solid rgba(247,244,239,0.16); padding: 9px 18px; border-radius: 999px;">AI invoice chasing</span>
+  </div>
+
+  <!-- hero -->
+  <div style="margin-top: 76px;">
+    <div class="body" style="font-size: 21px; font-weight: 600; letter-spacing: 0.14em; color: #FF6B5E; text-transform: uppercase;">Still waiting on that invoice?</div>
+    <h1 style="margin: 22px 0 0; font-size: 82px; line-height: 0.98; font-weight: 700; letter-spacing: -0.025em; text-wrap: balance;">Get paid without the <span style="color: #37E1A0;">awkward follow-ups</span></h1>
+  </div>
+
+  <!-- contrast cards -->
+  <div style="margin-top: 64px; display: flex; flex-direction: column; gap: 22px;">
+
+    <div style="border: 1px solid rgba(255,107,94,0.28); background: rgba(255,107,94,0.07); border-radius: 22px; padding: 30px 32px; display: flex; flex-direction: column; gap: 14px;">
+      <div class="body" style="font-size: 16px; font-weight: 600; letter-spacing: 0.12em; color: #FF6B5E; text-transform: uppercase;">The old way</div>
+      <div class="body" style="font-size: 27px; font-weight: 500; line-height: 1.32; color: #EDE7DE;">&ldquo;Hi! Just circling back on invoice&nbsp;#1042&hellip; again.&rdquo;</div>
+      <div class="body" style="font-size: 19px; color: #9C968C;">You, chasing every single week.</div>
+    </div>
+
+    <div style="border: 1px solid rgba(55,225,160,0.34); background: rgba(55,225,160,0.09); border-radius: 22px; padding: 30px 32px; display: flex; flex-direction: column; gap: 14px;">
+      <div class="body" style="font-size: 16px; font-weight: 600; letter-spacing: 0.12em; color: #37E1A0; text-transform: uppercase;">With Bump</div>
+      <div class="body" style="font-size: 27px; font-weight: 500; line-height: 1.32; color: #F4F0E9;">3 perfectly-timed nudges sent. Invoice&nbsp;#1042 &mdash; <span style="color: #37E1A0; font-weight: 600;">Paid.</span></div>
+      <div class="body" style="font-size: 19px; color: #9C968C;">You, doing absolutely nothing.</div>
+    </div>
+
+  </div>
+
+  <!-- footer CTA -->
+  <div style="margin-top: auto; display: flex; align-items: center; justify-content: space-between;">
+    <div class="body" style="background: #37E1A0; color: #16130F; font-weight: 600; font-size: 26px; padding: 20px 40px; border-radius: 999px;">Start free &rarr;</div>
+    <div class="body" style="font-size: 24px; font-weight: 600; color: #EDE7DE;">bumppaid.com</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

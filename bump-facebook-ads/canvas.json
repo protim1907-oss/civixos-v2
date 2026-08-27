@@ -1,0 +1,11 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Ad 1 · Awkward follow-ups", "x": 0, "y": 0, "w": 1080, "h": 1350 },
+    { "file": "Ad2.dc.html", "title": "Ad 2 · Autopilot", "x": 1220, "y": 0, "w": 1080, "h": 1350 },
+    { "file": "Ad3.dc.html", "title": "Ad 3 · Collected", "x": 2440, "y": 0, "w": 1080, "h": 1350 }
+  ],
+  "annotations": [
+    { "id": "note-brief", "x": 0, "y": -150, "w": 720, "text": "Bump — Facebook/Instagram ads · 1080×1350 (4:5). Export each artboard as PNG (Export in the toolbar) and upload one per ad. Copy + campaign settings are in the chat." }
+  ],
+  "launch": { "view": "canvas" }
+}
