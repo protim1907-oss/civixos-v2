@@ -136,6 +136,26 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Connecticut voter registration",
     url: "https://portaldir.ct.gov/sots/LookUp.aspx",
   },
+  Oklahoma: {
+    label: "Check Oklahoma voter registration",
+    url: "https://okvoterportal.okelections.us/",
+  },
+  Utah: {
+    label: "Check Utah voter registration",
+    url: "https://vote.utah.gov/",
+  },
+  Iowa: {
+    label: "Check Iowa voter registration",
+    url: "https://sos.iowa.gov/elections/voterreg/regtovote/search.aspx",
+  },
+  Arkansas: {
+    label: "Check Arkansas voter registration",
+    url: "https://www.sos.arkansas.gov/elections/voter-information/",
+  },
+  Mississippi: {
+    label: "Check Mississippi voter registration",
+    url: "https://www.sos.ms.gov/elections-voting/voter-registration-information",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -175,7 +195,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -689,6 +709,11 @@ export default function SignupPage() {
           <option value="Kentucky">Kentucky</option>
           <option value="Oregon">Oregon</option>
           <option value="Connecticut">Connecticut</option>
+          <option value="Oklahoma">Oklahoma</option>
+          <option value="Utah">Utah</option>
+          <option value="Iowa">Iowa</option>
+          <option value="Arkansas">Arkansas</option>
+          <option value="Mississippi">Mississippi</option>
         </select>
       </div>
 
