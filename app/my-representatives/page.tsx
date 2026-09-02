@@ -214,6 +214,16 @@ function normalizeStateCode(state?: string | null): string {
     id: "ID",
     hawaii: "HI",
     hi: "HI",
+    nebraska: "NE",
+    ne: "NE",
+    maine: "ME",
+    me: "ME",
+    "new hampshire": "NH",
+    nh: "NH",
+    "rhode island": "RI",
+    ri: "RI",
+    montana: "MT",
+    mt: "MT",
   };
 
   return map[value] || String(state || "").trim().toUpperCase();
@@ -305,6 +315,16 @@ function normalizeStateName(state?: string | null): string {
     id: "Idaho",
     hawaii: "Hawaii",
     hi: "Hawaii",
+    nebraska: "Nebraska",
+    ne: "Nebraska",
+    maine: "Maine",
+    me: "Maine",
+    "new hampshire": "New Hampshire",
+    nh: "New Hampshire",
+    "rhode island": "Rhode Island",
+    ri: "Rhode Island",
+    montana: "Montana",
+    mt: "Montana",
   };
 
   return map[value] || String(state || "").trim() || "State";
@@ -314,7 +334,7 @@ function normalizeStateName(state?: string | null): string {
 // zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01) so
 // profiles, district_representatives rows, and the UI all agree on one form.
 function padDistrict(code: string): string {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI|NE|ME|NH|RI|MT)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -1683,7 +1703,12 @@ export default function MyRepresentativePage() {
       resolvedState === "NM" ||
       resolvedState === "WV" ||
       resolvedState === "ID" ||
-      resolvedState === "HI"
+      resolvedState === "HI" ||
+      resolvedState === "NE" ||
+      resolvedState === "ME" ||
+      resolvedState === "NH" ||
+      resolvedState === "RI" ||
+      resolvedState === "MT"
     ) {
       members = stateHouseReps;
     }

@@ -176,6 +176,26 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Hawaii voter registration",
     url: "https://olvr.hawaii.gov/",
   },
+  Nebraska: {
+    label: "Check Nebraska voter registration",
+    url: "https://www.nebraska.gov/apps-sos-voter-registration/",
+  },
+  Maine: {
+    label: "Check Maine voter registration",
+    url: "https://www.maine.gov/sos/cec/elec/data/index.html",
+  },
+  "New Hampshire": {
+    label: "Check New Hampshire voter registration",
+    url: "https://app.sos.nh.gov/voterinformation",
+  },
+  "Rhode Island": {
+    label: "Check Rhode Island voter registration",
+    url: "https://vote.sos.ri.gov/Home/RegisteredVoter",
+  },
+  Montana: {
+    label: "Check Montana voter registration",
+    url: "https://prodvoterportal.mt.gov/WhereToVote.aspx",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -215,7 +235,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI|NE|ME|NH|RI|MT)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -739,6 +759,11 @@ export default function SignupPage() {
           <option value="West Virginia">West Virginia</option>
           <option value="Idaho">Idaho</option>
           <option value="Hawaii">Hawaii</option>
+          <option value="Nebraska">Nebraska</option>
+          <option value="Maine">Maine</option>
+          <option value="New Hampshire">New Hampshire</option>
+          <option value="Rhode Island">Rhode Island</option>
+          <option value="Montana">Montana</option>
         </select>
       </div>
 
