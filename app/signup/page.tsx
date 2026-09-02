@@ -156,6 +156,26 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Mississippi voter registration",
     url: "https://www.sos.ms.gov/elections-voting/voter-registration-information",
   },
+  Kansas: {
+    label: "Check Kansas voter registration",
+    url: "https://myvoteinfo.voteks.org/voterview/",
+  },
+  "New Mexico": {
+    label: "Check New Mexico voter registration",
+    url: "https://voterportal.servis.sos.state.nm.us/WhereToVote.aspx",
+  },
+  "West Virginia": {
+    label: "Check West Virginia voter registration",
+    url: "https://apps.sos.wv.gov/elections/voter/",
+  },
+  Idaho: {
+    label: "Check Idaho voter registration",
+    url: "https://elections.sos.idaho.gov/ElectionLink/ElectionLink/ApplicationInstructions.aspx",
+  },
+  Hawaii: {
+    label: "Check Hawaii voter registration",
+    url: "https://olvr.hawaii.gov/",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -195,7 +215,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -714,6 +734,11 @@ export default function SignupPage() {
           <option value="Iowa">Iowa</option>
           <option value="Arkansas">Arkansas</option>
           <option value="Mississippi">Mississippi</option>
+          <option value="Kansas">Kansas</option>
+          <option value="New Mexico">New Mexico</option>
+          <option value="West Virginia">West Virginia</option>
+          <option value="Idaho">Idaho</option>
+          <option value="Hawaii">Hawaii</option>
         </select>
       </div>
 
