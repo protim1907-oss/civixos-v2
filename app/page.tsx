@@ -316,6 +316,7 @@ export default function HomePage() {
               <p className="text-sm font-bold text-white uppercase tracking-widest mb-4">Contact</p>
               <ul className="space-y-2 text-sm">
                 <li><a href="mailto:donations@civix250.org" className="hover:text-white transition">Support Civix250</a></li>
+                <li><a href="tel:+17604192346" className="hover:text-white transition">Costa Brown · +1-760-419-2346</a></li>
                 <li><Link href="/login" className="hover:text-white transition">Citizen Login</Link></li>
                 <li><Link href="/signup-official" className="hover:text-white transition">Official Registration</Link></li>
                 <li><Link href="/signup" className="hover:text-white transition">Citizen Signup</Link></li>
