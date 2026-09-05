@@ -196,6 +196,30 @@ const voterLookupByState: Record<string, { label: string; url: string }> = {
     label: "Check Montana voter registration",
     url: "https://prodvoterportal.mt.gov/WhereToVote.aspx",
   },
+  Alaska: {
+    label: "Check Alaska voter registration",
+    url: "https://myvoterportal.alaska.gov/",
+  },
+  Delaware: {
+    label: "Check Delaware voter registration",
+    url: "https://ivote.de.gov/VoterView",
+  },
+  "North Dakota": {
+    label: "Check North Dakota voting eligibility",
+    url: "https://vip.sos.nd.gov/PortalList.aspx",
+  },
+  "South Dakota": {
+    label: "Check South Dakota voter registration",
+    url: "https://vip.sdsos.gov/VIPLogin.aspx",
+  },
+  Vermont: {
+    label: "Check Vermont voter registration",
+    url: "https://mvp.vermont.gov/",
+  },
+  Wyoming: {
+    label: "Check Wyoming voter registration",
+    url: "https://sos.wyo.gov/Elections/Default.aspx",
+  },
 };
 
 const ADDRESS_PROOF_BUCKET = "address-proof-uploads";
@@ -235,7 +259,7 @@ function normalizeDistrictValue(value: string | null | undefined) {
 // Maryland, Colorado, and Nevada districts are stored zero-padded (MD-1 ->
 // MD-01, CO-1 -> CO-01, NV-1 -> NV-01).
 function padDistrict(code: string) {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI|NE|ME|NH|RI|MT)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI|NE|ME|NH|RI|MT|AK|DE|ND|SD|VT|WY)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -764,6 +788,12 @@ export default function SignupPage() {
           <option value="New Hampshire">New Hampshire</option>
           <option value="Rhode Island">Rhode Island</option>
           <option value="Montana">Montana</option>
+          <option value="Alaska">Alaska</option>
+          <option value="Delaware">Delaware</option>
+          <option value="North Dakota">North Dakota</option>
+          <option value="South Dakota">South Dakota</option>
+          <option value="Vermont">Vermont</option>
+          <option value="Wyoming">Wyoming</option>
         </select>
       </div>
 

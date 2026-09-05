@@ -224,6 +224,18 @@ function normalizeStateCode(state?: string | null): string {
     ri: "RI",
     montana: "MT",
     mt: "MT",
+    alaska: "AK",
+    ak: "AK",
+    delaware: "DE",
+    de: "DE",
+    "north dakota": "ND",
+    nd: "ND",
+    "south dakota": "SD",
+    sd: "SD",
+    vermont: "VT",
+    vt: "VT",
+    wyoming: "WY",
+    wy: "WY",
   };
 
   return map[value] || String(state || "").trim().toUpperCase();
@@ -325,6 +337,18 @@ function normalizeStateName(state?: string | null): string {
     ri: "Rhode Island",
     montana: "Montana",
     mt: "Montana",
+    alaska: "Alaska",
+    ak: "Alaska",
+    delaware: "Delaware",
+    de: "Delaware",
+    "north dakota": "North Dakota",
+    nd: "North Dakota",
+    "south dakota": "South Dakota",
+    sd: "South Dakota",
+    vermont: "Vermont",
+    vt: "Vermont",
+    wyoming: "Wyoming",
+    wy: "Wyoming",
   };
 
   return map[value] || String(state || "").trim() || "State";
@@ -334,7 +358,7 @@ function normalizeStateName(state?: string | null): string {
 // zero-padded 2-digit code (MD-1 -> MD-01, CO-1 -> CO-01, NV-1 -> NV-01) so
 // profiles, district_representatives rows, and the UI all agree on one form.
 function padDistrict(code: string): string {
-  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI|NE|ME|NH|RI|MT)-(\d{1,2})$/);
+  const match = code.match(/^(MD|CO|NV|GA|MI|NY|VA|NC|PA|FL|DC|NJ|AZ|WA|WI|MA|TN|IN|MN|MO|SC|AL|LA|KY|OR|CT|OK|UT|IA|AR|MS|KS|NM|WV|ID|HI|NE|ME|NH|RI|MT|AK|DE|ND|SD|VT|WY)-(\d{1,2})$/);
   return match ? `${match[1]}-${match[2].padStart(2, "0")}` : code;
 }
 
@@ -1708,7 +1732,13 @@ export default function MyRepresentativePage() {
       resolvedState === "ME" ||
       resolvedState === "NH" ||
       resolvedState === "RI" ||
-      resolvedState === "MT"
+      resolvedState === "MT" ||
+      resolvedState === "AK" ||
+      resolvedState === "DE" ||
+      resolvedState === "ND" ||
+      resolvedState === "SD" ||
+      resolvedState === "VT" ||
+      resolvedState === "WY"
     ) {
       members = stateHouseReps;
     }
