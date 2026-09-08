@@ -53,6 +53,17 @@ type ProfileRow = {
   district: string | null;
 };
 
+// At-large demo accounts hidden from the admin user list. These rows still
+// exist in Supabase (auth + profiles) — this only filters the dashboard view.
+const HIDDEN_DEMO_EMAILS = new Set([
+  "ak0.demo@civix250.com",
+  "de0.demo@civix250.com",
+  "nd0.demo@civix250.com",
+  "sd0.demo@civix250.com",
+  "vt0.demo@civix250.com",
+  "wy0.demo@civix250.com",
+]);
+
 type UserRole = "citizen" | "moderator" | "official" | "admin";
 
 type ModerationQueueRow = {
@@ -428,7 +439,11 @@ export default function AdminDashboardPage() {
       .order("full_name", { ascending: true });
 
     if (!error) {
-      setProfiles(data ?? []);
+      setProfiles(
+        (data ?? []).filter(
+          (p) => !HIDDEN_DEMO_EMAILS.has((p.email || "").toLowerCase())
+        )
+      );
     }
   }
 
