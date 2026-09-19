@@ -341,6 +341,11 @@ export default function LoginPage() {
         provider: "google",
         options: {
           redirectTo,
+          // Force Google's account chooser instead of silently reusing the
+          // browser's existing Google session.
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
 
