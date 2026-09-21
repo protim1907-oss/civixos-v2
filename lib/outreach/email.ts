@@ -164,8 +164,12 @@ export async function sendCampaignEmail(params: {
   to: string;
   subject: string;
   bodyText: string;
+  // Threading (for follow-ups): the original message's Message-ID. When set,
+  // the email is sent as a reply in the same thread (In-Reply-To / References),
+  // so Gmail/Outlook group it with the first email.
+  inReplyTo?: string | null;
 }): Promise<SendResult> {
-  const { campaign, to, subject, bodyText } = params;
+  const { campaign, to, subject, bodyText, inReplyTo } = params;
 
   const transport = activeTransport();
   if (transport === "none") {
@@ -183,10 +187,16 @@ export async function sendCampaignEmail(params: {
   const html = buildHtml(bodyText, campaign, unsubUrl);
   const from = `${campaign.from_name} <${campaign.from_email}>`;
   const replyTo = campaign.reply_to || campaign.from_email;
-  const headers = {
+  const headers: Record<string, string> = {
     "List-Unsubscribe": `<${unsubUrl}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
+  // Reply threading (used by the follow-up cron). Resend takes these as headers;
+  // nodemailer has native fields (set below).
+  if (inReplyTo) {
+    headers["In-Reply-To"] = inReplyTo;
+    headers["References"] = inReplyTo;
+  }
 
   try {
     if (transport === "resend") {
@@ -212,7 +222,11 @@ export async function sendCampaignEmail(params: {
       subject,
       html,
       replyTo,
-      headers,
+      headers: {
+        "List-Unsubscribe": headers["List-Unsubscribe"],
+        "List-Unsubscribe-Post": headers["List-Unsubscribe-Post"],
+      },
+      ...(inReplyTo ? { inReplyTo, references: inReplyTo } : {}),
     });
     return { ok: true, providerId: info.messageId ?? null };
   } catch (err) {

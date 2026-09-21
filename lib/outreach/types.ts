@@ -90,6 +90,12 @@ export type OutreachMessage = {
   error: string | null;
   approved_at: string | null;
   sent_at: string | null;
+  // Follow-up sequence tracking (see sql/upgrade-outreach-followups.sql). The
+  // initial send lives on this row; follow-ups are sent as threaded replies and
+  // counted here rather than as new rows (unique(campaign_id, lead_id) blocks
+  // extra rows per lead).
+  followups_sent: number;
+  last_followup_at: string | null;
   created_at: string;
   updated_at: string;
 };
