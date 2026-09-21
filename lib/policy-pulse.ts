@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifySurveyPublished } from "./notify-survey";
 
 export type PolicyPulseUploadedFile = {
   name: string;
@@ -178,6 +179,11 @@ export async function publishPolicyPulseSurvey(
   }
 
   upsertPolicyPulseSurvey(survey);
+
+  // Email district residents (fire-and-forget; the server route is idempotent).
+  if (survey.isPublished) {
+    void notifySurveyPublished(supabase, survey.id);
+  }
 }
 
 export async function loadAllPolicyPulseSurveys(
