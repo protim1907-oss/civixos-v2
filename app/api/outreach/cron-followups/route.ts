@@ -34,7 +34,7 @@ import type { OutreachCampaign, OutreachLead } from "@/lib/outreach/types";
 export const maxDuration = 60;
 
 const RUN_BATCH = 8;
-const FOLLOWUP_DAILY_CAP = 25;
+const FOLLOWUP_DAILY_CAP = 50;
 const SKIP_LEAD_STATUS = new Set(["replied", "unsubscribed", "bounced", "invalid"]);
 
 function isValidToken(received: string | null, secret: string): boolean {
