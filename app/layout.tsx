@@ -2,6 +2,7 @@ import "./globals.css";
 import Script from "next/script";
 import { APP_NAME } from "@/lib/config";
 import AskCivixWidget from "@/components/AskCivixWidget";
+import XSignupTracker from "@/components/XSignupTracker";
 
 const FB_PIXEL_ID = "1494627242694614";
 // X (Twitter) Ads pixel id — set NEXT_PUBLIC_X_PIXEL_ID to enable. Until then
@@ -79,6 +80,7 @@ twq('config','${X_PIXEL_ID}');`}
 
         {children}
         <AskCivixWidget />
+        <XSignupTracker />
       </body>
     </html>
   );

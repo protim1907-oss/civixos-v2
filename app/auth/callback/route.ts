@@ -62,6 +62,16 @@ export async function GET(request: Request) {
     data: { user: finalUser },
   } = await supabase.auth.getUser();
 
+  // First-time OAuth sign-up: Supabase stamps created_at at first sign-in, so a
+  // very recent created_at means this callback just registered a new account.
+  // Flag the redirect so the client can fire the X "SignUp" conversion event
+  // (the pixel is client-side and can't run in this server route).
+  const isNewSignup =
+    !!finalUser?.created_at &&
+    Date.now() - new Date(finalUser.created_at).getTime() < 5 * 60 * 1000;
+  const flag = (url: string) =>
+    isNewSignup ? `${url}${url.includes("?") ? "&" : "?"}x_signup=1` : url;
+
   if (finalUser && !searchParams.get("next")) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -70,10 +80,10 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     const role = profile?.role;
-    if (role === "admin") return NextResponse.redirect(`${origin}/admin`);
-    if (role === "moderator") return NextResponse.redirect(`${origin}/moderator`);
-    if (role === "official") return NextResponse.redirect(`${origin}/official-dashboard`);
+    if (role === "admin") return NextResponse.redirect(flag(`${origin}/admin`));
+    if (role === "moderator") return NextResponse.redirect(flag(`${origin}/moderator`));
+    if (role === "official") return NextResponse.redirect(flag(`${origin}/official-dashboard`));
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return NextResponse.redirect(flag(`${origin}${next}`));
 }
