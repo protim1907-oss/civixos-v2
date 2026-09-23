@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { trackXSignup } from "@/lib/x-pixel";
 
 type DistrictOption = {
   value: string;
@@ -650,6 +651,9 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail, fullName: normalizedFullName }),
       }).catch((err) => console.error("Welcome email request failed:", err));
+
+      // X (Twitter) Ads conversion — citizen completed registration.
+      trackXSignup({ email: normalizedEmail, district: normalizedDistrict });
 
       if (typeof window !== "undefined") {
         localStorage.removeItem("civix_referral");

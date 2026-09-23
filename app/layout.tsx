@@ -4,6 +4,9 @@ import { APP_NAME } from "@/lib/config";
 import AskCivixWidget from "@/components/AskCivixWidget";
 
 const FB_PIXEL_ID = "1494627242694614";
+// X (Twitter) Ads pixel id — set NEXT_PUBLIC_X_PIXEL_ID to enable. Until then
+// the pixel does not load. See lib/x-pixel.ts for the conversion event.
+const X_PIXEL_ID = process.env.NEXT_PUBLIC_X_PIXEL_ID;
 
 const HOME_TITLE = `${APP_NAME} — Your Voice in Democracy`;
 const HOME_DESCRIPTION = `${APP_NAME} — connect with your representatives, track local issues, and help shape policy in your district.`;
@@ -47,6 +50,14 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('init', '${FB_PIXEL_ID}');
 fbq('track', 'PageView');`}
         </Script>
+
+        {/* X (Twitter) Pixel — only loads when NEXT_PUBLIC_X_PIXEL_ID is set */}
+        {X_PIXEL_ID ? (
+          <Script id="x-pixel" strategy="afterInteractive">
+            {`!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');
+twq('config','${X_PIXEL_ID}');`}
+          </Script>
+        ) : null}
       </head>
       <body className="bg-slate-50 text-slate-900 antialiased">
         {/* Meta (Facebook) Pixel — noscript fallback */}
