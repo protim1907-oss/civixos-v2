@@ -217,6 +217,31 @@ export async function toggleSurveyPublished(
   if (error) throw error;
 }
 
+// Permanently delete a survey (and its embedded votes/feedback, which live in
+// the same row). Requires the DELETE RLS policy — see
+// sql/allow-delete-policy-pulse-surveys.sql.
+export async function deletePolicyPulseSurvey(
+  supabase: SupabaseClient,
+  surveyId: string
+) {
+  const { error, count } = await supabase
+    .from("policy_pulse_surveys")
+    .delete({ count: "exact" })
+    .eq("id", surveyId);
+
+  if (error) throw error;
+  // With RLS blocking the delete, Supabase returns success but removes 0 rows —
+  // surface that as an error so the UI doesn't falsely report success.
+  if (count === 0) {
+    throw new Error(
+      "Survey was not deleted (no matching row, or the delete RLS policy is missing)."
+    );
+  }
+
+  const remaining = loadPolicyPulseSurveys().filter((s) => s.id !== surveyId);
+  savePolicyPulseSurveys(remaining);
+}
+
 export async function updatePublishedPolicyPulseSurvey(
   supabase: SupabaseClient,
   survey: PolicyPulseSurvey

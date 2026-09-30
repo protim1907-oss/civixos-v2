@@ -8,6 +8,7 @@ import {
   initialVotes,
   loadAllPolicyPulseSurveys,
   toggleSurveyPublished,
+  deletePolicyPulseSurvey,
   PolicyPulseSurvey,
   publishPolicyPulseSurvey,
   uploadPolicyPulseFiles,
@@ -226,6 +227,7 @@ export default function ModeratorDashboardPage() {
   const surveyFileInputRef = useRef<HTMLInputElement | null>(null);
   const [sharingSurveyDistrict, setSharingSurveyDistrict] = useState<string | null>(null);
   const [broadcastingSurveyId, setBroadcastingSurveyId] = useState<string | null>(null);
+  const [deletingSurveyId, setDeletingSurveyId] = useState<string | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [auditActorFilter, setAuditActorFilter] = useState<{
     actorId: string;
@@ -2142,6 +2144,40 @@ export default function ModeratorDashboardPage() {
                             }`}
                           >
                             {row.latestSurvey.isPublished ? "Unpublish" : "Republish"}
+                          </button>
+                        )}
+                        {row.latestSurvey && row.votingClosed && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!row.latestSurvey) return;
+                              const confirmed = window.confirm(
+                                `Delete the finished survey "${row.latestSurvey.title}" for ${row.district}? This permanently removes its votes and feedback and cannot be undone.`
+                              );
+                              if (!confirmed) return;
+                              try {
+                                setDeletingSurveyId(row.latestSurvey.id);
+                                await deletePolicyPulseSurvey(
+                                  supabase,
+                                  row.latestSurvey.id
+                                );
+                                await fetchPolicySurveys();
+                              } catch (err) {
+                                console.error("Failed to delete survey:", err);
+                                setSurveyMessage(
+                                  "Could not delete the survey. Make sure the delete permission (sql/allow-delete-policy-pulse-surveys.sql) has been applied."
+                                );
+                              } finally {
+                                setDeletingSurveyId(null);
+                              }
+                            }}
+                            disabled={deletingSurveyId === row.latestSurvey.id}
+                            title="Permanently delete this finished survey"
+                            className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {deletingSurveyId === row.latestSurvey.id
+                              ? "Deleting..."
+                              : "Delete"}
                           </button>
                         )}
                       </div>
