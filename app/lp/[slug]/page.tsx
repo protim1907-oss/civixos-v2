@@ -6,6 +6,8 @@ type Landing = {
   eyebrow: string;
   headline: string;
   paragraphs: string[];
+  bullets?: { intro: string; items: string[] };
+  closing?: string;
   yourMove: string;
 };
 
@@ -22,6 +24,26 @@ const LANDINGS: Record<string, Landing> = {
       "Too often, officeholders act as if the relationship runs the other way. It doesn't. The chair they sit in belongs to the citizens who put them there.",
     ],
     yourMove: "Find out who represents you — and let them know you're paying attention.",
+  },
+  "job-interview": {
+    eyebrow: "Every election is a job interview",
+    headline: "You're doing the hiring.",
+    paragraphs: [
+      "An election is a job interview — and you are the hiring committee.",
+      "Candidates send you their resumes in the form of ads, speeches, and promises. A good employer doesn't hire on a slogan. They check references, review past performance, and ask hard questions.",
+    ],
+    bullets: {
+      intro: "Before you vote, ask three questions:",
+      items: [
+        "What has this candidate actually done — not just promised?",
+        "Whose interests do they serve: their district, their party, or their donors?",
+        "Would I hire this person to manage something I care about?",
+      ],
+    },
+    closing:
+      "A party label is not a qualification. Do the homework and hire the best candidate for the job.",
+    yourMove:
+      "Confirm your voter registration and research the candidates on your ballot.",
   },
 };
 
@@ -78,6 +100,24 @@ export default async function LandingPage({
             <p key={i}>{p}</p>
           ))}
         </div>
+
+        {data.bullets && (
+          <div className="mt-6 text-lg leading-8 text-slate-700">
+            <p className="font-semibold text-slate-900">{data.bullets.intro}</p>
+            <ul className="mt-3 space-y-3">
+              {data.bullets.items.map((item, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {data.closing && (
+          <p className="mt-6 text-lg leading-8 text-slate-700">{data.closing}</p>
+        )}
 
         {/* Your move + primary CTA */}
         <div className="mt-10 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
