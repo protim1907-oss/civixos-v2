@@ -64,7 +64,7 @@ export default function HomePage() {
               Log In
             </Link>
             <Link href="/signup" className="inline-flex items-center rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition">
-              Get Early Access
+              Join
             </Link>
           </div>
         </div>
@@ -88,11 +88,11 @@ export default function HomePage() {
               </p>
               <div className="mt-10 flex flex-wrap gap-4">
                 <Link href="/login" className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-7 py-4 text-base font-bold text-white hover:bg-blue-700 transition shadow-lg shadow-blue-600/30">
-                  Launch the App
+                  Sign In
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
                 </Link>
                 <Link href="/signup" className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-7 py-4 text-base font-bold text-white hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">
-                  Get Early Access
+                  Join
                 </Link>
                 <a href="#how-it-works" className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-7 py-4 text-base font-bold text-slate-700 hover:bg-slate-50 transition">
                   See How It Works
@@ -277,7 +277,7 @@ export default function HomePage() {
       {/* CTA */}
       <section className="py-24 px-5 bg-slate-950 text-white">
         <div className="mx-auto max-w-3xl text-center fade-in">
-          <p className="text-sm font-bold uppercase tracking-widest text-green-400 mb-4">Get Early Access</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-green-400 mb-4">Join</p>
           <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">Ready to engage your district?</h2>
           <p className="mt-5 text-xl text-slate-400 leading-relaxed">Join Civix250 today — free for citizens. Verified official access available for elected representatives and government staff.</p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
