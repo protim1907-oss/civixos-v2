@@ -220,17 +220,6 @@ function isRelevantToDistrict(district: string, title: string, url: string) {
   const upperDistrict = district.toUpperCase();
   const text = `${title} ${url}`.toLowerCase();
 
-  if (upperDistrict === "CA-42") {
-    return (
-      text.includes("long beach") ||
-      text.includes("ca-42") ||
-      text.includes("42nd district") ||
-      text.includes("robert garcia") ||
-      text.includes("district 7") ||
-      text.includes("los angeles county")
-    );
-  }
-
   if (upperDistrict === "TX-35") {
     return (
       text.includes("tx-35") ||

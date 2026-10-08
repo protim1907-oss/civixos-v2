@@ -112,35 +112,6 @@ type ThemeRow = {
   districts: number;
 };
 
-const CA42_OFFICIAL_UPDATE_POSTS: PostRow[] = [
-  {
-    id: "ca42-port-cleanup",
-    title: "Port-area cleanup and traffic control plan announced",
-    description:
-      "District operations teams will begin a cleanup and logistics improvement initiative near key freight corridors.",
-    content:
-      "The district has announced a cleanup and traffic-control effort focused on freight mobility and neighborhood access near the port area.",
-    district: "CA-42",
-    category: "Infrastructure",
-    sentiment: "positive",
-    created_at: "2026-04-16T12:00:00.000Z",
-    discussion_id: null,
-  },
-  {
-    id: "ca42-school-grants",
-    title: "District education office opens community school grant cycle",
-    description:
-      "Applications are now open for district-supported community learning and after-school improvement grants.",
-    content:
-      "The District Education Office opened a new application round for community schools and after-school enrichment programs.",
-    district: "CA-42",
-    category: "Education",
-    sentiment: "positive",
-    created_at: "2026-04-12T12:00:00.000Z",
-    discussion_id: null,
-  },
-];
-
 function normalizeDistrict(value: string | null | undefined) {
   const raw = (value || "").trim();
   if (!raw) return "";
@@ -148,9 +119,6 @@ function normalizeDistrict(value: string | null | undefined) {
   const upper = raw.toUpperCase();
 
   if (upper === "UNKNOWN" || upper === "UNASSIGNED" || upper === "N/A") return "";
-  if (upper === "DISTRICT 12") return "CA-42";
-  if (upper === "DISTRICT 42") return "CA-42";
-  if (upper === "CA42") return "CA-42";
   if (upper === "TX35") return "TX-35";
   if (upper === "TX20") return "TX-20";
   if (upper === "TX12") return "TX-12";
@@ -593,13 +561,7 @@ export default function DistrictAnalyticsPage() {
     return map;
   }, [discussions]);
 
-  const analyticsPosts = useMemo(() => {
-    const existingIds = new Set(posts.map((post) => post.id));
-    return [
-      ...posts,
-      ...CA42_OFFICIAL_UPDATE_POSTS.filter((post) => !existingIds.has(post.id)),
-    ];
-  }, [posts]);
+  const analyticsPosts = useMemo(() => posts, [posts]);
 
   const trendData = useMemo<TrendPoint[]>(() => {
     const now = new Date();

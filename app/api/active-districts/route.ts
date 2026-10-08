@@ -7,7 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 // "active". Read runs with the service role (RLS-independent), matching the
 // pattern used by the other privileged API routes.
 
-// A real congressional-district code, e.g. "IL-10", "TX-21", "CA-42".
+// A real congressional-district code, e.g. "IL-10", "TX-21", "NY-10".
 const DISTRICT_CODE = /^[A-Z]{2}-\d{1,2}$/;
 
 export async function GET() {

@@ -401,9 +401,6 @@ export default function LoginPage() {
       { value: "TX-20", label: "TX-20 — San Antonio area" },
       { value: "TX-35", label: "TX-35 — Austin / San Antonio corridor" },
     ],
-    California: [
-      { value: "CA-42", label: "CA-42 — Riverside / East LA" },
-    ],
   };
 
   if (pageChecking) {

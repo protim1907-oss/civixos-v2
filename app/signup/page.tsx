@@ -237,9 +237,6 @@ function normalizeDistrictValue(value: string | null | undefined) {
     return "";
   }
 
-  if (upper === "DISTRICT 12") return "CA-42";
-  if (upper === "DISTRICT 42") return "CA-42";
-  if (upper === "CA42") return "CA-42";
   if (upper === "TX35") return "TX-35";
   if (upper === "TX20") return "TX-20";
   if (upper === "TX12") return "TX-12";

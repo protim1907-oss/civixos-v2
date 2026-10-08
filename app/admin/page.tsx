@@ -179,9 +179,6 @@ function normalizeDistrict(value: string | null | undefined) {
   const upper = raw.toUpperCase();
 
   if (upper === "UNKNOWN" || upper === "UNASSIGNED" || upper === "N/A") return "";
-  if (upper === "DISTRICT 12") return "CA-42";
-  if (upper === "DISTRICT 42") return "CA-42";
-  if (upper === "CA42") return "CA-42";
   if (upper === "TX35") return "TX-35";
   if (upper === "TX20") return "TX-20";
   if (upper === "TX12") return "TX-12";
@@ -814,7 +811,7 @@ export default function AdminDashboardPage() {
         };
       })
       .sort((a, b) => {
-        const preferredDistrictOrder = ["TX-35", "CA-42"];
+        const preferredDistrictOrder = ["TX-35"];
         const aPreferredIndex = preferredDistrictOrder.indexOf(a.district);
         const bPreferredIndex = preferredDistrictOrder.indexOf(b.district);
 

@@ -64,7 +64,6 @@ function isVerifiedOfficial(role?: string | null) {
 function normalizeDistrict(value?: string | null) {
   const raw = String(value || "").trim().toUpperCase();
   if (!raw || raw === "UNKNOWN" || raw === "UNASSIGNED" || raw === "N/A") return "";
-  if (raw === "CA42") return "CA-42";
   if (raw === "TX35") return "TX-35";
 
   const compactMatch = raw.match(/^([A-Z]{2})(\d{1,2})$/);

@@ -176,7 +176,7 @@ export default function NewPolicyPulseSurveyPage() {
                     <input
                       value={district}
                       onChange={(e) => setDistrict(e.target.value)}
-                      placeholder="TX-35 or CA-42"
+                      placeholder="e.g. IL-10"
                       className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
                     />
                   </div>

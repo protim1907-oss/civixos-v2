@@ -165,16 +165,6 @@ const fallbackOfficials: Official[] = [
   },
 
   {
-    id: "robert-garcia",
-    name: "Robert Garcia",
-    title: "U.S. Representative",
-    officeLabel: "California 42nd District",
-    party: "Democratic Party",
-    district: "CA-42",
-    state: "CA",
-    website: "https://robertgarcia.house.gov",
-  },
-  {
     id: "nanette-barragan",
     name: "Nanette Barragan",
     title: "U.S. Representative",

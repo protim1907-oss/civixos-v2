@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     const [stateCode, districtNumber] = district.split("-");
     if (!stateCode || !districtNumber) {
       return NextResponse.json(
-        { error: "Invalid district format. Expected TX-35, CA-42, etc." },
+        { error: "Invalid district format. Expected IL-10, TX-21, etc." },
         { status: 400 }
       );
     }

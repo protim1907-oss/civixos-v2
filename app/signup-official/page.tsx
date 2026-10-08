@@ -64,9 +64,7 @@ function ordinal(n: number) {
   }
 }
 
-const californiaDistricts: DistrictOption[] = [
-  { value: "CA-42", label: "California 42nd District (CA-42)" },
-];
+const californiaDistricts: DistrictOption[] = [];
 
 // All 17 Illinois congressional districts are live — the official picks theirs.
 const illinoisDistricts: DistrictOption[] = Array.from({ length: 17 }, (_, i) => {

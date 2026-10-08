@@ -301,44 +301,6 @@ const OFFICIAL_UPDATES: OfficialUpdate[] = [
     shares: 3,
     sourceUrl: "https://example.com/tx35-public-safety-advisory",
   },
-  {
-    id: "ca42-port-cleanup",
-    district: "CA-42",
-    state: "California",
-    title: "Port-area cleanup and traffic control plan announced",
-    summary:
-      "District operations teams will begin a cleanup and logistics improvement initiative near key freight corridors.",
-    body:
-      "The district has announced a cleanup and traffic-control effort focused on freight mobility and neighborhood access near the port area. Officials said the initiative will improve roadway conditions, pedestrian access, and loading coordination over the next two weeks.",
-    category: "Infrastructure",
-    office: "District Operations Office",
-    date: "Apr 16, 2026",
-    priority: "High",
-    status: "Active",
-    upvotes: 51,
-    comments: 11,
-    shares: 7,
-    sourceUrl: "https://example.com/ca42-port-cleanup",
-  },
-  {
-    id: "ca42-school-grants",
-    district: "CA-42",
-    state: "California",
-    title: "District education office opens community school grant cycle",
-    summary:
-      "Applications are now open for district-supported community learning and after-school improvement grants.",
-    body:
-      "The District Education Office has opened a new application round for community schools and after-school enrichment programs. Eligible organizations may apply for support focused on tutoring, technology access, and youth engagement.",
-    category: "Education",
-    office: "District Education Office",
-    date: "Apr 12, 2026",
-    priority: "Normal",
-    status: "New",
-    upvotes: 33,
-    comments: 6,
-    shares: 4,
-    sourceUrl: "https://example.com/ca42-school-grants",
-  },
 ];
 
 function getCategoryBadgeClasses(category: OfficialUpdateCategory) {

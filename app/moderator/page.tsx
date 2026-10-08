@@ -164,7 +164,6 @@ const MODERATOR_SURVEY_DISTRICTS = [
   "TX-21",
   "TX-23",
   "TX-35",
-  "CA-42",
   "IL-01",
   "IL-02",
   "IL-03",
