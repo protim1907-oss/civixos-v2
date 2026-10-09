@@ -322,6 +322,8 @@ export default function FeedPage() {
   const [urgencyFilter, setUrgencyFilter] = useState("All");
 
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+  const [canModerate, setCanModerate] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [currentDistrict, setCurrentDistrict] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("All");
   const [allDistricts, setAllDistricts] = useState<string[]>([]);
@@ -417,6 +419,8 @@ export default function FeedPage() {
             "";
 
           canViewEverything = isStaffRole(profile?.role) || isStaffRole(metadataRole);
+          const moderatorRole = String(profile?.role || metadataRole || "").toLowerCase();
+          setCanModerate(moderatorRole === "admin" || moderatorRole === "moderator");
           district =
             profile?.district ||
             session.user.user_metadata?.district ||
@@ -761,6 +765,36 @@ export default function FeedPage() {
 
     return ["All", ...districts];
   }, [feedPosts, allDistricts]);
+
+  async function handleDeletePost(post: FeedPost) {
+    const confirmed = window.confirm(
+      `Permanently delete "${post.title}"? This removes it from the feed for everyone and cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      setDeletingId(post.id);
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/feed/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ kind: post.kind, id: post.id }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Delete failed");
+      }
+      setFeedPosts((prev) => prev.filter((p) => p.id !== post.id));
+    } catch (error) {
+      console.error("Feed delete error:", error);
+      window.alert("Could not delete this item. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleShare(post: FeedPost) {
     const issueUrl =
@@ -1362,6 +1396,20 @@ export default function FeedPage() {
                             <span className="text-base">💬</span>
                             <span>{post.comments} comments</span>
                           </button>
+
+                          {canModerate && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post)}
+                              disabled={deletingId === post.id}
+                              className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-2 font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                            >
+                              <span className="text-base">🗑</span>
+                              <span>
+                                {deletingId === post.id ? "Deleting…" : "Delete"}
+                              </span>
+                            </button>
+                          )}
 
                           <button
                             type="button"
