@@ -246,13 +246,9 @@ export default function Sidebar() {
       label: "District Feed",
       icon: Newspaper,
     },
-    {
-      href: "/official-updates",
-      label: "Official Updates",
-      icon: Megaphone,
-      badge: officialUpdatesCount > 0 ? officialUpdatesCount : null,
-      badgeColor: "green" as const,
-    },
+    // "Official Updates" is hidden from the sidebar until representatives are
+    // signed in. Page + badge wiring are kept intact so it can be restored by
+    // re-adding this nav entry.
     {
       href: "/official-meetings",
       label: "Official Meetings",
