@@ -1203,6 +1203,18 @@ export default function ModeratorDashboardPage() {
     });
   }, [policySurveys, broadcastDistricts]);
 
+  // Active surveys = published and still open for voting (deadline in the future,
+  // or none set). Powers the "Active Surveys" stat card and the live response panel.
+  const activeSurveys = useMemo(
+    () =>
+      policySurveys.filter((s) => {
+        if (!s.isPublished) return false;
+        const t = getSurveyDeadlineTime(s.deadline);
+        return Number.isNaN(t) || t >= Date.now();
+      }),
+    [policySurveys]
+  );
+
   const stats = useMemo(() => {
     const total = issues.length;
     const active = issues.filter(
@@ -1625,7 +1637,7 @@ export default function ModeratorDashboardPage() {
             </div>
           </div>
 
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
             <button
               type="button"
               onClick={() => handleStatsCardClick("all")}
@@ -1647,13 +1659,36 @@ export default function ModeratorDashboardPage() {
 
             <button
               type="button"
+              onClick={() =>
+                document
+                  .getElementById("active-survey-responses")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-indigo-500 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2"
+              aria-label="Jump to active survey responses"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Active Surveys</p>
+                  <p className="mt-2 text-3xl font-bold text-indigo-700">
+                    {activeSurveys.length}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-indigo-100 p-3">
+                  <ListChecks className="h-5 w-5 text-indigo-700" />
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
               onClick={() => handleStatsCardClick("active")}
               className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-5 pl-7 text-left shadow-sm transition before:absolute before:inset-y-0 before:left-0 before:w-2 before:bg-blue-500 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2"
               aria-label="Show active moderation posts"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Active</p>
+                  <p className="text-sm text-slate-500">Active Posts</p>
                   <p className="mt-2 text-3xl font-bold text-blue-700">
                     {stats.active}
                   </p>
@@ -1720,6 +1755,133 @@ export default function ModeratorDashboardPage() {
                 </div>
               </div>
             </button>
+          </section>
+
+          {/* Active survey responses — who responded and what they chose */}
+          <section
+            id="active-survey-responses"
+            className="rounded-3xl bg-white border border-slate-200 p-6 shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-indigo-700" />
+              <h2 className="text-lg font-bold text-slate-900">
+                Active Survey Responses
+              </h2>
+              <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                {activeSurveys.length} active
+              </span>
+            </div>
+
+            {activeSurveys.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-500">
+                No active surveys right now. Published surveys that are open for
+                voting will appear here with live responses.
+              </p>
+            ) : (
+              <div className="mt-5 space-y-5">
+                {activeSurveys.map((s) => {
+                  const totalVotes = Object.values(s.votes).reduce(
+                    (sum, c) => sum + c,
+                    0
+                  );
+                  const badgeClass = (opt: string) =>
+                    opt === "Strongly Support"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : opt === "Support"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : opt === "Neutral"
+                      ? "bg-slate-100 text-slate-600"
+                      : opt === "Oppose"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-red-100 text-red-700";
+                  return (
+                    <div
+                      key={s.id}
+                      className="rounded-2xl border border-slate-200 p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                            {s.district}
+                          </span>
+                          <h3 className="mt-2 text-base font-semibold text-slate-900">
+                            {s.title}
+                          </h3>
+                          {s.primaryQuestion && (
+                            <p className="mt-1 text-sm text-slate-600">
+                              {s.primaryQuestion}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-2xl font-bold text-slate-900">
+                            {totalVotes}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {totalVotes === 1 ? "response" : "responses"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Aggregate tally */}
+                      {totalVotes > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {voteOptions.map((opt) =>
+                            (s.votes[opt] ?? 0) > 0 ? (
+                              <span
+                                key={opt}
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass(
+                                  opt
+                                )}`}
+                              >
+                                {opt}: {s.votes[opt]}
+                              </span>
+                            ) : null
+                          )}
+                        </div>
+                      )}
+
+                      {/* Individual responses: who responded and what they chose */}
+                      {s.recentResponses.length > 0 ? (
+                        <ul className="mt-4 space-y-2">
+                          {s.recentResponses.map((r) => (
+                            <li
+                              key={r.id}
+                              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+                            >
+                              <span className="font-semibold text-slate-900">
+                                {r.citizenLabel || "A citizen"}
+                              </span>
+                              <span className="text-slate-500">responded:</span>
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeClass(
+                                  r.supportLevel
+                                )}`}
+                              >
+                                {r.supportLevel}
+                              </span>
+                              {r.topConcern && (
+                                <span className="text-slate-500">
+                                  · concern: {r.topConcern}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-4 text-sm text-slate-500">
+                          {totalVotes > 0
+                            ? `${totalVotes} vote${
+                                totalVotes === 1 ? "" : "s"
+                              } recorded; no named responses captured yet.`
+                            : "No responses yet."}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <section
