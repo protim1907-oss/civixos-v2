@@ -1,0 +1,26 @@
+diff --git a/app/page.tsx b/app/page.tsx
+index 991d7d4..771545a 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -160,6 +160,21 @@ export default function HomePage() {
+             <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">Three steps to civic impact</h2>
+             <p className="mt-4 text-xl text-slate-400 max-w-xl mx-auto">From signup to making your voice heard — in minutes.</p>
+           </div>
++          <div className="fade-in mx-auto mb-16 max-w-5xl">
++            <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl shadow-blue-950/50">
++              <video
++                className="block w-full aspect-video"
++                controls
++                playsInline
++                preload="none"
++                poster="/videos/civix250-how-it-works-poster.jpg"
++                aria-label="Civix250 product video: how it works in three steps"
++              >
++                <source src="/videos/civix250-how-it-works.mp4" type="video/mp4" />
++              </video>
++            </div>
++            <p className="mt-4 text-center text-sm text-slate-500">Watch how Civix250 works · 2 min 30 sec</p>
++          </div>
+           <div className="grid md:grid-cols-3 gap-8">
+             {[
+               { n: "01", title: "Choose Your District", body: "Sign up and select your congressional district. Civix250 instantly surfaces the issues, representatives, and discussions that matter to your community." },
