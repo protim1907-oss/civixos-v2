@@ -160,6 +160,20 @@ export default function HomePage() {
             <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">Three steps to civic impact</h2>
             <p className="mt-4 text-xl text-slate-400 max-w-xl mx-auto">From signup to making your voice heard — in minutes.</p>
           </div>
+          <div className="fade-in mx-auto mb-16 max-w-4xl">
+            <div className="overflow-hidden rounded-[2rem] border border-slate-800 shadow-2xl">
+              <video
+                className="aspect-video w-full bg-black"
+                controls
+                playsInline
+                preload="metadata"
+                poster="/videos/how-it-works-poster.png"
+              >
+                <source src="/videos/how-it-works.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { n: "01", title: "Choose Your District", body: "Sign up and select your congressional district. Civix250 instantly surfaces the issues, representatives, and discussions that matter to your community." },
