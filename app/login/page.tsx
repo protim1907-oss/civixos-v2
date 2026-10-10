@@ -65,6 +65,10 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
 
   const redirectingRef = useRef(false);
+  // The automatic session check (on mount + auth events) must resolve exactly
+  // once. Without this, a stale token's auto-refresh retries keep re-triggering
+  // the check → sign-out → re-check, flickering the page every few seconds.
+  const sessionResolvedRef = useRef(false);
 
   const getRedirectPath = useCallback(({
     accountType,
@@ -217,6 +221,8 @@ export default function LoginPage() {
     let mounted = true;
 
     const checkSession = async () => {
+      if (sessionResolvedRef.current) return;
+      sessionResolvedRef.current = true;
       try {
         const {
           data: { session },
@@ -263,7 +269,14 @@ export default function LoginPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted || !session || redirectingRef.current) return;
+      if (
+        !mounted ||
+        sessionResolvedRef.current ||
+        !session ||
+        redirectingRef.current
+      )
+        return;
+      sessionResolvedRef.current = true;
       await handleSessionRedirect(session);
     });
 
