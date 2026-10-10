@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
-const SESSION_CHECK_TIMEOUT_MS = 6000;
+const SESSION_CHECK_TIMEOUT_MS = 4000;
 
 type ProfileSummary = {
   role: string | null;
@@ -228,6 +228,25 @@ export default function LoginPage() {
         if (!mounted) return;
 
         if (session) {
+          // A cached session can carry a stale/invalid refresh token (e.g.
+          // "Invalid Refresh Token: Refresh Token Not Found"), which otherwise
+          // leaves the user stuck on this "checking session" screen. Validate
+          // against the server first; if it's bad, clear it and show the form.
+          const { data: userData, error: userError } = await withTimeout(
+            supabase.auth.getUser(),
+            "Session validation timed out."
+          );
+
+          if (userError || !userData?.user) {
+            console.warn(
+              "Stale session detected, clearing:",
+              userError?.message || "no user"
+            );
+            await supabase.auth.signOut().catch(() => {});
+            if (mounted) setPageChecking(false);
+            return;
+          }
+
           await handleSessionRedirect(session);
           return;
         }
@@ -403,25 +422,16 @@ export default function LoginPage() {
     ],
   };
 
-  if (pageChecking) {
-    return (
-      <main className="min-h-screen bg-slate-100 px-4 py-8 md:px-6">
-        <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center justify-center">
-          <div className="rounded-[32px] border border-slate-200 bg-white px-8 py-10 shadow-sm">
-            <h1 className="text-2xl font-bold text-slate-900">
-              Checking your session...
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Preparing the correct destination for your account.
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 md:px-6">
+      {/* Non-blocking: the login form is always usable. The session check runs
+          in the background and only redirects if a valid session is found, so a
+          slow or stale session can never trap the user on a "checking" screen. */}
+      {pageChecking && (
+        <div className="mx-auto mb-4 max-w-6xl rounded-2xl border border-slate-200 bg-white px-4 py-2 text-center text-sm text-slate-500 shadow-sm">
+          Checking your session…
+        </div>
+      )}
       <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-blue-50" />
