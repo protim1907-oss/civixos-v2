@@ -3,9 +3,12 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 
+export const runtime = "nodejs";
+
 const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SITE_URL = "https://civix250.ai";
 
+// Password-reset emails are sent via Gmail SMTP (messages@civix250.ai).
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
@@ -16,10 +19,30 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+function resetEmailHtml(resetLink: string) {
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+      <h2 style="color:#0f172a">Password Reset Request</h2>
+      <p style="color:#475569">Click the button below to reset your Civix250 password. This link expires in 15 minutes.</p>
+      <a href="${resetLink}"
+         style="display:inline-block;margin-top:16px;background:#0f172a;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:600">
+        Reset Password
+      </a>
+      <p style="color:#94a3b8;font-size:13px;margin-top:24px">
+        If you didn't request this, you can safely ignore this email.
+      </p>
+    </div>
+  `;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
     if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
+
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      return NextResponse.json({ error: "Email service not configured." }, { status: 503 });
+    }
 
     // Verify the user exists
     const supabaseAdmin = createClient(
@@ -44,19 +67,7 @@ export async function POST(req: NextRequest) {
       from: `"Civix250" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Reset your Civix250 password",
-      html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
-          <h2 style="color:#0f172a">Password Reset Request</h2>
-          <p style="color:#475569">Click the button below to reset your Civix250 password. This link expires in 15 minutes.</p>
-          <a href="${resetLink}"
-             style="display:inline-block;margin-top:16px;background:#0f172a;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:600">
-            Reset Password
-          </a>
-          <p style="color:#94a3b8;font-size:13px;margin-top:24px">
-            If you didn't request this, you can safely ignore this email.
-          </p>
-        </div>
-      `,
+      html: resetEmailHtml(resetLink),
     });
 
     return NextResponse.json({ success: true });

@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 export const runtime = "nodejs";
 
-// Sender identity. The domain in RESEND_FROM must be a VERIFIED domain in your
-// Resend account (verify it in the Resend dashboard — that's an account action
-// you do yourself). Overridable via env without a code change.
-const FROM = process.env.RESEND_FROM || "Civix250 <surveys@civix250.ai>";
-const REPLY_TO = process.env.RESEND_REPLY_TO || "messages@civix250.ai";
+// Survey-launch alerts are sent via Gmail SMTP (messages@civix250.ai) — the same
+// sender used for password-reset emails. No Resend/Wix dependency.
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
@@ -17,7 +24,6 @@ const SITE_URL = (
 
 // Only these roles may trigger a district-wide email blast.
 const ALLOWED_PUBLISHER_ROLES = new Set(["moderator", "official", "admin"]);
-const BATCH_SIZE = 100; // Resend batch.send accepts up to 100 messages per call.
 
 // Districts are sometimes stored padded (MD-01) and sometimes not (MD-1), and
 // survey creation only upper-cases the value. Match residents on every variant.
@@ -82,9 +88,9 @@ function surveyEmailHtml(opts: {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.RESEND_API_KEY) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     return NextResponse.json(
-      { error: "Email service not configured (RESEND_API_KEY missing)." },
+      { error: "Email service not configured (GMAIL_USER / GMAIL_APP_PASSWORD missing)." },
       { status: 503 }
     );
   }
@@ -199,35 +205,34 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // --- Send via Resend, batched --------------------------------------------
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  // --- Send via Gmail SMTP, one message per recipient -----------------------
   const subject = `New Policy Pulse survey for ${survey.district}: ${survey.title}`;
   const link = `${SITE_URL}/policy-pulse?survey=${encodeURIComponent(survey.id)}`;
 
   let sent = 0;
   const errors: string[] = [];
-  for (let i = 0; i < list.length; i += BATCH_SIZE) {
-    const chunk = list.slice(i, i + BATCH_SIZE);
-    const payload = chunk.map((r) => ({
-      from: FROM,
-      to: [r.email],
-      replyTo: REPLY_TO,
-      subject,
-      html: surveyEmailHtml({
-        name: r.name,
-        title: survey.title,
-        district: survey.district,
-        question: survey.primary_question || survey.summary || "",
-        deadline: survey.deadline || "",
-        link,
-      }),
-    }));
-    const { error } = await resend.batch.send(payload);
-    if (error) errors.push(error.message || "batch send failed");
-    else sent += chunk.length;
+  for (const r of list) {
+    try {
+      await transporter.sendMail({
+        from: `"Civix250" <${process.env.GMAIL_USER}>`,
+        to: r.email,
+        subject,
+        html: surveyEmailHtml({
+          name: r.name,
+          title: survey.title,
+          district: survey.district,
+          question: survey.primary_question || survey.summary || "",
+          deadline: survey.deadline || "",
+          link,
+        }),
+      });
+      sent += 1;
+    } catch (e) {
+      errors.push(`${r.email}: ${(e as Error)?.message || "send failed"}`);
+    }
   }
 
-  // Stamp only if at least one batch went out, so a total failure can be retried.
+  // Stamp only if at least one message went out, so a total failure can be retried.
   if (sent > 0) await stampNotified();
 
   return NextResponse.json({
@@ -235,6 +240,6 @@ export async function POST(req: NextRequest) {
     sent,
     total: list.length,
     district: survey.district,
-    errors: errors.length ? errors : undefined,
+    errors: errors.length ? errors.slice(0, 10) : undefined,
   });
 }
