@@ -26,6 +26,32 @@ function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
   });
 }
 
+// Breaks a /login <-> destination redirect loop. A flaky/half-valid session can
+// get auto-redirected to the dashboard, which bounces it back to /login, over
+// and over (full reloads, so React refs can't catch it). This counter lives in
+// sessionStorage and survives reloads: once we've auto-redirected too many times
+// in a short window, the caller stops redirecting and shows the login form.
+const LOGIN_BOUNCE_KEY = "civix_login_bounces";
+function isRedirectLooping(): boolean {
+  try {
+    const now = Date.now();
+    const raw = sessionStorage.getItem(LOGIN_BOUNCE_KEY);
+    const recent = (raw ? (JSON.parse(raw) as number[]) : []).filter(
+      (t) => now - t < 12000
+    );
+    recent.push(now);
+    sessionStorage.setItem(LOGIN_BOUNCE_KEY, JSON.stringify(recent));
+    return recent.length > 2;
+  } catch {
+    return false;
+  }
+}
+function clearRedirectLoopCounter() {
+  try {
+    sessionStorage.removeItem(LOGIN_BOUNCE_KEY);
+  } catch {}
+}
+
 function getDistrictMappingFromEmail(email?: string | null) {
   const normalized = (email || "").trim().toLowerCase();
 
@@ -253,6 +279,15 @@ export default function LoginPage() {
             return;
           }
 
+          // Loop breaker: if the destination keeps bouncing back to /login,
+          // stop auto-redirecting, clear the flaky session, and show the form.
+          if (isRedirectLooping()) {
+            console.warn("Login redirect loop detected; showing form instead.");
+            await supabase.auth.signOut().catch(() => {});
+            if (mounted) setPageChecking(false);
+            return;
+          }
+
           await handleSessionRedirect(session);
           return;
         }
@@ -305,6 +340,7 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("guest_user");
     }
+    clearRedirectLoopCounter();
 
     setMessage("Login successful. Redirecting...");
 
