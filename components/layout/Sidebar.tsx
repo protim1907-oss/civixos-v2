@@ -25,9 +25,45 @@ import {
   HeartHandshake,
   MessageCircle,
   Video,
+  Bell,
 } from "lucide-react";
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
+
+// --- New-survey (Policy Pulse) in-app alert -------------------------------
+// "Seen" state is tracked per user in localStorage: the timestamp of the most
+// recent survey the user has acknowledged by opening Policy Pulse. The badge
+// counts published surveys in their district newer than that. localStorage is
+// per-device, which is fine — email (notify-survey) is the reliable channel;
+// this badge is a convenience.
+const PP_SEEN_PREFIX = "civix_pp_seen_";
+
+// Districts are stored padded (MD-01) or unpadded (MD-1); match every variant.
+function ppDistrictVariants(raw: string): string[] {
+  const d = String(raw || "").trim().toUpperCase();
+  const m = d.match(/^([A-Z]{2})-(\d{1,3})$/);
+  if (!m) return [d];
+  const n = Number(m[2]);
+  return Array.from(
+    new Set([d, `${m[1]}-${n}`, `${m[1]}-${String(n).padStart(2, "0")}`])
+  );
+}
+
+function readPpSeen(userId: string): number {
+  try {
+    return Number(localStorage.getItem(PP_SEEN_PREFIX + userId)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writePpSeen(userId: string, ts: number) {
+  try {
+    localStorage.setItem(PP_SEEN_PREFIX + userId, String(ts));
+  } catch {
+    /* storage unavailable (private mode etc.) — badge still works in-memory */
+  }
+}
 
 type NavItem = {
   href: string;
@@ -65,6 +101,12 @@ export default function Sidebar() {
   const [myActivityCount, setMyActivityCount] = useState<number>(0);
   const [officialUpdatesCount, setOfficialUpdatesCount] = useState<number>(0);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userDistrict, setUserDistrict] = useState<string | null>(null);
+  const [newSurveyCount, setNewSurveyCount] = useState<number>(0);
+  const [surveyToast, setSurveyToast] = useState<
+    { id: string; title: string; district: string } | null
+  >(null);
   const [chatUnread, setChatUnread] = useState<number>(0);
   const [chatToast, setChatToast] = useState<ChatToast | null>(null);
 
@@ -81,10 +123,12 @@ export default function Sidebar() {
 
       let nextMyActivityCount = 0;
 
+      setUserId(user?.id ?? null);
+
       if (user?.id) {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, district")
           .eq("id", user.id)
           .single();
 
@@ -92,6 +136,7 @@ export default function Sidebar() {
           console.error("Sidebar profile load error:", profileError);
         } else {
           setUserRole(profile?.role ?? null);
+          setUserDistrict(profile?.district ?? null);
         }
 
         const [
@@ -207,6 +252,85 @@ export default function Sidebar() {
     return () => clearTimeout(t);
   }, [chatToast]);
 
+  // New-survey badge: count published surveys in the citizen's district that
+  // are newer than what they've seen, and live-update via realtime (pops a
+  // toast when one arrives). Citizens only — moderators/officials create them.
+  useEffect(() => {
+    if (!userId || userRole !== "citizen" || !userDistrict) {
+      setNewSurveyCount(0);
+      return;
+    }
+    const variants = ppDistrictVariants(userDistrict);
+    let cancelled = false;
+
+    const recompute = async () => {
+      const { data, error } = await supabase
+        .from("policy_pulse_surveys")
+        .select("id, created_at")
+        .eq("is_published", true)
+        .in("district", variants);
+      if (cancelled || error) return;
+      const seen = readPpSeen(userId);
+      const count = (data || []).filter(
+        (r) => new Date(r.created_at as string).getTime() > seen
+      ).length;
+      setNewSurveyCount(count);
+    };
+
+    void recompute();
+
+    const channel = supabase
+      .channel("sidebar-policy-pulse")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "policy_pulse_surveys" },
+        (payload) => {
+          const row = payload.new as {
+            id?: string;
+            title?: string;
+            district?: string;
+            is_published?: boolean;
+            created_at?: string;
+          } | null;
+          if (
+            row?.is_published &&
+            variants.includes(String(row.district || "").trim().toUpperCase()) &&
+            new Date(row.created_at || 0).getTime() > readPpSeen(userId)
+          ) {
+            setSurveyToast({
+              id: String(row.id),
+              title: row.title || "New survey",
+              district: String(row.district),
+            });
+          }
+          void recompute();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [userId, userRole, userDistrict, supabase]);
+
+  // Opening Policy Pulse acknowledges every current survey → clear the badge.
+  useEffect(() => {
+    if (!userId) return;
+    if (pathname === "/policy-pulse" || pathname.startsWith("/policy-pulse/")) {
+      writePpSeen(userId, Date.now());
+      setNewSurveyCount(0);
+      setSurveyToast(null);
+    }
+  }, [pathname, userId]);
+
+  // Auto-dismiss the survey toast after a few seconds.
+  useEffect(() => {
+    if (!surveyToast) return;
+    const t = setTimeout(() => setSurveyToast(null), 7000);
+    return () => clearTimeout(t);
+  }, [surveyToast]);
+
   const navItems = [
     {
       href: "/official-dashboard",
@@ -230,6 +354,8 @@ export default function Sidebar() {
       href: "/policy-pulse",
       label: "Policy Pulse",
       icon: ShieldCheck,
+      badge: newSurveyCount > 0 ? newSurveyCount : null,
+      badgeColor: "red" as const,
     },
     {
       href: "/my-representatives",
@@ -407,6 +533,41 @@ export default function Sidebar() {
               e.preventDefault();
               e.stopPropagation();
               setChatToast(null);
+            }}
+            className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Dismiss"
+          >
+            <span className="text-lg leading-none">&times;</span>
+          </button>
+        </Link>
+      </div>
+    ) : null}
+
+    {/* In-app new-survey notification toast */}
+    {surveyToast ? (
+      <div className="fixed right-4 top-4 z-[60] w-[calc(100%-2rem)] max-w-sm sm:right-6 sm:top-6">
+        <Link
+          href="/policy-pulse"
+          onClick={() => setSurveyToast(null)}
+          className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl transition hover:bg-slate-50"
+        >
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <Bell className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">
+              New survey in {surveyToast.district}
+            </p>
+            <p className="mt-0.5 truncate text-sm text-slate-500">
+              {surveyToast.title}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSurveyToast(null);
             }}
             className="shrink-0 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
             aria-label="Dismiss"
