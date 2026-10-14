@@ -141,6 +141,14 @@ export default async function LandingPage({
 
       {/* Hero */}
       <section className="mx-auto max-w-3xl px-5 pb-10 pt-6 md:pt-12">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/lp/${slug}.png`}
+          alt={data.eyebrow}
+          width={1080}
+          height={1080}
+          className="mb-8 w-full max-w-[440px] rounded-3xl border border-slate-200 shadow-lg"
+        />
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">
           {data.eyebrow}
         </p>
