@@ -45,6 +45,59 @@ const LANDINGS: Record<string, Landing> = {
     yourMove:
       "Confirm your voter registration and research the candidates on your ballot.",
   },
+  "we-the-people": {
+    eyebrow: "We the People. Still in charge.",
+    headline: "The people are the source of the power.",
+    paragraphs: [
+      'The Constitution was not handed down by a king or a Congress. It was "ordained and established" by "We the People of the United States."',
+      "Every member of Congress swears an oath to support and defend that Constitution, which protects the rights of every person within our nation's jurisdiction. Political authority, though, flows from the people — and is exercised by citizens through their vote.",
+      "More than 230 years later, the arrangement hasn't changed. Officials come and go; the people remain the source of their power. Remembering that is the first duty of citizenship.",
+    ],
+    yourMove:
+      "Read the Constitution's opening lines, then read your representative's voting record.",
+  },
+  "performance-review": {
+    eyebrow: "Time for a performance review",
+    headline: "Your representative works for you.",
+    paragraphs: [
+      "In any job, performance gets reviewed. Your representative's job should be no different.",
+    ],
+    bullets: {
+      intro: "Ask the same questions any employer would:",
+      items: [
+        "Attendance: Did they show up and vote?",
+        "Results: What did they deliver for the district?",
+        "Communication: Do they respond when constituents reach out?",
+        "Integrity: Did they keep the promises they made?",
+      ],
+    },
+    closing:
+      "This year, Congress saw two government shutdowns, a housing bill left unsigned, and a failed effort to limit congressional stock trading. Each member had a role in those outcomes — citizens have the right to know what it was.",
+    yourMove:
+      "Look up your representative's record and give them your own review.",
+  },
+  "the-boss-is-you": {
+    eyebrow: "The boss is you.",
+    headline: "One minute. The most powerful thing you do.",
+    paragraphs: [
+      "It takes about a minute to cast a ballot — and that minute is the most powerful thing a citizen does.",
+      "Your vote decides who writes the laws, who sets the budget, and who answers to you for the next two, four, or six years. When citizens stay home, someone else makes those decisions for them.",
+      "The boss doesn't sit out the hiring decision. Neither should you.",
+    ],
+    yourMove:
+      "Check your registration, find your polling place, and make a plan to vote.",
+  },
+  "beyond-party": {
+    eyebrow: "Party doesn't run the show. Citizens do.",
+    headline: "Judge the record, not the label.",
+    paragraphs: [
+      'Political parties are not mentioned anywhere in the Constitution. George Washington warned against "the spirit of party" in his Farewell Address. Yet today, party loyalty often decides votes before the facts do.',
+      "Voting beyond party doesn't mean abandoning your values. It means holding every officeholder, in any party, to the same standard: honesty, results, and service to the people who hired them.",
+      "When citizens judge candidates on their record rather than their label, every politician has to earn the job.",
+    ],
+    yourMove:
+      "Compare the candidates on the issues that matter to you, not the letter after their name.",
+  },
 };
 
 export function generateMetadata({
@@ -105,12 +158,27 @@ export default async function LandingPage({
           <div className="mt-6 text-lg leading-8 text-slate-700">
             <p className="font-semibold text-slate-900">{data.bullets.intro}</p>
             <ul className="mt-3 space-y-3">
-              {data.bullets.items.map((item, i) => (
-                <li key={i} className="flex gap-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" />
-                  <span>{item}</span>
-                </li>
-              ))}
+              {data.bullets.items.map((item, i) => {
+                const [label, ...rest] = item.split(": ");
+                const hasLabel = rest.length > 0;
+                return (
+                  <li key={i} className="flex gap-3">
+                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" />
+                    <span>
+                      {hasLabel ? (
+                        <>
+                          <span className="font-semibold text-slate-900">
+                            {label}:
+                          </span>{" "}
+                          {rest.join(": ")}
+                        </>
+                      ) : (
+                        item
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
