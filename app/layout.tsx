@@ -4,7 +4,10 @@ import { APP_NAME } from "@/lib/config";
 import AskCivixWidget from "@/components/AskCivixWidget";
 import XSignupTracker from "@/components/XSignupTracker";
 
-const FB_PIXEL_ID = "1494627242694614";
+// Meta (Facebook) Pixel id for the active ad account ("Constantinos"). Firing
+// this same id on-site is what makes the pixel show as Active in Events Manager
+// and lets the ad's conversion dataset receive events.
+const FB_PIXEL_ID = "1409301084468788";
 // X (Twitter) Ads pixel id — set NEXT_PUBLIC_X_PIXEL_ID to enable. Until then
 // the pixel does not load. See lib/x-pixel.ts for the conversion event.
 const X_PIXEL_ID = process.env.NEXT_PUBLIC_X_PIXEL_ID;
