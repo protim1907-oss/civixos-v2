@@ -3,6 +3,7 @@ import Script from "next/script";
 import { APP_NAME } from "@/lib/config";
 import AskCivixWidget from "@/components/AskCivixWidget";
 import XSignupTracker from "@/components/XSignupTracker";
+import SourceTracker from "@/components/SourceTracker";
 
 // Meta (Facebook) Pixel id for the active ad account ("Constantinos"). Firing
 // this same id on-site is what makes the pixel show as Active in Events Manager
@@ -84,6 +85,7 @@ twq('config','${X_PIXEL_ID}');`}
         {children}
         <AskCivixWidget />
         <XSignupTracker />
+        <SourceTracker />
       </body>
     </html>
   );

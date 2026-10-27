@@ -51,7 +51,45 @@ type ProfileRow = {
   email: string | null;
   role: string | null;
   district: string | null;
+  signup_source?: string | null;
 };
+
+// Acquisition-source badge for the User Management table. Shows the Facebook or
+// X logo next to users who signed up from that ad network (profiles.signup_source,
+// captured via SourceTracker). Renders nothing for organic / unknown users.
+function SourceBadge({ source }: { source?: string | null }) {
+  const s = (source || "").toLowerCase();
+  const kind = /facebook|instagram|meta|^fb$|^ig$/.test(s)
+    ? "facebook"
+    : /^x$|twitter|^tw$/.test(s)
+    ? "x"
+    : null;
+  if (!kind) return null;
+  if (kind === "facebook") {
+    return (
+      <span
+        title="Signed up from Facebook"
+        aria-label="Facebook"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1877F2] text-white"
+      >
+        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+          <path d="M14 9h3l.4-3H14V4.3c0-.9.3-1.5 1.6-1.5H17V.1C16.6.1 15.5 0 14.3 0 11.8 0 10 1.5 10 4v2H7v3h3v9h4V9z" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Signed up from X"
+      aria-label="X"
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-white"
+    >
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+        <path d="M18.244 2H21.5l-7.5 8.57L22.5 22h-6.5l-5.1-6.66L5.1 22H1.84l8.02-9.17L1.5 2h6.66l4.6 6.08L18.244 2zm-1.14 18h1.8L7.02 3.9H5.1L17.104 20z" />
+      </svg>
+    </span>
+  );
+}
 
 // At-large demo accounts hidden from the admin user list. These rows still
 // exist in Supabase (auth + profiles) — this only filters the dashboard view.
@@ -430,18 +468,32 @@ export default function AdminDashboardPage() {
   }
 
   async function loadProfiles() {
-    const { data, error } = await supabase
+    const primary = await supabase
       .from("profiles")
-      .select("id, full_name, email, role, district")
+      .select("id, full_name, email, role, district, signup_source")
       .order("full_name", { ascending: true });
 
-    if (!error) {
-      setProfiles(
-        (data ?? []).filter(
-          (p) => !HIDDEN_DEMO_EMAILS.has((p.email || "").toLowerCase())
-        )
-      );
+    let rows = (primary.data ?? null) as ProfileRow[] | null;
+
+    // Resilience: if signup_source hasn't been added yet (migration not run),
+    // fall back to the base columns so the table still loads.
+    if (primary.error) {
+      const fallback = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role, district")
+        .order("full_name", { ascending: true });
+      if (fallback.error) return;
+      rows = (fallback.data ?? []).map((p) => ({
+        ...p,
+        signup_source: null,
+      })) as ProfileRow[];
     }
+
+    setProfiles(
+      (rows ?? []).filter(
+        (p) => !HIDDEN_DEMO_EMAILS.has((p.email || "").toLowerCase())
+      )
+    );
   }
 
   async function loadModerationQueue() {
@@ -1056,7 +1108,8 @@ export default function AdminDashboardPage() {
           profile.full_name?.toLowerCase().includes(q) ||
           profile.email?.toLowerCase().includes(q) ||
           profile.role?.toLowerCase().includes(q) ||
-          profile.district?.toLowerCase().includes(q)
+          profile.district?.toLowerCase().includes(q) ||
+          profile.signup_source?.toLowerCase().includes(q)
       );
     }
 
@@ -2821,8 +2874,11 @@ export default function AdminDashboardPage() {
                         className="border-t border-slate-200 align-top"
                       >
                         <td className="px-6 py-4">
-                          <div className="font-medium text-slate-900">
-                            {profile.full_name || "Unnamed User"}
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-slate-900">
+                              {profile.full_name || "Unnamed User"}
+                            </span>
+                            <SourceBadge source={profile.signup_source} />
                           </div>
                         </td>
 
