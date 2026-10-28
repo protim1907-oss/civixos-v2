@@ -49,8 +49,21 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    const { data } = await supabaseAdmin.auth.admin.listUsers();
-    const user = data?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+
+    // Find the user by email. admin.listUsers() is PAGINATED (50/page by
+    // default), so a plain call only searches the first page — anyone past it
+    // silently never gets a reset link. Page through all users until found.
+    const target = email.toLowerCase();
+    let user: { id: string; email?: string } | undefined;
+    for (let page = 1; page <= 100 && !user; page++) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: 200,
+      });
+      if (error) break;
+      user = data.users.find((u) => u.email?.toLowerCase() === target);
+      if (data.users.length < 200) break; // reached the last page
+    }
 
     // Always return success to avoid user enumeration
     if (!user) return NextResponse.json({ success: true });
