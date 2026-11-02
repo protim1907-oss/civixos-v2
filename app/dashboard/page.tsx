@@ -883,14 +883,14 @@ export default function DashboardPage() {
       `${activeFeedCount} district item${activeFeedCount === 1 ? "" : "s"} in view`,
       `${underReviewCount} under review`,
       latestPolicyPulseSurvey
-        ? `${activeSurveyVotes} Policy Pulse vote${activeSurveyVotes === 1 ? "" : "s"}`
-        : "No active Policy Pulse survey",
+        ? `${activeSurveyVotes} survey vote${activeSurveyVotes === 1 ? "" : "s"}`
+        : "No active survey",
     ];
 
     if (latestPolicyPulseSurvey && activeSurveyVotes === 0) {
       return {
         headline: `${latestPolicyPulseSurvey.title} is waiting for first signal`,
-        summary: `A live Policy Pulse survey is open for ${districtLabel}. Be one of the first people to shape the outcome before the issue gets stale.`,
+        summary: `A live survey is open for ${districtLabel}. Be one of the first people to shape the outcome before the issue gets stale.`,
         recommendedAction: "Submit your support level, concern, and recommendation.",
         actionHref: `/policy-pulse?survey=${encodeURIComponent(latestPolicyPulseSurvey.id)}`,
         actionLabel: "Take survey",
@@ -928,7 +928,7 @@ export default function DashboardPage() {
 
     if (latestPolicyPulseSurvey) {
       return {
-        headline: "Your district has a live Policy Pulse survey",
+        headline: "Your district has a live survey",
         summary: `${latestPolicyPulseSurvey.title} has ${activeSurveyVotes} vote${
           activeSurveyVotes === 1 ? "" : "s"
         }. Add your response to make the snapshot more representative.`,
@@ -1133,7 +1133,7 @@ export default function DashboardPage() {
                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
                       >
                         <ShieldCheck className="h-4 w-4" />
-                        Policy Pulse
+                        Survey
                       </Link>
                     </div>
                   </div>
@@ -1769,7 +1769,7 @@ export default function DashboardPage() {
                 "Vote on community priorities",
                 "Comment on district discussions",
                 "Get official responses to your concerns",
-                "Participate in Policy Pulse surveys",
+                "Participate in surveys",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />

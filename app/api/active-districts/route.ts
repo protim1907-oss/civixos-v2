@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 // Returns the set of districts that have signed-up citizens, so the moderator
-// only broadcasts Policy Pulse surveys where there are constituents to vote on
+// only broadcasts surveys where there are constituents to vote on
 // them. Officials/moderators/admins don't vote, so they don't make a district
 // "active". Read runs with the service role (RLS-independent), matching the
 // pattern used by the other privileged API routes.

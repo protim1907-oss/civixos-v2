@@ -122,7 +122,7 @@ export default function NewPolicyPulseSurveyPage() {
       await publishPolicyPulseSurvey(supabase, survey);
       router.push(`/policy-pulse?survey=${encodeURIComponent(survey.id)}&created=1`);
     } catch (publishError) {
-      console.error("Failed to publish policy pulse survey:", publishError);
+      console.error("Failed to publish survey:", publishError);
       setError(
         "Unable to publish this survey. Confirm the Supabase table and storage bucket are set up."
       );
@@ -139,7 +139,7 @@ export default function NewPolicyPulseSurveyPage() {
         <div className="mx-auto max-w-5xl">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Policy Pulse
+              Survey
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
               Launch A New Survey
@@ -300,7 +300,7 @@ export default function NewPolicyPulseSurveyPage() {
                   steps.
                 </div>
                 <div className="rounded-xl border-l-4 border-green-500 bg-green-50 p-4">
-                  Policy Pulse will aggregate support levels, trendlines, and recent
+                  The survey will aggregate support levels, trendlines, and recent
                   feedback on the main page.
                 </div>
               </div>

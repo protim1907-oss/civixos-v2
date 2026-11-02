@@ -30,9 +30,9 @@ import {
 
 type BadgeColor = "red" | "green" | "blue" | "slate";
 
-// --- New-survey (Policy Pulse) in-app alert -------------------------------
+// --- New-survey (Survey) in-app alert -------------------------------
 // "Seen" state is tracked per user in localStorage: the timestamp of the most
-// recent survey the user has acknowledged by opening Policy Pulse. The badge
+// recent survey the user has acknowledged by opening the Survey page. The badge
 // counts published surveys in their district newer than that. localStorage is
 // per-device, which is fine — email (notify-survey) is the reliable channel;
 // this badge is a convenience.
@@ -314,7 +314,7 @@ export default function Sidebar() {
     };
   }, [userId, userRole, userDistrict, supabase]);
 
-  // Opening Policy Pulse acknowledges every current survey → clear the badge.
+  // Opening the Survey page acknowledges every current survey → clear the badge.
   useEffect(() => {
     if (!userId) return;
     if (pathname === "/policy-pulse" || pathname.startsWith("/policy-pulse/")) {
@@ -352,7 +352,7 @@ export default function Sidebar() {
     },
     {
       href: "/policy-pulse",
-      label: "Policy Pulse",
+      label: "Survey",
       icon: ShieldCheck,
       badge: newSurveyCount > 0 ? newSurveyCount : null,
       badgeColor: "red" as const,

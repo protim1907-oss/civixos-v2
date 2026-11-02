@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
           </p>
           <ul style="color:#475569;font-size:15px;line-height:1.8;padding-left:20px">
             <li>Find and message your representatives</li>
-            <li>Vote on Policy Pulse surveys for your district</li>
+            <li>Vote on surveys for your district</li>
             <li>Post and discuss local issues in your district feed</li>
           </ul>
           <a href="https://civix250.ai/dashboard"

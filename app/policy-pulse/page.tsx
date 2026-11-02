@@ -180,7 +180,7 @@ function PolicyPulsePageContent() {
           setSurveys(publishedSurveys);
           setCurrentUserId(user?.id ?? null);
           if (profileResult.error) {
-            console.error("Failed to load policy pulse profile:", profileResult.error.message);
+            console.error("Failed to load survey profile:", profileResult.error.message);
           } else {
             setCurrentProfile((profileResult.data as ProfileRow | null) ?? null);
           }
@@ -466,13 +466,13 @@ function PolicyPulsePageContent() {
       <main className="flex-1 p-6">
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
-            <h1 className="text-3xl font-bold text-slate-900">Policy Pulse</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Survey</h1>
             <p className="mt-3 max-w-4xl leading-7 text-slate-600">
               {loadingSurveys
                 ? "Loading published surveys..."
                 : activeSurvey
                 ? `${activeSurvey.title} is live for ${activeSurvey.district}. ${activeSurvey.summary}`
-                : "Test policies before they become decisions. Policy Pulse lets you run quick surveys, capture citizen sentiment, and identify key concerns. Get instant insights on support levels, risks, and recommendations. Make smarter, faster policy decisions."}
+                : "Test policies before they become decisions. Surveys let you run quick polls, capture citizen sentiment, and identify key concerns. Get instant insights on support levels, risks, and recommendations. Make smarter, faster policy decisions."}
             </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
@@ -621,7 +621,7 @@ function PolicyPulsePageContent() {
                     No live survey yet
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    Start by launching a new Policy Pulse survey with a district, summary,
+                    Start by launching a new survey with a district, summary,
                     and question.
                   </p>
                   <button
@@ -931,7 +931,7 @@ export default function PolicyPulsePage() {
           <main className="flex-1 p-6">
             <div className="mx-auto max-w-7xl">
               <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <h1 className="text-3xl font-bold text-slate-900">Policy Pulse</h1>
+                <h1 className="text-3xl font-bold text-slate-900">Survey</h1>
                 <p className="mt-3 text-slate-600">Loading survey workspace...</p>
               </div>
             </div>

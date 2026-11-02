@@ -31,7 +31,7 @@ separate "Register as Official" onboarding flow to unlock official features.
   snapshot of your civic activity.
 - **Create Post**: raise a local issue or post in your district for other
   citizens (and officials) to see and engage with.
-- **Policy Pulse**: district policy surveys. Share your support level
+- **Survey**: district policy surveys. Share your support level
   (Strongly Support → Strongly Oppose), your concerns, and recommendations on a
   proposal. Results roll up per district.
 - **My Representative**: your assigned U.S. House member for your district,
@@ -96,7 +96,7 @@ export const CIVIX_SUGGESTED_QUESTIONS = [
   "What is Civix250?",
   "Which states can sign up?",
   "How do I sign up?",
-  "What is Policy Pulse?",
+  "What are Surveys?",
   "How do I contact my representative?",
   "How do chat and video calls work?",
   "How do I register as an official?",

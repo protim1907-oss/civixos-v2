@@ -15,7 +15,7 @@ const navItems = [
   { href: "/my-representatives", label: "Representatives" },
   { href: "/moderation", label: "Moderation" },
   { href: "/reports", label: "Reports" },
-  { href: "/policy-pulse", label: "Policy Pulse" },
+  { href: "/policy-pulse", label: "Survey" },
 ];
 
 export function AppShell({ children, title }: AppShellProps) {
@@ -77,7 +77,7 @@ export function AppShell({ children, title }: AppShellProps) {
                   href="/policy-pulse"
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  Policy Pulse
+                  Survey
                 </Link>
                 <Link
                   href="/create-post"

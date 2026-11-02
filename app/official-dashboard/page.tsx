@@ -485,7 +485,7 @@ export default function OfficialDashboardPage() {
             <ActionCard
               href="/policy-pulse"
               icon={ShieldCheck}
-              title="Review Policy Pulse"
+              title="Review Surveys"
               text="See survey support, objections, and recommended next actions."
             />
             <ActionCard
@@ -500,12 +500,12 @@ export default function OfficialDashboardPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Policy Pulse
+                  Survey
                 </p>
                 <h2 className="mt-2 text-2xl font-bold text-slate-950">Live Citizen Sentiment</h2>
               </div>
               <Link href="/policy-pulse" className="text-sm font-semibold text-blue-600">
-                Open Policy Pulse
+                Open Survey
               </Link>
             </div>
 
@@ -525,7 +525,7 @@ export default function OfficialDashboardPage() {
                 ))
               ) : (
                 <div className="md:col-span-3">
-                  <EmptyState text="No policy pulse surveys are visible for this jurisdiction yet." />
+                  <EmptyState text="No surveys are visible for this jurisdiction yet." />
                 </div>
               )}
             </div>

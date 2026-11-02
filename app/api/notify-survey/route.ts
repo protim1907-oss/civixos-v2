@@ -61,7 +61,7 @@ function surveyEmailHtml(opts: {
     : "";
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:32px">
-    <p style="font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin:0 0 8px">Policy Pulse · ${esc(
+    <p style="font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin:0 0 8px">Survey · ${esc(
       opts.district
     )}</p>
     <h2 style="color:#0f172a;margin:0 0 12px;font-size:20px">A new survey for your district, ${esc(
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
   }
 
   // --- Send via Gmail SMTP, one message per recipient -----------------------
-  const subject = `New Policy Pulse survey for ${survey.district}: ${survey.title}`;
+  const subject = `New survey for ${survey.district}: ${survey.title}`;
   const link = `${SITE_URL}/policy-pulse?survey=${encodeURIComponent(survey.id)}`;
 
   let sent = 0;

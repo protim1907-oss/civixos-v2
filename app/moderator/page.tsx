@@ -599,7 +599,7 @@ export default function ModeratorDashboardPage() {
         <body>
           <div class="header">
             <div class="header-left">
-              <h1>Civix250 — Policy Pulse Report</h1>
+              <h1>Civix250 — Survey Report</h1>
               <p>District Survey Results &nbsp;·&nbsp; Moderator Export</p>
             </div>
             <div class="header-right">
@@ -687,7 +687,7 @@ export default function ModeratorDashboardPage() {
       setSurveyMessage("");
 
       const { error } = await supabase.from("official_updates").insert({
-        title: `Policy Pulse results ready: ${survey.title}`,
+        title: `Survey results ready: ${survey.title}`,
         summary: `${survey.district} survey results are ready for representative review. Total votes: ${totalVotes}. Leading response: ${topVote.option} (${topVote.count}). Top recent concern: ${topConcern}.`,
         district: survey.district,
         category: "Policy Update",
@@ -1894,7 +1894,7 @@ export default function ModeratorDashboardPage() {
                   <div className="flex items-center gap-3">
                     <BarChart3 className="h-5 w-5 text-blue-700" />
                     <h2 className="text-xl font-semibold text-slate-900">
-                      Multi-District Policy Pulse Surveys
+                      Multi-District Surveys
                     </h2>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">

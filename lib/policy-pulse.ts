@@ -70,7 +70,7 @@ export function loadPolicyPulseSurveys(): PolicyPulseSurvey[] {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as PolicyPulseSurvey[]) : [];
   } catch (error) {
-    console.error("Failed to load policy pulse surveys:", error);
+    console.error("Failed to load surveys:", error);
     return [];
   }
 }
@@ -159,7 +159,7 @@ export async function loadPublishedPolicyPulseSurveys(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Failed to load published policy pulse surveys:", error);
+    console.error("Failed to load published surveys:", error);
     return loadPolicyPulseSurveys();
   }
 
@@ -197,7 +197,7 @@ export async function loadAllPolicyPulseSurveys(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Failed to load all policy pulse surveys:", error);
+    console.error("Failed to load all surveys:", error);
     return [];
   }
 

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   if (!openai) {
     return NextResponse.json({
       reply:
-        "The assistant isn't configured right now. In the meantime, explore the sidebar — Dashboard, Policy Pulse, My Representative, and Community Chat — or reach out to the Civix250 team for help.",
+        "The assistant isn't configured right now. In the meantime, explore the sidebar — Dashboard, Survey, My Representative, and Community Chat — or reach out to the Civix250 team for help.",
     });
   }
 

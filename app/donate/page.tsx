@@ -35,7 +35,7 @@ export default function DonatePage() {
                   </h1>
                   <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
                     Donations support district transparency tools, representative lookup,
-                    moderation workflows, policy pulse surveys, and community issue tracking.
+                    moderation workflows, surveys, and community issue tracking.
                   </p>
                 </div>
 
