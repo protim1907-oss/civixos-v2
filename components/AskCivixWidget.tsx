@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sparkles, X, Send, RotateCcw } from "lucide-react";
 import { CIVIX_SUGGESTED_QUESTIONS } from "@/lib/chatbot/knowledge";
 
@@ -13,6 +14,7 @@ const GREETING: ChatMessage = {
 };
 
 export default function AskCivixWidget() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -74,6 +76,9 @@ export default function AskCivixWidget() {
   );
   const showSuggestions = !loading && remainingSuggestions.length > 0;
   const isFirstTurn = messages.length <= 1;
+
+  // Hide the help bubble on the mobile-app teaser so the demo looks clean.
+  if (pathname?.startsWith("/app-preview")) return null;
 
   return (
     <>
