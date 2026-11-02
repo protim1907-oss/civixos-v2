@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Fingerprint, Loader2, ScanFace } from "lucide-react";
 
 /**
  * Civix250 mobile-app TEASER — a two-screen, tap-through preview of how the
@@ -79,11 +80,136 @@ function StatusBar({ dark }: { dark: boolean }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Real biometric sign-in via WebAuthn (Touch ID / Face ID / fingerprint) */
+/* ------------------------------------------------------------------ */
+
+// Where we remember the demo passkey's credential id (per device/browser).
+const PASSKEY_KEY = "civix-demo-passkey";
+
+function toB64url(buf: ArrayBuffer) {
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromB64url(s: string) {
+  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
+  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+type BioState = "checking" | "ready" | "unsupported";
+
+/* ------------------------------------------------------------------ */
 /* Screen 1 — Sign in                                                  */
 /* ------------------------------------------------------------------ */
 
 function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
   const [showPw, setShowPw] = useState(false);
+  const [email, setEmail] = useState("");
+
+  const [bioState, setBioState] = useState<BioState>("checking");
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioError, setBioError] = useState("");
+  const [isApple, setIsApple] = useState(false);
+
+  // Detect platform-authenticator support on mount.
+  useEffect(() => {
+    const ua = navigator.userAgent || "";
+    setIsApple(/iPhone|iPad|iPod|Macintosh/.test(ua));
+
+    const C = (window as unknown as { PublicKeyCredential?: unknown })
+      .PublicKeyCredential as
+      | { isUserVerifyingPlatformAuthenticatorAvailable?: () => Promise<boolean> }
+      | undefined;
+
+    if (!C || typeof C.isUserVerifyingPlatformAuthenticatorAvailable !== "function") {
+      setBioState("unsupported");
+      return;
+    }
+    C.isUserVerifyingPlatformAuthenticatorAvailable()
+      .then((ok) => setBioState(ok ? "ready" : "unsupported"))
+      .catch(() => setBioState("unsupported"));
+  }, []);
+
+  const bioLabel = isApple ? "Face ID / Touch ID" : "fingerprint";
+
+  async function bioSignIn() {
+    if (bioBusy) return;
+    setBioError("");
+    setBioBusy(true);
+    try {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const saved =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem(PASSKEY_KEY)
+          : null;
+
+      if (saved) {
+        // Returning device — verify with the existing passkey.
+        await navigator.credentials.get({
+          publicKey: {
+            challenge,
+            timeout: 60000,
+            userVerification: "required",
+            allowCredentials: [
+              { id: fromB64url(saved), type: "public-key", transports: ["internal"] },
+            ],
+          },
+        });
+      } else {
+        // First time — create a platform passkey (prompts the biometric sheet).
+        const cred = (await navigator.credentials.create({
+          publicKey: {
+            challenge,
+            rp: { name: "Civix250" }, // id defaults to the current domain
+            user: {
+              id: crypto.getRandomValues(new Uint8Array(16)),
+              name: email || "member@civix250.ai",
+              displayName: "Civix250 member",
+            },
+            pubKeyCredParams: [
+              { type: "public-key", alg: -7 },
+              { type: "public-key", alg: -257 },
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform",
+              userVerification: "required",
+              residentKey: "preferred",
+            },
+            timeout: 60000,
+            attestation: "none",
+          },
+        })) as PublicKeyCredential | null;
+
+        if (cred?.rawId) {
+          try {
+            window.localStorage.setItem(PASSKEY_KEY, toB64url(cred.rawId));
+          } catch {
+            /* storage may be blocked; demo still proceeds */
+          }
+        }
+      }
+
+      onSignIn();
+    } catch (err) {
+      const name = (err as { name?: string })?.name;
+      if (name === "NotAllowedError" || name === "AbortError") {
+        setBioError("Biometric sign-in was cancelled. Try again.");
+      } else if (name === "InvalidStateError") {
+        // A passkey already exists on this device — treat as success.
+        onSignIn();
+        return;
+      } else {
+        setBioError("Biometrics aren't available here. Use email instead.");
+      }
+    } finally {
+      setBioBusy(false);
+    }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,6 +258,8 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
               inputMode="email"
               autoComplete="email"
               placeholder="you@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
@@ -193,6 +321,39 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
             Sign in
           </button>
         </form>
+
+        {/* Biometric sign-in — real device fingerprint / Face ID via WebAuthn */}
+        {bioState !== "unsupported" && (
+          <div className="mt-5">
+            <button
+              type="button"
+              onClick={bioSignIn}
+              disabled={bioBusy || bioState === "checking"}
+              className="group flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/60 py-3.5 text-[15px] font-bold text-blue-700 transition active:scale-[0.98] disabled:opacity-60"
+            >
+              <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-600/30">
+                {bioBusy ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isApple ? (
+                  <ScanFace className="h-5 w-5" />
+                ) : (
+                  <Fingerprint className="h-5 w-5" />
+                )}
+              </span>
+              {bioBusy ? "Waiting for you…" : `Sign in with ${bioLabel}`}
+            </button>
+            <p className="mt-2 text-center text-xs text-slate-400">
+              {bioBusy
+                ? "Confirm on your device to continue"
+                : `Fast, passwordless sign-in with your ${bioLabel}`}
+            </p>
+            {bioError && (
+              <p className="mt-2 text-center text-xs font-medium text-rose-600">
+                {bioError}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Divider */}
         <div className="my-6 flex items-center gap-3">
