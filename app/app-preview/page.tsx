@@ -12,20 +12,25 @@ import { Fingerprint, Loader2, ScanFace } from "lucide-react";
  * Flow: Screen 1 (Welcome) → "Get Started" → Screen 2 (District Home).
  */
 
-type Screen = "signin" | "home";
+type Screen = "signin" | "home" | "surveys";
 
 export default function AppPreviewPage() {
   const [screen, setScreen] = useState<Screen>("signin");
+  const signOut = () => setScreen("signin");
 
   return (
     // Dark "desk" background; on >=sm we show a phone bezel, on phones it fills.
     <main className="flex min-h-[100svh] w-full items-center justify-center bg-slate-900 sm:py-8">
       <div className="relative flex h-[100svh] w-full max-w-[400px] flex-col overflow-hidden bg-white sm:h-[840px] sm:rounded-[2.75rem] sm:border-[10px] sm:border-slate-950 sm:shadow-2xl">
         <StatusBar dark={false} />
-        {screen === "signin" ? (
+        {screen === "signin" && (
           <SignInScreen onSignIn={() => setScreen("home")} />
-        ) : (
-          <HomeScreen onBack={() => setScreen("signin")} />
+        )}
+        {screen === "home" && (
+          <HomeScreen onSignOut={signOut} onNavigate={setScreen} />
+        )}
+        {screen === "surveys" && (
+          <SurveysScreen onSignOut={signOut} onNavigate={setScreen} />
         )}
       </div>
     </main>
@@ -110,6 +115,9 @@ type BioState = "checking" | "ready" | "unsupported";
 function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
   const [showPw, setShowPw] = useState(false);
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"email" | "mobile">("email");
 
   const [bioState, setBioState] = useState<BioState>("checking");
   const [bioBusy, setBioBusy] = useState(false);
@@ -216,63 +224,115 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
     onSignIn();
   }
 
+  const isApple2 = isApple; // alias kept for clarity in JSX below
+
   return (
     <div className="relative flex flex-1 flex-col overflow-y-auto bg-white">
-      <div className="flex min-h-full flex-1 flex-col px-7 pt-8">
-        {/* Logo mark */}
-        <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-600/30">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2.5 3.5 6v6c0 5 3.6 8.3 8.5 9.5 4.9-1.2 8.5-4.5 8.5-9.5V6L12 2.5Z"
-                fill="#fff"
-                fillOpacity="0.15"
-                stroke="#fff"
-                strokeWidth="1.4"
-              />
-              <path
-                d="m8.5 12 2.4 2.4L15.8 9.5"
-                stroke="#fff"
-                strokeWidth="1.9"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-slate-900">
-            Welcome back
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Sign in to your Civix250 district
+      <div className="flex min-h-full flex-1 flex-col px-6 pt-7 pb-8">
+        {/* Heading */}
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+          Welcome back
+        </p>
+        <h1 className="mt-1 text-[1.6rem] font-extrabold tracking-tight text-slate-900">
+          Log in to Civix250
+        </h1>
+
+        {/* Government & Official Access */}
+        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50/70 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-green-700">
+            Government &amp; Official Access
           </p>
+          <h2 className="mt-1 text-[15px] font-bold text-slate-900">
+            Are you a state, local, or federal official?
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-5 text-slate-600">
+            Register using the official onboarding flow to create a government
+            account and unlock official-specific platform features.
+          </p>
+          <div className="mt-3 flex gap-2.5">
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="rounded-xl bg-green-600 px-4 py-2.5 text-[13px] font-bold text-white transition active:scale-[0.98]"
+            >
+              Register as Official
+            </button>
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition active:scale-[0.98]"
+            >
+              Citizen Signup
+            </button>
+          </div>
+        </div>
+
+        {/* Email / Mobile toggle */}
+        <div className="mt-5 grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setLoginMode("email")}
+            className={`rounded-xl py-3 text-sm font-bold transition ${
+              loginMode === "email"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            Email Login
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoginMode("mobile")}
+            className={`rounded-xl py-3 text-sm font-bold transition ${
+              loginMode === "mobile"
+                ? "bg-yellow-400 text-slate-900 shadow-sm"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            Mobile Login
+          </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={submit} className="mt-8 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-              Email
-            </label>
-            <input
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
+        <form onSubmit={submit} className="mt-5 space-y-4">
+          {loginMode === "email" ? (
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">
+                Email
+              </label>
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">
+                Mobile Number
+              </label>
+              <input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="Enter your mobile number"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[15px] text-slate-900 outline-none transition focus:border-yellow-500 focus:bg-white focus:ring-2 focus:ring-yellow-400/20"
+              />
+            </div>
+          )}
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="block text-xs font-semibold text-slate-600">
+              <label className="block text-sm font-bold text-slate-700">
                 Password
               </label>
-              <button
-                type="button"
-                className="text-xs font-semibold text-blue-600"
-              >
+              <button type="button" className="text-xs font-semibold text-blue-600">
                 Forgot?
               </button>
             </div>
@@ -280,8 +340,10 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
               <input
                 type={showPw ? "text" : "password"}
                 autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
               <button
                 type="button"
@@ -316,31 +378,35 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
 
           <button
             type="submit"
-            className="mt-2 w-full rounded-2xl bg-blue-600 py-4 text-center text-base font-bold text-white shadow-lg shadow-blue-600/30 transition active:scale-[0.98]"
+            className={`w-full rounded-xl py-3.5 text-center text-[15px] font-bold shadow-sm transition active:scale-[0.98] ${
+              loginMode === "email"
+                ? "bg-blue-600 text-white"
+                : "bg-yellow-400 text-slate-900"
+            }`}
           >
-            Sign in
+            {loginMode === "email" ? "Login with Email" : "Login with Mobile"}
           </button>
         </form>
 
         {/* Biometric sign-in — real device fingerprint / Face ID via WebAuthn */}
         {bioState !== "unsupported" && (
-          <div className="mt-5">
+          <div className="mt-4">
             <button
               type="button"
               onClick={bioSignIn}
               disabled={bioBusy || bioState === "checking"}
-              className="group flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/60 py-3.5 text-[15px] font-bold text-blue-700 transition active:scale-[0.98] disabled:opacity-60"
+              className="group flex w-full items-center justify-center gap-3 rounded-xl border-2 border-blue-100 bg-blue-50/60 py-3 text-[15px] font-bold text-blue-700 transition active:scale-[0.98] disabled:opacity-60"
             >
-              <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-600/30">
+              <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-600/30">
                 {bioBusy ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
-                ) : isApple ? (
+                ) : isApple2 ? (
                   <ScanFace className="h-5 w-5" />
                 ) : (
                   <Fingerprint className="h-5 w-5" />
                 )}
               </span>
-              {bioBusy ? "Waiting for you…" : `Sign in with ${bioLabel}`}
+              {bioBusy ? "Waiting for you…" : `Log in with ${bioLabel}`}
             </button>
             <p className="mt-2 text-center text-xs text-slate-400">
               {bioBusy
@@ -356,9 +422,11 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
         )}
 
         {/* Divider */}
-        <div className="my-6 flex items-center gap-3">
+        <div className="my-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-medium text-slate-400">or</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+            Or continue with
+          </span>
           <span className="h-px flex-1 bg-slate-200" />
         </div>
 
@@ -366,40 +434,18 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
         <button
           type="button"
           onClick={onSignIn}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3.5 text-[15px] font-semibold text-slate-700 transition active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-3 rounded-xl bg-green-600 py-3.5 text-[15px] font-bold text-white transition active:scale-[0.98]"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path
-              fill="#4285F4"
-              d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6Z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.7v3C3.6 21.4 7.5 24 12 24Z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6V7.2H1.7a12 12 0 0 0 0 10.7l3.9-3.2Z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.5 0 3.6 2.6 1.7 6.3l3.9 3c.9-2.7 3.4-4.5 6.4-4.5Z"
-            />
-          </svg>
           Continue with Google
         </button>
 
-        {/* Sign up */}
-        <p className="mt-auto pb-8 pt-8 text-center text-sm text-slate-500">
+        {/* Footer links */}
+        <div className="mt-auto pt-6 text-center text-sm text-slate-500">
           New to Civix250?{" "}
-          <button
-            type="button"
-            onClick={onSignIn}
-            className="font-bold text-blue-600"
-          >
-            Create account
+          <button type="button" onClick={onSignIn} className="font-bold text-blue-600">
+            Create citizen account
           </button>
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -409,7 +455,13 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
 /* Screen 2 — District Home                                            */
 /* ------------------------------------------------------------------ */
 
-function HomeScreen({ onBack }: { onBack: () => void }) {
+function HomeScreen({
+  onSignOut,
+  onNavigate,
+}: {
+  onSignOut: () => void;
+  onNavigate: (s: Screen) => void;
+}) {
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
       {/* App header */}
@@ -425,8 +477,8 @@ function HomeScreen({ onBack }: { onBack: () => void }) {
             TX&ndash;24
           </span>
           <button
-            onClick={onBack}
-            aria-label="Back to start"
+            onClick={onSignOut}
+            aria-label="Sign out"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -537,13 +589,7 @@ function HomeScreen({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Bottom tab bar */}
-      <nav className="absolute inset-x-0 bottom-0 flex items-center justify-around border-t border-slate-200 bg-white/95 px-2 pb-6 pt-2 backdrop-blur">
-        <Tab label="Home" active icon="home" />
-        <Tab label="Surveys" icon="survey" />
-        <Tab label="Reps" icon="reps" />
-        <Tab label="Chat" icon="chat" />
-        <Tab label="You" icon="you" />
-      </nav>
+      <BottomNav active="home" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -598,14 +644,34 @@ function FeedItem({
   );
 }
 
+function BottomNav({
+  active,
+  onNavigate,
+}: {
+  active: "home" | "surveys";
+  onNavigate: (s: Screen) => void;
+}) {
+  return (
+    <nav className="absolute inset-x-0 bottom-0 flex items-center justify-around border-t border-slate-200 bg-white/95 px-2 pb-6 pt-2 backdrop-blur">
+      <Tab label="Home" icon="home" active={active === "home"} onClick={() => onNavigate("home")} />
+      <Tab label="Surveys" icon="survey" active={active === "surveys"} onClick={() => onNavigate("surveys")} />
+      <Tab label="Reps" icon="reps" />
+      <Tab label="Chat" icon="chat" />
+      <Tab label="You" icon="you" />
+    </nav>
+  );
+}
+
 function Tab({
   label,
   icon,
   active = false,
+  onClick,
 }: {
   label: string;
   icon: "home" | "survey" | "reps" | "chat" | "you";
   active?: boolean;
+  onClick?: () => void;
 }) {
   const color = active ? "text-blue-600" : "text-slate-400";
   const paths: Record<string, React.ReactNode> = {
@@ -639,7 +705,11 @@ function Tab({
     ),
   };
   return (
-    <button className={`flex flex-col items-center gap-1 px-2 py-1 ${color}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-1 px-2 py-1 ${color}`}
+    >
       <svg
         width="23"
         height="23"
@@ -651,5 +721,229 @@ function Tab({
       </svg>
       <span className="text-[10px] font-semibold">{label}</span>
     </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screen 3 — Surveys (how surveys appear on mobile)                   */
+/* ------------------------------------------------------------------ */
+
+const VOTE_OPTIONS = [
+  { label: "Strongly Support", pct: 34, bar: "bg-emerald-600", dot: "bg-emerald-600" },
+  { label: "Support", pct: 28, bar: "bg-emerald-400", dot: "bg-emerald-400" },
+  { label: "Neutral", pct: 21, bar: "bg-slate-300", dot: "bg-slate-300" },
+  { label: "Oppose", pct: 10, bar: "bg-orange-400", dot: "bg-orange-400" },
+  { label: "Strongly Oppose", pct: 7, bar: "bg-rose-500", dot: "bg-rose-500" },
+] as const;
+
+function SurveysScreen({
+  onSignOut,
+  onNavigate,
+}: {
+  onSignOut: () => void;
+  onNavigate: (s: Screen) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [voted, setVoted] = useState(false);
+
+  return (
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pb-3 pt-1">
+        <div>
+          <p className="text-xs font-medium text-slate-500">Your district · TX-24</p>
+          <p className="text-[19px] font-extrabold tracking-tight text-slate-900">
+            Surveys
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
+            TX&ndash;24
+          </span>
+          <button
+            onClick={onSignOut}
+            aria-label="Sign out"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2.5 3.5 6v6c0 5 3.6 8.3 8.5 9.5 4.9-1.2 8.5-4.5 8.5-9.5V6L12 2.5Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-2 px-5 pb-1">
+        <span className="rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white">
+          Open · 2
+        </span>
+        <span className="rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-slate-500 ring-1 ring-slate-200">
+          Closed · 5
+        </span>
+      </div>
+
+      {/* Scroll area */}
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-28 pt-3">
+        {/* Featured survey with voting */}
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <div className="flex items-center justify-between">
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+              Transit
+            </span>
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+              3 days left
+            </span>
+          </div>
+          <h2 className="mt-3 text-[17px] font-bold leading-snug text-slate-900">
+            Should the city fund the new Loop 12 transit line?
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Posted by Rep. Van Duyne&rsquo;s office · 1,284 responses
+          </p>
+
+          {!voted ? (
+            <>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">
+                Your position
+              </p>
+              <div className="mt-2 space-y-2">
+                {VOTE_OPTIONS.map((o) => {
+                  const on = selected === o.label;
+                  return (
+                    <button
+                      key={o.label}
+                      type="button"
+                      onClick={() => setSelected(o.label)}
+                      className={`flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left text-sm font-semibold transition active:scale-[0.99] ${
+                        on
+                          ? "border-blue-500 bg-blue-50 text-blue-800"
+                          : "border-slate-200 bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-5 w-5 items-center justify-center rounded-full ${
+                          on ? "bg-blue-600" : "bg-white ring-2 ring-slate-300"
+                        }`}
+                      >
+                        {on && (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="m5 12.5 4.5 4.5L19 7"
+                              stroke="#fff"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </span>
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                disabled={!selected}
+                onClick={() => setVoted(true)}
+                className="mt-4 w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-40"
+              >
+                Submit my response
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="mt-4 flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 12.5 4.5 4.5L19 7"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Thanks — your response was recorded
+              </div>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">
+                District results
+              </p>
+              <div className="mt-3 space-y-2.5">
+                {VOTE_OPTIONS.map((o) => (
+                  <div key={o.label}>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span
+                        className={`font-semibold ${
+                          selected === o.label ? "text-blue-700" : "text-slate-600"
+                        }`}
+                      >
+                        {o.label}
+                        {selected === o.label && " · you"}
+                      </span>
+                      <span className="font-bold tabular-nums text-slate-700">
+                        {o.pct}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full ${o.bar}`} style={{ width: `${o.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Other open survey */}
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <div className="flex items-center justify-between">
+            <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">
+              Schools
+            </span>
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+              6 days left
+            </span>
+          </div>
+          <h3 className="mt-3 text-[15px] font-bold leading-snug text-slate-900">
+            Extend the Grapevine ISD school day by 30 minutes?
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">842 responses so far</p>
+          <button
+            type="button"
+            className="mt-3 w-full rounded-xl bg-slate-100 py-2.5 text-sm font-bold text-slate-700 transition active:scale-[0.98]"
+          >
+            Open survey
+          </button>
+        </section>
+
+        {/* Closed survey */}
+        <section className="rounded-3xl bg-white p-5 opacity-90 shadow-sm ring-1 ring-slate-100">
+          <div className="flex items-center justify-between">
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+              Parks
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">
+              Closed
+            </span>
+          </div>
+          <h3 className="mt-3 text-[15px] font-bold leading-snug text-slate-900">
+            New dog park at Irving Heritage District?
+          </h3>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: "71%" }} />
+            </div>
+            <span className="text-xs font-bold text-emerald-600">71% support</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">2,015 responses · result sent to office</p>
+        </section>
+      </div>
+
+      <BottomNav active="surveys" onNavigate={onNavigate} />
+    </div>
   );
 }
