@@ -77,8 +77,9 @@ export default function AskCivixWidget() {
   const showSuggestions = !loading && remainingSuggestions.length > 0;
   const isFirstTurn = messages.length <= 1;
 
-  // Hide the help bubble on the mobile-app teaser so the demo looks clean.
-  if (pathname?.startsWith("/app-preview")) return null;
+  // Hide the help bubble on the mobile-app teaser and ad previews (clean mock).
+  if (pathname?.startsWith("/app-preview") || pathname?.startsWith("/ad-preview"))
+    return null;
 
   return (
     <>
