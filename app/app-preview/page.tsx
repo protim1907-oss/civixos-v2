@@ -12,11 +12,12 @@ import { Fingerprint, Loader2, ScanFace } from "lucide-react";
  * Flow: Screen 1 (Welcome) → "Get Started" → Screen 2 (District Home).
  */
 
-type Screen = "signin" | "home" | "surveys";
+type Screen = "signin" | "home" | "surveys" | "reps" | "chat" | "you";
 
 export default function AppPreviewPage() {
   const [screen, setScreen] = useState<Screen>("signin");
   const signOut = () => setScreen("signin");
+  const nav = { onSignOut: signOut, onNavigate: setScreen };
 
   return (
     // Dark "desk" background; on >=sm we show a phone bezel, on phones it fills.
@@ -26,12 +27,11 @@ export default function AppPreviewPage() {
         {screen === "signin" && (
           <SignInScreen onSignIn={() => setScreen("home")} />
         )}
-        {screen === "home" && (
-          <HomeScreen onSignOut={signOut} onNavigate={setScreen} />
-        )}
-        {screen === "surveys" && (
-          <SurveysScreen onSignOut={signOut} onNavigate={setScreen} />
-        )}
+        {screen === "home" && <HomeScreen {...nav} />}
+        {screen === "surveys" && <SurveysScreen {...nav} />}
+        {screen === "reps" && <RepsScreen {...nav} />}
+        {screen === "chat" && <ChatScreen {...nav} />}
+        {screen === "you" && <YouScreen {...nav} />}
       </div>
     </main>
   );
@@ -237,38 +237,8 @@ function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
           Log in to Civix250
         </h1>
 
-        {/* Government & Official Access */}
-        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50/70 p-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-green-700">
-            Government &amp; Official Access
-          </p>
-          <h2 className="mt-1 text-[15px] font-bold text-slate-900">
-            Are you a state, local, or federal official?
-          </h2>
-          <p className="mt-1.5 text-[13px] leading-5 text-slate-600">
-            Register using the official onboarding flow to create a government
-            account and unlock official-specific platform features.
-          </p>
-          <div className="mt-3 flex gap-2.5">
-            <button
-              type="button"
-              onClick={onSignIn}
-              className="rounded-xl bg-green-600 px-4 py-2.5 text-[13px] font-bold text-white transition active:scale-[0.98]"
-            >
-              Register as Official
-            </button>
-            <button
-              type="button"
-              onClick={onSignIn}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition active:scale-[0.98]"
-            >
-              Citizen Signup
-            </button>
-          </div>
-        </div>
-
         {/* Email / Mobile toggle */}
-        <div className="mt-5 grid grid-cols-2 gap-2.5">
+        <div className="mt-6 grid grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => setLoginMode("email")}
@@ -499,7 +469,11 @@ function HomeScreen({
           <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
             Your Representative
           </p>
-          <div className="mt-3 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => onNavigate("reps")}
+            className="mt-3 flex w-full items-center gap-4 text-left"
+          >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-bold text-white">
               BV
             </div>
@@ -511,9 +485,12 @@ function HomeScreen({
                 U.S. House · Texas, District 24
               </p>
             </div>
-          </div>
+          </button>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white active:scale-[0.98]">
+            <button
+              onClick={() => onNavigate("chat")}
+              className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white active:scale-[0.98]"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M4 5h16v12H7l-3 3V5Z"
@@ -648,16 +625,16 @@ function BottomNav({
   active,
   onNavigate,
 }: {
-  active: "home" | "surveys";
+  active: "home" | "surveys" | "reps" | "chat" | "you";
   onNavigate: (s: Screen) => void;
 }) {
   return (
     <nav className="absolute inset-x-0 bottom-0 flex items-center justify-around border-t border-slate-200 bg-white/95 px-2 pb-6 pt-2 backdrop-blur">
       <Tab label="Home" icon="home" active={active === "home"} onClick={() => onNavigate("home")} />
       <Tab label="Surveys" icon="survey" active={active === "surveys"} onClick={() => onNavigate("surveys")} />
-      <Tab label="Reps" icon="reps" />
-      <Tab label="Chat" icon="chat" />
-      <Tab label="You" icon="you" />
+      <Tab label="Reps" icon="reps" active={active === "reps"} onClick={() => onNavigate("reps")} />
+      <Tab label="Chat" icon="chat" active={active === "chat"} onClick={() => onNavigate("chat")} />
+      <Tab label="You" icon="you" active={active === "you"} onClick={() => onNavigate("you")} />
     </nav>
   );
 }
@@ -944,6 +921,447 @@ function SurveysScreen({
       </div>
 
       <BottomNav active="surveys" onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared screen header (title + district chip + sign-out)             */
+/* ------------------------------------------------------------------ */
+
+function ScreenHeader({
+  eyebrow,
+  title,
+  onSignOut,
+}: {
+  eyebrow: string;
+  title: string;
+  onSignOut: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-5 pb-3 pt-1">
+      <div>
+        <p className="text-xs font-medium text-slate-500">{eyebrow}</p>
+        <p className="text-[19px] font-extrabold tracking-tight text-slate-900">
+          {title}
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
+          TX&ndash;24
+        </span>
+        <button
+          onClick={onSignOut}
+          aria-label="Sign out"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 2.5 3.5 6v6c0 5 3.6 8.3 8.5 9.5 4.9-1.2 8.5-4.5 8.5-9.5V6L12 2.5Z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screen 4 — My Representative                                        */
+/* ------------------------------------------------------------------ */
+
+function RepsScreen({
+  onSignOut,
+  onNavigate,
+}: {
+  onSignOut: () => void;
+  onNavigate: (s: Screen) => void;
+}) {
+  const actions = [
+    { label: "Message", to: "chat" as Screen, cls: "bg-blue-600 text-white" },
+    { label: "Call office", cls: "bg-white text-slate-700 ring-1 ring-slate-200" },
+    { label: "Video meeting", cls: "bg-white text-slate-700 ring-1 ring-slate-200" },
+    { label: "Website", cls: "bg-white text-slate-700 ring-1 ring-slate-200" },
+  ];
+
+  const others = [
+    { title: "Governor of Texas", sub: "Statewide · executive" },
+    { title: "U.S. Senate — Senior Seat", sub: "Statewide" },
+    { title: "U.S. Senate — Junior Seat", sub: "Statewide" },
+    { title: "Texas State Senate", sub: "Your state district" },
+  ];
+
+  return (
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
+      <ScreenHeader eyebrow="Your district · TX-24" title="My Representative" onSignOut={onSignOut} />
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-28 pt-2">
+        {/* Rep hero */}
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-xl font-bold text-white">
+              BV
+            </div>
+            <div className="min-w-0">
+              <p className="text-[17px] font-bold text-slate-900">Rep. Beth Van Duyne</p>
+              <p className="text-xs text-slate-500">U.S. House · Texas, District 24</p>
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                  <path d="m5 12.5 4.5 4.5L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Verified on Civix250
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            {actions.map((a) => (
+              <button
+                key={a.label}
+                type="button"
+                onClick={() => a.to && onNavigate(a.to)}
+                className={`rounded-xl py-3 text-sm font-bold transition active:scale-[0.98] ${a.cls}`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Represents you */}
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
+            Covers the Irving / Grapevine area
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            District 24 spans the mid-cities between Dallas and Fort Worth —
+            Irving, Grapevine, Coppell, and Carrollton.
+          </p>
+        </section>
+
+        {/* Other officials */}
+        <section>
+          <p className="mb-2 px-1 text-sm font-bold text-slate-900">
+            Your other officials
+          </p>
+          <div className="divide-y divide-slate-100 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-100">
+            {others.map((o) => (
+              <button
+                key={o.title}
+                type="button"
+                className="flex w-full items-center justify-between px-5 py-3.5 text-left active:bg-slate-50"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{o.title}</p>
+                  <p className="text-xs text-slate-400">{o.sub}</p>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-300">
+                  <path d="m9 6 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <BottomNav active="reps" onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screen 5 — Chat (list + one open thread with video call)            */
+/* ------------------------------------------------------------------ */
+
+const CONVERSATIONS = [
+  {
+    name: "District 24 Office",
+    initials: "D24",
+    tint: "from-blue-500 to-blue-700",
+    preview: "Yes — free parking in the City Library lot after 6pm.",
+    time: "9:12 AM",
+    online: true,
+    unread: 1,
+  },
+  {
+    name: "Maria G. · neighbor",
+    initials: "MG",
+    tint: "from-rose-400 to-rose-600",
+    preview: "See you at the town hall Thursday!",
+    time: "Yesterday",
+    online: true,
+    unread: 0,
+  },
+  {
+    name: "Town Hall — Loop 12",
+    initials: "TH",
+    tint: "from-violet-400 to-violet-600",
+    preview: "James: Parking is my concern too.",
+    time: "Mon",
+    online: false,
+    unread: 3,
+  },
+  {
+    name: "James P. · neighbor",
+    initials: "JP",
+    tint: "from-amber-400 to-amber-600",
+    preview: "Appreciate you raising that.",
+    time: "Sun",
+    online: false,
+    unread: 0,
+  },
+];
+
+function ChatScreen({
+  onSignOut,
+  onNavigate,
+}: {
+  onSignOut: () => void;
+  onNavigate: (s: Screen) => void;
+}) {
+  const [open, setOpen] = useState(false); // open the first thread
+
+  if (open) {
+    return (
+      <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
+        {/* Thread header */}
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 pb-3 pt-1">
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Back"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="m15 6-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-bold text-white">
+            D24
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-slate-900">District 24 Office</p>
+            <p className="flex items-center gap-1 text-xs text-emerald-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Online
+            </p>
+          </div>
+          <button
+            aria-label="Start video call"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white active:scale-95"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M3 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7Zm12 4 6-3v10l-6-3" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <Bubble me={false}>Hi! This is the District 24 constituent services desk. How can we help?</Bubble>
+          <Bubble me>Will there be parking at Thursday&rsquo;s town hall?</Bubble>
+          <Bubble me={false}>Yes — free parking in the City Library lot after 6pm.</Bubble>
+          <Bubble me>Perfect, thank you! 🙏</Bubble>
+        </div>
+
+        {/* Composer */}
+        <div className="flex items-center gap-2 border-t border-slate-200 bg-white px-4 pb-6 pt-3">
+          <div className="flex-1 rounded-full bg-slate-100 px-4 py-2.5 text-sm text-slate-400">
+            Message…
+          </div>
+          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white active:scale-95">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M4 12 20 4l-4 16-4-6-8-2Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
+      <ScreenHeader eyebrow="District 24 · community" title="Messages" onSignOut={onSignOut} />
+
+      {/* Search */}
+      <div className="px-5 pb-2">
+        <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm text-slate-400 ring-1 ring-slate-200">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="m20 20-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          Search people &amp; groups
+        </div>
+      </div>
+
+      {/* Conversations */}
+      <div className="flex-1 overflow-y-auto px-3 pb-28 pt-1">
+        <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-100">
+          {CONVERSATIONS.map((c, i) => (
+            <button
+              key={c.name}
+              type="button"
+              onClick={() => i === 0 && setOpen(true)}
+              className={`flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50 ${
+                i > 0 ? "border-t border-slate-100" : ""
+              }`}
+            >
+              <div className="relative">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${c.tint}`}>
+                  {c.initials}
+                </div>
+                {c.online && (
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-bold text-slate-900">{c.name}</p>
+                  <span className="shrink-0 text-[11px] text-slate-400">{c.time}</span>
+                </div>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <p className="truncate text-xs text-slate-500">{c.preview}</p>
+                  {c.unread > 0 && (
+                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white">
+                      {c.unread}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 px-2 text-center text-xs text-slate-400">
+          Tap the top conversation to see a live chat &amp; video call.
+        </p>
+      </div>
+
+      <BottomNav active="chat" onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+function Bubble({ me, children }: { me?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`flex ${me ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-snug ${
+          me
+            ? "rounded-br-md bg-blue-600 text-white"
+            : "rounded-bl-md bg-white text-slate-800 ring-1 ring-slate-100"
+        }`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screen 6 — You (profile)                                            */
+/* ------------------------------------------------------------------ */
+
+function YouScreen({
+  onSignOut,
+  onNavigate,
+}: {
+  onSignOut: () => void;
+  onNavigate: (s: Screen) => void;
+}) {
+  const [bioOn, setBioOn] = useState(true);
+
+  const stats = [
+    { n: "12", l: "Posts" },
+    { n: "34", l: "Votes" },
+    { n: "58", l: "Comments" },
+  ];
+
+  const rows = [
+    { label: "Notifications", value: "On" },
+    { label: "Language", value: "English" },
+    { label: "Privacy", value: "" },
+    { label: "Help & Support", value: "" },
+  ];
+
+  return (
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-slate-50">
+      <ScreenHeader eyebrow="Your account" title="Profile" onSignOut={onSignOut} />
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-28 pt-2">
+        {/* Identity */}
+        <section className="flex items-center gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-xl font-bold text-white">
+            CB
+          </div>
+          <div>
+            <p className="text-[17px] font-bold text-slate-900">Costa Brown</p>
+            <p className="text-xs text-slate-500">Texas · District 24</p>
+            <span className="mt-1.5 inline-block rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+              Verified citizen
+            </span>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section className="grid grid-cols-3 gap-3">
+          {stats.map((s) => (
+            <div key={s.l} className="rounded-2xl bg-white p-4 text-center shadow-sm ring-1 ring-slate-100">
+              <p className="text-xl font-extrabold text-slate-900">{s.n}</p>
+              <p className="text-xs text-slate-500">{s.l}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Settings */}
+        <section className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-100">
+          {/* Biometric toggle */}
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Face ID / Fingerprint</p>
+              <p className="text-xs text-slate-400">Passwordless sign-in</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBioOn((v) => !v)}
+              aria-label="Toggle biometric sign-in"
+              className={`relative h-6 w-11 rounded-full transition ${bioOn ? "bg-blue-600" : "bg-slate-300"}`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                  bioOn ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+          {rows.map((r, i) => (
+            <button
+              key={r.label}
+              type="button"
+              className={`flex w-full items-center justify-between px-5 py-3.5 text-left active:bg-slate-50 ${
+                i > 0 ? "border-t border-slate-100" : ""
+              }`}
+            >
+              <span className="text-sm font-semibold text-slate-900">{r.label}</span>
+              <span className="flex items-center gap-2 text-xs text-slate-400">
+                {r.value}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="m9 6 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </button>
+          ))}
+        </section>
+
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-rose-600 shadow-sm active:scale-[0.98]"
+        >
+          Sign out
+        </button>
+      </div>
+
+      <BottomNav active="you" onNavigate={onNavigate} />
     </div>
   );
 }
