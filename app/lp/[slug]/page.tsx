@@ -9,6 +9,12 @@ type Landing = {
   bullets?: { intro: string; items: string[] };
   closing?: string;
   yourMove: string;
+  // Call-to-action label for this page's buttons. Defaults to "Free Sign Up".
+  cta?: string;
+  // Intrinsic pixel height of /lp/<slug>.png (width is always 1080). Square ads
+  // are 1080; 4:5 ad creatives are 1350. Sets the correct aspect ratio so the
+  // hero image isn't squished. Defaults to 1080.
+  imgHeight?: number;
 };
 
 // One landing page per Facebook/Instagram ad. Point each ad's URL at
@@ -98,6 +104,19 @@ const LANDINGS: Record<string, Landing> = {
     yourMove:
       "Compare the candidates on the issues that matter to you, not the letter after their name.",
   },
+  "unfinished-promise": {
+    eyebrow: "All men are created equal.",
+    headline: "The Unfinished Promise",
+    paragraphs: [
+      "The Declaration of Independence said all men are created equal. Today, our Congress doesn't represent all citizens equally.",
+    ],
+    closing:
+      "Our democracy is stronger when Congress truly represents all citizens equally.",
+    yourMove:
+      "Find out who represents you — and make sure your voice is part of the record.",
+    cta: "Join for Free",
+    imgHeight: 1350,
+  },
 };
 
 export function generateMetadata({
@@ -135,7 +154,7 @@ export default async function LandingPage({
           href="/signup"
           className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
         >
-          Free Sign Up
+          {data.cta ?? "Free Sign Up"}
         </Link>
       </header>
 
@@ -146,8 +165,8 @@ export default async function LandingPage({
           src={`/lp/${slug}.png`}
           alt={data.eyebrow}
           width={1080}
-          height={1080}
-          className="mb-8 w-full max-w-[440px] rounded-3xl border border-slate-200 shadow-lg"
+          height={data.imgHeight ?? 1080}
+          className="mb-8 h-auto w-full max-w-[440px] rounded-3xl border border-slate-200 shadow-lg"
         />
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">
           {data.eyebrow}
@@ -205,7 +224,7 @@ export default async function LandingPage({
               href="/signup"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700"
             >
-              Free Sign Up
+              {data.cta ?? "Free Sign Up"}
             </Link>
             <Link
               href="/login"
