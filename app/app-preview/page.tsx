@@ -11,20 +11,20 @@ import { useEffect, useState } from "react";
  * Flow: Screen 1 (Welcome) → "Get Started" → Screen 2 (District Home).
  */
 
-type Screen = "welcome" | "home";
+type Screen = "signin" | "home";
 
 export default function AppPreviewPage() {
-  const [screen, setScreen] = useState<Screen>("welcome");
+  const [screen, setScreen] = useState<Screen>("signin");
 
   return (
     // Dark "desk" background; on >=sm we show a phone bezel, on phones it fills.
     <main className="flex min-h-[100svh] w-full items-center justify-center bg-slate-900 sm:py-8">
       <div className="relative flex h-[100svh] w-full max-w-[400px] flex-col overflow-hidden bg-white sm:h-[840px] sm:rounded-[2.75rem] sm:border-[10px] sm:border-slate-950 sm:shadow-2xl">
-        <StatusBar dark={screen === "welcome"} />
-        {screen === "welcome" ? (
-          <WelcomeScreen onStart={() => setScreen("home")} />
+        <StatusBar dark={false} />
+        {screen === "signin" ? (
+          <SignInScreen onSignIn={() => setScreen("home")} />
         ) : (
-          <HomeScreen onBack={() => setScreen("welcome")} />
+          <HomeScreen onBack={() => setScreen("signin")} />
         )}
       </div>
     </main>
@@ -79,97 +79,166 @@ function StatusBar({ dark }: { dark: boolean }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Screen 1 — Welcome / onboarding                                     */
+/* Screen 1 — Sign in                                                  */
 /* ------------------------------------------------------------------ */
 
-function WelcomeScreen({ onStart }: { onStart: () => void }) {
-  return (
-    <div className="relative flex flex-1 flex-col overflow-y-auto bg-gradient-to-b from-[#0b1f3a] via-[#0a2a52] to-[#07152b] text-white">
-      {/* soft glow */}
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-500/30 blur-3xl" />
+function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
+  const [showPw, setShowPw] = useState(false);
 
-      <div className="relative flex min-h-full flex-1 flex-col px-7 pt-10">
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onSignIn();
+  }
+
+  return (
+    <div className="relative flex flex-1 flex-col overflow-y-auto bg-white">
+      <div className="flex min-h-full flex-1 flex-col px-7 pt-8">
         {/* Logo mark */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-600/30">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
               <path
                 d="M12 2.5 3.5 6v6c0 5 3.6 8.3 8.5 9.5 4.9-1.2 8.5-4.5 8.5-9.5V6L12 2.5Z"
                 fill="#fff"
-                fillOpacity="0.12"
+                fillOpacity="0.15"
                 stroke="#fff"
                 strokeWidth="1.4"
               />
               <path
                 d="m8.5 12 2.4 2.4L15.8 9.5"
-                stroke="#60a5fa"
-                strokeWidth="1.8"
+                stroke="#fff"
+                strokeWidth="1.9"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
           </div>
-          <span className="text-lg font-extrabold tracking-tight">Civix250</span>
-        </div>
-
-        {/* Headline block pushed toward the middle */}
-        <div className="mt-auto">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-300">
-            The boss is you
-          </p>
-          <h1 className="mt-3 text-[2.5rem] font-extrabold leading-[1.05] tracking-tight">
-            Your government.
-            <br />
-            Your voice.
+          <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-slate-900">
+            Welcome back
           </h1>
-          <p className="mt-4 max-w-[19rem] text-[15px] leading-relaxed text-blue-100/80">
-            Meet your representatives, weigh in on real decisions, and see what&rsquo;s
-            happening in your district — all in one place.
+          <p className="mt-1.5 text-sm text-slate-500">
+            Sign in to your Civix250 district
           </p>
         </div>
 
-        {/* Feature ticks */}
-        <ul className="mt-7 space-y-3 text-[14px] text-blue-50/90">
-          {[
-            "Know exactly who represents you",
-            "Vote on district surveys in seconds",
-            "Message and meet your officials",
-          ].map((t) => (
-            <li key={t} className="flex items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-400/20 ring-1 ring-blue-300/40">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="m5 12.5 4.5 4.5L19 7"
-                    stroke="#93c5fd"
-                    strokeWidth="2.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              {t}
-            </li>
-          ))}
-        </ul>
+        {/* Form */}
+        <form onSubmit={submit} className="mt-8 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+              Email
+            </label>
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@email.com"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
 
-        {/* CTA */}
-        <div className="mt-8 pb-8">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-600">
+                Password
+              </label>
+              <button
+                type="button"
+                className="text-xs font-semibold text-blue-600"
+              >
+                Forgot?
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-[15px] text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-3 flex items-center text-slate-400"
+              >
+                {showPw ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.8 2.8M9.9 5.1A9.3 9.3 0 0 1 12 5c5 0 9 4.5 9 7 0 1-1 2.7-2.6 4.1M6.1 6.2C4 7.6 3 9.6 3 12c0 1 1 2.7 2.6 4.1A10 10 0 0 0 12 19c1 0 2-.2 2.9-.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
           <button
-            onClick={onStart}
-            className="w-full rounded-2xl bg-blue-500 py-4 text-center text-base font-bold text-white shadow-lg shadow-blue-900/40 transition active:scale-[0.98]"
+            type="submit"
+            className="mt-2 w-full rounded-2xl bg-blue-600 py-4 text-center text-base font-bold text-white shadow-lg shadow-blue-600/30 transition active:scale-[0.98]"
           >
-            Get Started
+            Sign in
           </button>
-          <button
-            onClick={onStart}
-            className="mt-3 w-full py-2 text-center text-sm font-semibold text-blue-200/80"
-          >
-            I already have an account
-          </button>
-          <p className="mt-4 text-center text-[11px] leading-4 text-blue-200/50">
-            Free &amp; nonpartisan · A project of Vote Beyond Party, a 501(c)(3)
-          </p>
+        </form>
+
+        {/* Divider */}
+        <div className="my-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-medium text-slate-400">or</span>
+          <span className="h-px flex-1 bg-slate-200" />
         </div>
+
+        {/* Google */}
+        <button
+          type="button"
+          onClick={onSignIn}
+          className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3.5 text-[15px] font-semibold text-slate-700 transition active:scale-[0.98]"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path
+              fill="#4285F4"
+              d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6Z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.7v3C3.6 21.4 7.5 24 12 24Z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6V7.2H1.7a12 12 0 0 0 0 10.7l3.9-3.2Z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.5 0 3.6 2.6 1.7 6.3l3.9 3c.9-2.7 3.4-4.5 6.4-4.5Z"
+            />
+          </svg>
+          Continue with Google
+        </button>
+
+        {/* Sign up */}
+        <p className="mt-auto pb-8 pt-8 text-center text-sm text-slate-500">
+          New to Civix250?{" "}
+          <button
+            type="button"
+            onClick={onSignIn}
+            className="font-bold text-blue-600"
+          >
+            Create account
+          </button>
+        </p>
       </div>
     </div>
   );
