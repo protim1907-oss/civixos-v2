@@ -219,11 +219,11 @@ function HomeScreen({ onBack }: { onBack: () => void }) {
           </p>
           <div className="mt-3 flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-bold text-white">
-              JM
+              BV
             </div>
             <div className="min-w-0">
               <p className="truncate text-[15px] font-bold text-slate-900">
-                Rep. Jordan Mitchell
+                Rep. Beth Van Duyne
               </p>
               <p className="text-xs text-slate-500">
                 U.S. House · Texas, District 24
@@ -294,7 +294,7 @@ function HomeScreen({ onBack }: { onBack: () => void }) {
               tag="Town Hall"
               tagColor="text-violet-700 bg-violet-100"
               title="Budget town hall — Thu 6:30pm at City Library"
-              meta="Posted by Rep. Mitchell's office · 2h ago"
+              meta="Posted by Rep. Van Duyne's office · 2h ago"
             />
             <FeedItem
               tag="Local Issue"
