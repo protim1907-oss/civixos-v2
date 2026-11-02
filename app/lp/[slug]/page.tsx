@@ -104,19 +104,6 @@ const LANDINGS: Record<string, Landing> = {
     yourMove:
       "Compare the candidates on the issues that matter to you, not the letter after their name.",
   },
-  "unfinished-promise": {
-    eyebrow: "All men are created equal.",
-    headline: "The Unfinished Promise",
-    paragraphs: [
-      "The Declaration of Independence said all men are created equal. Today, our Congress doesn't represent all citizens equally.",
-    ],
-    closing:
-      "Our democracy is stronger when Congress truly represents all citizens equally.",
-    yourMove:
-      "Find out who represents you — and make sure your voice is part of the record.",
-    cta: "Join for Free",
-    imgHeight: 1350,
-  },
 };
 
 export function generateMetadata({
