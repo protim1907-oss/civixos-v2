@@ -2925,17 +2925,6 @@ export default function AdminDashboardPage() {
                             >
                               Official
                             </button>
-
-                            <button
-                              onClick={() => updateUserRole(profile.id, "admin")}
-                              disabled={
-                                roleActionLoadingId === profile.id ||
-                                currentUserProfile?.id === profile.id
-                              }
-                              className="rounded-lg bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-60"
-                            >
-                              Admin
-                            </button>
                           </div>
 
                           {roleActionLoadingId === profile.id && (
