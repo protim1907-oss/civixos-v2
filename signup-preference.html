@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Signup Preference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #eef1f6;
+    --card: #ffffff;
+    --ink: #0b1220;
+    --muted: #5a6474;
+    --faint: #8b94a3;
+    --line: #e4e8ef;
+    --app: #2a78d6;
+    --app-soft: #e6f0fb;
+    --web: #8a93a2;
+    --web-soft: #eef0f3;
+    --accent: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c1118;
+      --card: #141b25;
+      --ink: #eef2f8;
+      --muted: #9aa5b5;
+      --faint: #6b7686;
+      --line: #223046;
+      --app: #3e92f0;
+      --app-soft: #16263b;
+      --web: #7c8697;
+      --web-soft: #1b2230;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1118;
+    --card: #141b25;
+    --ink: #eef2f8;
+    --muted: #9aa5b5;
+    --faint: #6b7686;
+    --line: #223046;
+    --app: #3e92f0;
+    --app-soft: #16263b;
+    --web: #7c8697;
+    --web-soft: #1b2230;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+    min-height: 100vh;
+  }
+  .wrap { width: 100%; max-width: 560px; }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 20px;
+  }
+  .mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark svg { width: 20px; height: 20px; }
+  .brand-name { font-weight: 800; letter-spacing: -0.02em; font-size: 17px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 30px 28px 26px;
+    box-shadow: 0 12px 40px rgba(16, 32, 64, 0.08);
+  }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 10px;
+  }
+  .question {
+    font-size: 19px; font-weight: 600; line-height: 1.35;
+    margin: 0 0 4px; letter-spacing: -0.01em;
+  }
+  .sub { font-size: 13px; color: var(--muted); margin: 0 0 24px; }
+  .hero { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .hero .pct {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 72px; font-weight: 600; line-height: 0.9;
+    letter-spacing: -0.02em; color: var(--ink);
+  }
+  .hero .cap { font-size: 15px; color: var(--muted); font-weight: 500; }
+  .bar {
+    display: flex; height: 30px; border-radius: 9px; overflow: hidden;
+    margin: 6px 0 14px; background: var(--web-soft);
+  }
+  .bar .app { background: var(--app); }
+  .bar .web { background: var(--web); }
+  .bar .gap { width: 2px; background: var(--card); }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; }
+  .legend .item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .legend .dot { width: 11px; height: 11px; border-radius: 3px; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { border-radius: 14px; padding: 16px 18px; }
+  .tile.app { background: var(--app-soft); }
+  .tile.web { background: var(--web-soft); }
+  .tile .label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 7px; }
+  .tile .big { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .tile .big span { font-size: 14px; font-weight: 500; color: var(--muted); }
+  .foot {
+    margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .foot .n { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .foot .note { font-size: 11px; color: var(--faint); max-width: 320px; line-height: 1.5; text-align: right; }
+  .pageft { text-align: center; font-size: 12px; color: var(--faint); margin-top: 18px; }
+  @media (max-width: 460px) {
+    .hero .pct { font-size: 60px; }
+    .foot .note { text-align: left; }
+  }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2.5 3.5 6v6c0 5 3.6 8.3 8.5 9.5 4.9-1.2 8.5-4.5 8.5-9.5V6L12 2.5Z" fill="#fff" fill-opacity="0.18" stroke="#fff" stroke-width="1.4"/>
+          <path d="m8.5 12 2.4 2.4L15.8 9.5" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="brand-name">Civix250</span>
+    </div>
+
+    <section class="card">
+      <p class="eyebrow">Member poll</p>
+      <h1 class="question">&ldquo;To join Civix250, would you rather download the mobile app or sign up on the website?&rdquo;</h1>
+      <p class="sub">90 participants surveyed</p>
+
+      <div class="hero">
+        <span class="pct">87%</span>
+        <span class="cap">would choose the mobile app</span>
+      </div>
+
+      <div class="bar" role="img" aria-label="87 percent prefer the mobile app, 13 percent prefer the website">
+        <div class="app" style="width:87%"></div>
+        <div class="gap"></div>
+        <div class="web" style="width:13%"></div>
+      </div>
+
+      <div class="legend">
+        <span class="item"><span class="dot" style="background:var(--app)"></span>Download the mobile app &mdash; 87% (78)</span>
+        <span class="item"><span class="dot" style="background:var(--web)"></span>Sign up on the website &mdash; 13% (12)</span>
+      </div>
+
+      <div class="tiles">
+        <div class="tile app">
+          <div class="label">Mobile app</div>
+          <div class="big">78 <span>votes</span></div>
+        </div>
+        <div class="tile web">
+          <div class="label">Website</div>
+          <div class="big">12 <span>votes</span></div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <span class="n">n = 90</span>
+        <span class="note">Illustrative sample. Run the same question in Civix250 Surveys to capture verified member responses.</span>
+      </div>
+    </section>
+
+    <p class="pageft">Civix250 &middot; a project of Vote Beyond Party, a nonpartisan 501(c)(3)</p>
+  </main>
+</body>
+</html>

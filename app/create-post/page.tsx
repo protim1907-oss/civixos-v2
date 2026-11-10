@@ -204,6 +204,10 @@ export default function CreatePostPage() {
   const [canChooseDistrict, setCanChooseDistrict] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
+  // Multi-district posting: keep the single dropdown, and let staff optionally
+  // post the same issue into several districts at once (one row per district).
+  const [multiDistrictMode, setMultiDistrictMode] = useState(false);
+  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -217,12 +221,30 @@ export default function CreatePostPage() {
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
 
-  const activeDistrict = canChooseDistrict ? selectedDistrict : profile?.district ?? "";
-  const districtLabel = activeDistrict
-    ? prettifyDistrictLabel(activeDistrict, profile?.state ?? null)
-    : canChooseDistrict
-    ? "Choose a district"
-    : prettifyDistrictLabel(profile?.district ?? null, profile?.state ?? null);
+  // The district(s) this post will be created in. Non-staff post into their own
+  // district; staff pick one (dropdown) or several (multi-select).
+  const targetDistricts: string[] = !canChooseDistrict
+    ? (normalizeDistrictCode(profile?.district)
+        ? [normalizeDistrictCode(profile?.district)]
+        : [])
+    : multiDistrictMode
+    ? selectedDistricts
+    : (normalizeDistrictCode(selectedDistrict)
+        ? [normalizeDistrictCode(selectedDistrict)]
+        : []);
+
+  // A single district, used only for the title placeholder text.
+  const activeDistrict = targetDistricts.length === 1 ? targetDistricts[0] : "";
+
+  const districtLabel = !canChooseDistrict
+    ? prettifyDistrictLabel(profile?.district ?? null, profile?.state ?? null)
+    : multiDistrictMode
+    ? selectedDistricts.length
+      ? `${selectedDistricts.length} district${selectedDistricts.length > 1 ? "s" : ""} selected`
+      : "Choose districts"
+    : selectedDistrict
+    ? prettifyDistrictLabel(selectedDistrict, profile?.state ?? null)
+    : "Choose a district";
 
   const [guestUserId, setGuestUserId] = useState<string | null>(null);
 
@@ -343,6 +365,14 @@ export default function CreatePostPage() {
       mounted = false;
     };
   }, [router, supabase]);
+
+  function toggleDistrict(district: string) {
+    setSelectedDistricts((prev) =>
+      prev.includes(district)
+        ? prev.filter((d) => d !== district)
+        : [...prev, district]
+    );
+  }
 
   async function handleReviewWithAi() {
     try {
@@ -477,12 +507,17 @@ export default function CreatePostPage() {
         return;
       }
 
-      const normalizedDistrict = normalizeDistrictCode(activeDistrict);
+      // De-duplicate and normalize the target districts (one post per district).
+      const districtsToPost = Array.from(
+        new Set(targetDistricts.map((d) => normalizeDistrictCode(d)).filter(Boolean))
+      );
 
-      if (!normalizedDistrict) {
+      if (districtsToPost.length === 0) {
         setError(
           canChooseDistrict
-            ? "Please choose the district where this post should appear."
+            ? multiDistrictMode
+              ? "Please choose at least one district where this post should appear."
+              : "Please choose the district where this post should appear."
             : "Your district could not be found. Please update your profile and try again."
         );
         return;
@@ -497,17 +532,17 @@ export default function CreatePostPage() {
         return;
       }
 
-      const issuePayload = {
+      const issuePayloads = districtsToPost.map((district) => ({
         user_id: isGuest ? null : user!.id,
         title: cleanTitle,
         description: cleanDescription,
-        district: normalizedDistrict,
+        district,
         category,
         status: "active",
         attachments,
-      };
+      }));
 
-      const { error: insertError } = await supabase.from("issues").insert([issuePayload]);
+      const { error: insertError } = await supabase.from("issues").insert(issuePayloads);
 
       if (insertError) {
         console.error("Insert issue error:", insertError);
@@ -515,13 +550,17 @@ export default function CreatePostPage() {
         return;
       }
 
-      setSuccess("Post created successfully.");
+      setSuccess(
+        districtsToPost.length > 1
+          ? `Post created in ${districtsToPost.length} districts: ${districtsToPost.join(", ")}.`
+          : "Post created successfully."
+      );
 
       if (!isGuest && user) {
         void logUserActivity(supabase, user.id, {
           type: "post_created",
           title: cleanTitle,
-          detail: normalizedDistrict,
+          detail: districtsToPost.join(", "),
           link: "/feed",
         });
       }
@@ -541,9 +580,11 @@ export default function CreatePostPage() {
     ? "Loading your profile..."
     : submitting
     ? "Creating your post..."
-    : !activeDistrict
+    : targetDistricts.length === 0
     ? canChooseDistrict
-      ? "Choose the district where this post should appear."
+      ? multiDistrictMode
+        ? "Choose at least one district where this post should appear."
+        : "Choose the district where this post should appear."
       : "Your district is missing from your profile."
     : !normalizeWhitespace(title)
     ? "Please enter a title."
@@ -599,25 +640,102 @@ export default function CreatePostPage() {
 
                       {canChooseDistrict ? (
                         <div>
-                          <label
-                            htmlFor="post-district"
-                            className="mb-2 block text-sm font-medium text-slate-600"
-                          >
-                            District
-                          </label>
-                          <select
-                            id="post-district"
-                            value={selectedDistrict}
-                            onChange={(e) => setSelectedDistrict(e.target.value)}
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-900 outline-none transition focus:border-slate-400"
-                          >
-                            <option value="">Choose district...</option>
-                            {availableDistricts.map((district) => (
-                              <option key={district} value={district}>
-                                {district}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <label
+                              htmlFor="post-district"
+                              className="block text-sm font-medium text-slate-600"
+                            >
+                              District
+                            </label>
+                            <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-xs font-semibold">
+                              <button
+                                type="button"
+                                onClick={() => setMultiDistrictMode(false)}
+                                className={`rounded-lg px-3 py-1 transition ${
+                                  !multiDistrictMode
+                                    ? "bg-slate-900 text-white"
+                                    : "text-slate-600 hover:text-slate-900"
+                                }`}
+                              >
+                                Single
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setMultiDistrictMode(true)}
+                                className={`rounded-lg px-3 py-1 transition ${
+                                  multiDistrictMode
+                                    ? "bg-slate-900 text-white"
+                                    : "text-slate-600 hover:text-slate-900"
+                                }`}
+                              >
+                                Multiple
+                              </button>
+                            </div>
+                          </div>
+
+                          {!multiDistrictMode ? (
+                            <select
+                              id="post-district"
+                              value={selectedDistrict}
+                              onChange={(e) => setSelectedDistrict(e.target.value)}
+                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-semibold text-slate-900 outline-none transition focus:border-slate-400"
+                            >
+                              <option value="">Choose district...</option>
+                              {availableDistricts.map((district) => (
+                                <option key={district} value={district}>
+                                  {district}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="rounded-2xl border border-slate-300 bg-white p-3">
+                              <div className="mb-2 flex items-center justify-between">
+                                <span className="text-xs text-slate-500">
+                                  {selectedDistricts.length} selected
+                                </span>
+                                <div className="flex gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedDistricts(availableDistricts)}
+                                    className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                                  >
+                                    Select all
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedDistricts([])}
+                                    className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                              </div>
+                              {availableDistricts.length === 0 ? (
+                                <p className="px-1 py-2 text-sm text-slate-400">
+                                  No districts available yet.
+                                </p>
+                              ) : (
+                                <div className="max-h-44 space-y-0.5 overflow-y-auto pr-1">
+                                  {availableDistricts.map((district) => (
+                                    <label
+                                      key={district}
+                                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedDistricts.includes(district)}
+                                        onChange={() => toggleDistrict(district)}
+                                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                                      />
+                                      <span className="text-sm font-medium text-slate-800">
+                                        {district}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : null}
                     </div>
