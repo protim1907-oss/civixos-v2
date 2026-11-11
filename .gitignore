@@ -1,5 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Confidential contract / pitch assets — must never be committed to the app repo
+/Civix250.ai Mobile App - SOW.docx
+/public/Civix250.ai Mobile App - SOW.docx
+/public/Civix250.ai Mobile App - SOW.pdf
+
 # dependencies
 /node_modules
 /.pnp
