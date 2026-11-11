@@ -363,6 +363,13 @@ export default function Sidebar() {
       icon: UserCircle2,
     },
     {
+      // Admin-only: all U.S. House representatives across the 50 states + D.C.
+      href: "/admin/representatives",
+      label: "My Representatives",
+      icon: UserCircle2,
+      adminOnly: true,
+    },
+    {
       href: "/district-analytics",
       label: "District Analytics",
       icon: BarChart3,
@@ -416,13 +423,15 @@ export default function Sidebar() {
       label: "Support Civix250",
       icon: HeartHandshake,
     },
-  ] satisfies Array<NavItem & { officialOnly?: boolean }>;
+  ] satisfies Array<NavItem & { officialOnly?: boolean; adminOnly?: boolean }>;
 
   const visibleNavItems = navItems.filter(
     (item) =>
       (item.officialOnly
         ? userRole === "official" || userRole === "admin" || userRole === "moderator"
         : true) &&
+      // Admin-only items (e.g. the all-states representatives directory).
+      (("adminOnly" in item && item.adminOnly) ? userRole === "admin" : true) &&
       // Official Dashboard is only meaningful for actual officials. Hide it
       // for moderators/admins until we have signed officials in the system.
       !(item.href === "/official-dashboard" && userRole !== "official") &&
